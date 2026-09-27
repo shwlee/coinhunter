@@ -27,55 +27,6 @@
         <div class="intro-mark"><span>01</span> PLAYGROUND</div>
       </section>
       <div class="workspace">
-        <aside class="setup panel">
-          <div class="panel-heading">
-            <h2>경기 준비</h2>
-            <span class="small-tag">JAVASCRIPT</span>
-          </div>
-          <form id="setup-form">
-            <label class="field-label" for="algorithm-file"><span>01</span> 알고리즘</label>
-            <label class="upload-zone" id="drop-zone" for="algorithm-file"
-              ><span class="upload-icon">↑</span
-              ><strong id="file-label">.js 파일을 선택하세요</strong
-              ><span>클릭하거나 파일을 끌어다 놓으세요</span
-              ><input
-                id="algorithm-file"
-                type="file"
-                accept=".js,text/javascript"
-                aria-describedby="file-help"
-            /></label>
-            <p id="file-help" class="help">최대 64 KiB · 한 파일의 동기 알고리즘</p>
-            <a href="/api/example" class="text-link" download="nearest-coin.js"
-              >샘플 알고리즘 내려받기 <span>↗</span></a
-            >
-            <label class="field-label" for="map-select"><span>02</span> 맵 선택</label>
-            <select id="map-select" required></select>
-            <div class="map-meta"><span>상하좌우 대칭</span><span id="map-size">12 × 10</span></div>
-            <label class="field-label" for="dummy-count"><span>03</span> 더미 플레이어</label>
-            <select id="dummy-count">
-              <option value="0">혼자 연습하기</option>
-              <option value="1">더미 1명과 대결</option>
-              <option value="2">더미 2명과 대결</option>
-              <option value="3" selected>더미 3명과 대결</option>
-            </select>
-            <p class="dummy-note">
-              <canvas id="dummy-portrait" width="80" height="100" aria-label="코비 로봇"></canvas
-              ><span><strong>코비</strong> · 더미 전용<br />AI 로봇과 전략을 연습하세요.</span>
-            </p>
-            <div class="field-label"><span>04</span> 랜덤 기믹</div>
-            <label class="toggle-row"
-              ><span>BlackMatter 출현<small>500점 코인이 추가됩니다</small></span
-              ><input id="black-matter" type="checkbox" role="switch"
-            /></label>
-            <label class="toggle-row"
-              ><span>벽 파괴<small>새로운 길이 열립니다</small></span
-              ><input id="destroy-walls" type="checkbox" role="switch"
-            /></label>
-            <p class="item-note">아이템 출현은 맵에 지정된 규칙을 따릅니다.</p>
-            <button id="stop-button" class="secondary" type="button" hidden>경기 종료</button>
-            <p id="error-message" class="error-message" role="alert"></p>
-          </form>
-        </aside>
         <section class="arena-column">
           <div class="arena panel">
             <div class="arena-heading">
@@ -94,71 +45,154 @@
                 aria-label="게임 맵과 플레이어 위치"
               ></canvas>
               <div class="arena-overlay" id="arena-overlay">
+                <p id="setup-progress" class="setup-step-label" aria-live="polite"></p>
                 <div id="arena-message" class="arena-message">
                   <strong>함께할 캐릭터를 선택하세요</strong>
                   <p>알고리즘을 업로드한 뒤 경기를 시작하세요.</p>
                 </div>
-                <section id="character-step" class="character-panel" aria-label="캐릭터 선택">
-                  <p class="setup-step-label">01 캐릭터 선택 → 02 시작 위치</p>
-                  <fieldset id="character-options" class="character-options">
-                    <legend class="sr-only">플레이어 캐릭터</legend>
-                  </fieldset>
-                  <p class="help">모든 캐릭터의 능력치는 같습니다 · 더미는 코비</p>
-                  <p id="character-load-status" class="help" role="status">
-                    캐릭터를 불러오고 있습니다…
-                  </p>
-                  <button id="position-next" type="button" class="setup-next">
-                    다음 · 시작 위치 선택 →
-                  </button>
-                </section>
-                <section
-                  id="position-step"
-                  class="position-panel"
-                  aria-label="시작 위치 선택"
-                  hidden
-                >
-                  <p class="setup-step-label">01 캐릭터 선택 → <strong>02 시작 위치</strong></p>
-                  <fieldset id="position-options" class="position-options">
-                    <legend class="sr-only">내 캐릭터의 시작 위치</legend>
-                    <label
-                      ><input type="radio" name="start-slot" value="0" checked /><span
-                        >↖ 왼쪽 위</span
-                      ></label
+                <button id="play-again" class="setup-next" type="button" hidden>
+                  다시 플레이 →
+                </button>
+                <form id="setup-form" class="setup-wizard">
+                  <section id="file-step" class="wizard-step">
+                    <label class="field-label" for="algorithm-file"><span>01</span> 알고리즘</label>
+                    <label class="upload-zone" id="drop-zone" for="algorithm-file"
+                      ><span class="upload-icon">↑</span
+                      ><strong id="file-label">.js 파일을 선택하세요</strong
+                      ><span>클릭하거나 파일을 끌어다 놓으세요</span
+                      ><input
+                        id="algorithm-file"
+                        type="file"
+                        accept=".js,text/javascript"
+                        aria-describedby="file-help"
+                    /></label>
+                    <p id="file-help" class="help">최대 64 KiB · 한 파일의 동기 알고리즘</p>
+                    <a href="/api/example" class="text-link" download="nearest-coin.js"
+                      >샘플 알고리즘 내려받기 <span>↗</span></a
                     >
-                    <label
-                      ><input type="radio" name="start-slot" value="1" /><span
-                        >오른쪽 위 ↗</span
-                      ></label
-                    >
-                    <label
-                      ><input type="radio" name="start-slot" value="2" /><span
-                        >↙ 왼쪽 아래</span
-                      ></label
-                    >
-                    <label
-                      ><input type="radio" name="start-slot" value="3" /><span
-                        >오른쪽 아래 ↘</span
-                      ></label
-                    >
-                  </fieldset>
-                  <p id="position-summary" class="help" role="status"></p>
-                  <p class="help">더미는 남은 모서리에서 시작합니다.</p>
-                  <div class="position-actions">
-                    <button id="character-back" type="button" class="character-back">
-                      ← 캐릭터 변경
-                    </button>
-                    <button
-                      id="start-button"
-                      class="primary"
-                      type="submit"
-                      form="setup-form"
-                      disabled
-                    >
-                      경기 시작 →
-                    </button>
-                  </div>
-                </section>
+                    <div class="position-actions">
+                      <button id="file-next" type="button" class="primary" disabled>다음 →</button>
+                    </div>
+                  </section>
+                  <section id="settings-step" class="wizard-step" hidden>
+                    <div class="settings-fields">
+                      <div>
+                        <label class="field-label" for="map-select"><span>02</span> 맵 선택</label>
+                        <select id="map-select" required></select>
+                        <div class="map-meta">
+                          <span>상하좌우 대칭</span><span id="map-size">12 × 10</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label class="field-label" for="dummy-count"
+                          ><span>03</span> 더미 플레이어</label
+                        >
+                        <select id="dummy-count">
+                          <option value="0">혼자 연습하기</option>
+                          <option value="1">더미 1명과 대결</option>
+                          <option value="2">더미 2명과 대결</option>
+                          <option value="3" selected>더미 3명과 대결</option>
+                        </select>
+                      </div>
+                    </div>
+                    <p class="dummy-note">
+                      <canvas
+                        id="dummy-portrait"
+                        width="80"
+                        height="100"
+                        aria-label="코비 로봇"
+                      ></canvas
+                      ><span
+                        ><strong>코비</strong> · 더미 전용<br />AI 로봇과 전략을 연습하세요.</span
+                      >
+                    </p>
+                    <div class="field-label"><span>04</span> 랜덤 기믹</div>
+                    <label class="toggle-row"
+                      ><span>BlackMatter 출현<small>500점 코인이 추가됩니다</small></span
+                      ><input id="black-matter" type="checkbox" role="switch"
+                    /></label>
+                    <label class="toggle-row"
+                      ><span>벽 파괴<small>새로운 길이 열립니다</small></span
+                      ><input id="destroy-walls" type="checkbox" role="switch"
+                    /></label>
+                    <p class="item-note">아이템 출현은 맵에 지정된 규칙을 따릅니다.</p>
+                    <div class="position-actions">
+                      <button id="file-back" type="button" class="character-back">← 이전</button
+                      ><button id="settings-next" type="button" class="primary">다음 →</button>
+                    </div>
+                  </section>
+                  <section
+                    id="character-step"
+                    hidden
+                    class="character-panel"
+                    aria-label="캐릭터 선택"
+                  >
+                    <fieldset id="character-options" class="character-options">
+                      <legend class="sr-only">플레이어 캐릭터</legend>
+                    </fieldset>
+                    <p class="help">모든 캐릭터의 능력치는 같습니다 · 더미는 코비</p>
+                    <p id="character-load-status" class="help" role="status">
+                      캐릭터를 불러오고 있습니다…
+                    </p>
+                    <div class="position-actions">
+                      <button id="settings-back" type="button" class="character-back">← 이전</button
+                      ><button id="position-next" type="button" class="setup-next">
+                        다음 · 시작 위치 선택 →
+                      </button>
+                    </div>
+                  </section>
+                  <section
+                    id="position-step"
+                    class="position-panel"
+                    aria-label="시작 위치 선택"
+                    hidden
+                  >
+                    <fieldset id="position-options" class="position-options">
+                      <legend class="sr-only">내 캐릭터의 시작 위치</legend>
+                      <label
+                        ><input type="radio" name="start-slot" value="0" checked /><span
+                          >↖ 왼쪽 위</span
+                        ></label
+                      >
+                      <label
+                        ><input type="radio" name="start-slot" value="1" /><span
+                          >오른쪽 위 ↗</span
+                        ></label
+                      >
+                      <label
+                        ><input type="radio" name="start-slot" value="2" /><span
+                          >↙ 왼쪽 아래</span
+                        ></label
+                      >
+                      <label
+                        ><input type="radio" name="start-slot" value="3" /><span
+                          >오른쪽 아래 ↘</span
+                        ></label
+                      >
+                    </fieldset>
+                    <p id="position-summary" class="help" role="status"></p>
+                    <p class="help">더미는 남은 모서리에서 시작합니다.</p>
+                    <div class="position-actions">
+                      <button id="character-back" type="button" class="character-back">
+                        ← 캐릭터 변경
+                      </button>
+                      <button
+                        id="start-button"
+                        class="primary"
+                        type="submit"
+                        form="setup-form"
+                        disabled
+                      >
+                        경기 시작 →
+                      </button>
+                    </div>
+                  </section>
+                </form>
               </div>
+            </div>
+            <div class="match-toolbar">
+              <button id="stop-button" class="secondary" type="button" hidden>경기 종료</button>
+              <p id="error-message" class="error-message" role="alert"></p>
             </div>
             <div class="legend">
               <span><i class="coin-dot copper"></i>10</span

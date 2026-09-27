@@ -3,7 +3,14 @@ import { loadCharacters, drawCharacter } from './character-renderer.js';
 const $ = (id) => document.getElementById(id);
 let selectedCharacter = DEFAULT_CHARACTER;
 let charactersReady = false;
-let setupStep = 'character';
+let setupStep = 'file';
+const setupSteps = ['file', 'settings', 'character', 'position'];
+const stepTitles = [
+  '알고리즘 파일을 선택하세요',
+  '맵과 경기 옵션을 설정하세요',
+  '함께할 캐릭터를 선택하세요',
+  '시작 위치를 선택하세요',
+];
 let selectedStartSlot = 0;
 const startNames = ['왼쪽 위', '오른쪽 위', '왼쪽 아래', '오른쪽 아래'];
 try {
@@ -25,7 +32,7 @@ for (const character of CHARACTERS.filter((c) => c.playable)) {
     } catch {
       /* Optional preference. */
     }
-    if (game) renderInfo();
+    if (game?.status === 'ready') renderInfo();
   });
   $('character-options').append(label);
 }
@@ -61,18 +68,44 @@ function controls() {
   $('position-options').disabled = busy || active();
   $('position-next').disabled = !charactersReady || busy || active();
   $('character-back').disabled = busy || active();
+  $('file-next').disabled = !source || busy || active();
+  $('settings-next').disabled = !source || !maps.length || !charactersReady || busy || active();
+  for (const id of ['file-back', 'settings-back']) $(id).disabled = busy || active();
 }
 function showSetupStep(step) {
+  if (busy || active()) return;
+  if (step !== 'file' && !source) step = 'file';
   setupStep = step;
-  $('character-step').hidden = step !== 'character';
-  $('position-step').hidden = step !== 'position';
+  $('setup-form').hidden = false;
+  $('setup-progress').hidden = false;
+  $('play-again').hidden = true;
+  for (const name of setupSteps) $(`${name}-step`).hidden = name !== step;
+  $('setup-progress').textContent =
+    `${setupSteps.indexOf(step) + 1} / 4 · 알고리즘 → 경기 설정 → 캐릭터 → 시작 위치`;
   $('position-summary').textContent =
     `${characterFor(selectedCharacter).name} · ${startNames[selectedStartSlot]}에서 시작`;
-  if (game?.status === 'ready') {
-    $('arena-message').querySelector('strong').textContent =
-      step === 'character' ? '함께할 캐릭터를 선택하세요' : '시작 위치를 선택하세요';
-  }
+  $('arena-message').querySelector('strong').textContent = stepTitles[setupSteps.indexOf(step)];
+  $('arena-message').querySelector('p').textContent =
+    step === 'file'
+      ? '샘플 파일을 내려받거나 자신의 .js 파일을 올리세요.'
+      : '선택한 값은 이전 단계로 돌아가도 유지됩니다.';
   controls();
+}
+$('play-again').addEventListener('click', () => {
+  if (busy || active()) return;
+  showSetupStep('file');
+  $('algorithm-file').focus();
+});
+for (const [id, step] of [
+  ['file-next', 'settings'],
+  ['file-back', 'file'],
+  ['settings-next', 'character'],
+  ['settings-back', 'settings'],
+]) {
+  $(id).addEventListener('click', () => {
+    showSetupStep(step);
+    $(`${step}-step`).querySelector('input,select,button').focus();
+  });
 }
 $('position-next').addEventListener('click', () => {
   showSetupStep('position');
@@ -91,6 +124,7 @@ for (const input of document.querySelectorAll('input[name="start-slot"]')) {
 async function loadFile(file) {
   if (busy || active() || !file) return;
   source = '';
+  controls();
   if (!file.name.toLowerCase().endsWith('.js') || file.size > 65536) {
     setError('64 KiB 이하의 .js 파일을 선택하세요.');
     controls();
@@ -188,7 +222,6 @@ function connect() {
     renderLogs(data.logs);
     controls();
     if (game.status === 'finished') {
-      showSetupStep('character');
       events.close();
       sessionStorage.removeItem('coinhunter-match');
     }
@@ -224,6 +257,9 @@ function renderInfo() {
   const overlay = $('arena-overlay');
   overlay.hidden = active();
   if (game.status === 'finished') {
+    $('setup-form').hidden = true;
+    $('setup-progress').hidden = true;
+    $('play-again').hidden = false;
     const highest = Math.max(...game.players.map((p) => p.score));
     const winners = game.players
       .filter((p) => p.score === highest)

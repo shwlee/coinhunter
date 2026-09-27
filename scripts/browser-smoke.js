@@ -27,6 +27,39 @@ try {
   await page.waitForSelector('#map-select option', { state: 'attached' });
   assert.equal(await page.locator('#start-button').isDisabled(), true);
   assert.equal(await page.locator('input[name="character"]').count(), 4);
+  assert.equal(await page.locator('#file-step').isVisible(), true);
+  await mkdir('artifacts', { recursive: true });
+  await page.screenshot({ path: 'artifacts/wizard-file.png', fullPage: true });
+  assert.equal(await page.locator('#file-next').isDisabled(), true);
+  await page
+    .locator('#algorithm-file')
+    .setInputFiles({ name: 'invalid.txt', mimeType: 'text/plain', buffer: Buffer.from('invalid') });
+  assert.equal(await page.locator('#file-next').isDisabled(), true);
+  await page
+    .locator('#algorithm-file')
+    .setInputFiles(fileURLToPath(new URL('../examples/nearest-coin.js', import.meta.url)));
+  await page.locator('#file-next').click();
+  assert.equal(await page.locator('#settings-step').isVisible(), true);
+  for (const width of [1440, 1024, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    const layout = await page.locator('#arena-overlay').evaluate((overlay) => ({
+      verticalOverflow: overlay.scrollHeight - overlay.clientHeight,
+      horizontalOverflow: overlay.scrollWidth - overlay.clientWidth,
+    }));
+    assert.ok(layout.verticalOverflow <= 1, `Settings must not scroll vertically at ${width}px`);
+    assert.ok(
+      layout.horizontalOverflow <= 1,
+      `Settings must not scroll horizontally at ${width}px`,
+    );
+  }
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await page.screenshot({ path: 'artifacts/wizard-settings.png', fullPage: true });
+  await page.locator('#black-matter').check();
+  await page.locator('#file-back').click();
+  assert.equal(await page.locator('#file-label').textContent(), 'nearest-coin.js');
+  await page.locator('#file-next').click();
+  assert.equal(await page.locator('#black-matter').isChecked(), true);
+  await page.locator('#settings-next').click();
   assert.equal(await page.locator('#arena-overlay .character-options').isVisible(), true);
   await page.locator('.character-card.lumi').click();
   assert.equal(await page.getByRole('radio', { name: '루미', exact: true }).isChecked(), true);
@@ -44,9 +77,6 @@ try {
   assert.equal(await page.locator('.character-options').isVisible(), false);
   await page.getByRole('radio', { name: '오른쪽 아래' }).check();
   await page.screenshot({ path: 'artifacts/desktop-position.png', fullPage: true });
-  await page
-    .locator('#algorithm-file')
-    .setInputFiles(fileURLToPath(new URL('../examples/nearest-coin.js', import.meta.url)));
   await page.locator('#start-button').click();
   await page.locator('#game-status').filter({ hasText: '진행 중' }).waitFor();
   assert.equal(await page.locator('.character-options').isVisible(), false);
@@ -63,7 +93,20 @@ try {
   await page.locator('#stop-button').click();
   await page.locator('#game-status').filter({ hasText: '경기 종료' }).waitFor();
   assert.equal(await page.locator('#arena-overlay').isVisible(), true);
-  assert.equal(await page.locator('.character-options').isVisible(), true);
+  assert.equal(await page.locator('#file-step').isVisible(), false);
+  assert.equal(await page.locator('#setup-progress').isVisible(), false);
+  assert.equal(
+    await page.locator('#arena-message').innerText(),
+    '경기를 종료했습니다\n\n알고리즘을 바꾸고 새로운 전략에 도전하세요.',
+  );
+  await page.locator('#play-again').click();
+  assert.equal(await page.locator('#file-step').isVisible(), true);
+  assert.equal(await page.locator('#play-again').isVisible(), false);
+  await page
+    .locator('#algorithm-file')
+    .setInputFiles(fileURLToPath(new URL('../examples/nearest-coin.js', import.meta.url)));
+  await page.locator('#file-next').click();
+  await page.locator('#settings-next').click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('.character-card.dino').click();
   assert.equal(await page.getByRole('radio', { name: '디노', exact: true }).isChecked(), true);
@@ -109,18 +152,33 @@ try {
     initialize(){this.calls=0;} getName(){return '회복 확인';}
     moveNext(){this.calls++;if(this.calls===1)while(true){};debug.print('회복',this.calls);return 2;}
   }`;
+  await page.locator('#character-back').click();
+  await page.locator('#settings-back').click();
+  await page.locator('#file-back').click();
   await page.locator('#algorithm-file').setInputFiles({
     name: 'timeout.js',
     mimeType: 'text/javascript',
     buffer: Buffer.from(timeoutSource),
   });
+  await page.screenshot({ path: 'artifacts/wizard-mobile-file.png', fullPage: true });
+  await page.locator('#file-next').click();
+  const nextBounds = await page.locator('#settings-next').boundingBox();
+  const panelBounds = await page.locator('#arena-overlay').boundingBox();
+  assert.ok(nextBounds.y + nextBounds.height <= panelBounds.y + panelBounds.height);
+  await page.screenshot({ path: 'artifacts/wizard-mobile-settings.png', fullPage: true });
   await page.locator('#dummy-count').selectOption('0');
+  await page.locator('#settings-next').click();
+  await page.locator('#position-next').click();
   await page.locator('#start-button').click();
   await page.locator('#debug-output').filter({ hasText: 'timeout' }).waitFor();
   await page.locator('#debug-output').filter({ hasText: '회복 2' }).waitFor();
   assert.equal(await page.locator('.score-card[data-character="dino"]').count(), 1);
   await page.locator('#stop-button').click();
   await page.locator('#game-status').filter({ hasText: '경기 종료' }).waitFor();
+  assert.equal(await page.locator('#setup-form').isVisible(), false);
+  await page.locator('#play-again').click();
+  assert.equal(await page.locator('#file-label').textContent(), 'timeout.js');
+  assert.equal(await page.locator('#file-next').isEnabled(), true);
   assert.deepEqual(errors, []);
   console.log(
     'Browser smoke passed: upload, four players, scoring, reconnect, stop, mobile layout, timeout recovery.',
