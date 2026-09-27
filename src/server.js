@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { MAPS } from './game/maps.js';
 import { Match } from './game/match.js';
+import { DEFAULT_CHARACTER, isPlayableCharacter } from '../public/characters.js';
 import { MAX_SOURCE_BYTES, validateSource } from './runtime/policy.js';
 
 const sampleSource = await readFile(
@@ -15,6 +16,9 @@ const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
+  ['/characters.js', ['characters.js', 'text/javascript; charset=utf-8']],
+  ['/character-renderer.js', ['character-renderer.js', 'text/javascript; charset=utf-8']],
+  ['/assets/characters/atlas.png', ['assets/characters/atlas.png', 'image/png']],
 ]);
 
 async function readJson(request) {
@@ -106,6 +110,11 @@ export function createGameServer() {
           return;
         }
         const input = await readJson(request);
+        const characterId = input.characterId === undefined ? DEFAULT_CHARACTER : input.characterId;
+        if (!isPlayableCharacter(characterId)) {
+          json(response, 400, { error: '선택할 수 없는 캐릭터입니다.' });
+          return;
+        }
         const map = MAPS.find((item) => item.id === input.mapId);
         if (
           !map ||
@@ -134,7 +143,7 @@ export function createGameServer() {
         const match = new Match(
           map,
           [input.source, ...Array(input.dummyCount).fill(sampleSource)],
-          { blackMatter: input.blackMatter, destroyWalls: input.destroyWalls },
+          { blackMatter: input.blackMatter, destroyWalls: input.destroyWalls, characterId },
         );
         const record = { owner, match, initializing: true, createdAt: Date.now() };
         matches.set(id, record);

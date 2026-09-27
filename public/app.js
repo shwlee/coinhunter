@@ -1,4 +1,31 @@
+import { CHARACTERS, DEFAULT_CHARACTER, characterFor, isPlayableCharacter } from './characters.js';
+import { loadCharacters, drawCharacter } from './character-renderer.js';
 const $ = (id) => document.getElementById(id);
+let selectedCharacter = DEFAULT_CHARACTER;
+let charactersReady = false;
+try {
+  const saved = localStorage.getItem('coinhunter-character');
+  if (isPlayableCharacter(saved)) selectedCharacter = saved;
+} catch {
+  /* Browser storage can be disabled. */
+}
+for (const character of CHARACTERS.filter((c) => c.playable)) {
+  const label = document.createElement('label');
+  label.className = `character-card ${character.id}`;
+  label.innerHTML = `<input type="radio" name="character" value="${character.id}" aria-label="${character.name}"><span class="character-art"><canvas width="180" height="200" aria-hidden="true"></canvas></span><span class="character-name">${character.name}<span class="selection-mark" aria-hidden="true">✓</span></span><span class="character-description">${character.description}</span>`;
+  const input = label.querySelector('input');
+  input.checked = character.id === selectedCharacter;
+  input.addEventListener('change', () => {
+    selectedCharacter = character.id;
+    try {
+      localStorage.setItem('coinhunter-character', selectedCharacter);
+    } catch {
+      /* Optional preference. */
+    }
+    if (game) renderInfo();
+  });
+  $('character-options').append(label);
+}
 const colors = ['#b6f36e', '#72bcff', '#ffac86', '#c5a2ff'];
 const itemIcons = ['👟', '🔨', '💵', '🎲'];
 const effectNames = ['신발', '망치', 'x2', '점프'];
@@ -21,11 +48,12 @@ function active() {
   return game && (game.status === 'playing' || game.status === 'hurryup');
 }
 function controls() {
-  $('start-button').disabled = !source || busy || active();
+  $('start-button').disabled = !source || !charactersReady || busy || active();
   $('start-button').textContent = busy ? '알고리즘 준비 중…' : '경기 시작 →';
   $('stop-button').hidden = !active();
   for (const id of ['algorithm-file', 'map-select', 'dummy-count', 'black-matter', 'destroy-walls'])
     $(id).disabled = busy || active();
+  $('character-options').disabled = busy || active();
 }
 async function loadFile(file) {
   if (busy || active() || !file) return;
@@ -73,7 +101,7 @@ function preview() {
 
 $('setup-form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (!source || busy || active()) return;
+  if (!source || !charactersReady || busy || active()) return;
   busy = true;
   controls();
   setError('');
@@ -84,6 +112,7 @@ $('setup-form').addEventListener('submit', async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         source,
+        characterId: selectedCharacter,
         mapId: $('map-select').value,
         dummyCount: Number($('dummy-count').value),
         blackMatter: $('black-matter').checked,
@@ -109,6 +138,12 @@ function connect() {
   events.addEventListener('snapshot', (event) => {
     const data = JSON.parse(event.data);
     game = data.game;
+    const characterId = game.players[0]?.characterId;
+    if (isPlayableCharacter(characterId)) {
+      selectedCharacter = characterId;
+      for (const input of document.querySelectorAll('input[name="character"]'))
+        input.checked = input.value === characterId;
+    }
     serverAt = game.serverTime;
     receivedAt = performance.now();
     renderInfo();
@@ -176,6 +211,7 @@ function renderInfo() {
     : Array.from({ length: 4 }, (_, id) => ({
         id,
         name: id ? '더미 ' + id : '내 알고리즘',
+        characterId: id ? 'kobi' : selectedCharacter,
         score: 0,
         turn: 0,
       }));
@@ -185,10 +221,16 @@ function renderInfo() {
       card = document.createElement('div');
       card.className = 'score-card';
       card.innerHTML =
-        '<div class="name"><i class="player-marker"></i><span></span></div><div class="score"></div><div class="detail"></div>';
+        '<canvas class="score-portrait" width="64" height="80" aria-hidden="true"></canvas><div class="character-caption"></div><div class="name"><i class="player-marker"></i><span></span></div><div class="score"></div><div class="detail"></div>';
       $('scoreboard').append(card);
     }
     const player = players[i];
+    card.dataset.character = player.characterId;
+    card.querySelector('.character-caption').textContent = characterFor(player.characterId).name;
+    const portrait = card.querySelector('canvas');
+    const portraitContext = portrait.getContext('2d');
+    portraitContext.clearRect(0, 0, portrait.width, portrait.height);
+    drawCharacter(portraitContext, player.characterId, 32, 80, 80);
     card.querySelector('.name span').textContent = player.name;
     card.querySelector('.player-marker').style.backgroundColor = colors[player.id];
     card.querySelector('.score').textContent = player.score.toLocaleString();
@@ -316,27 +358,43 @@ function draw() {
       ctx.rotate(Math.sin(progress * Math.PI * 3) * 0.12);
     if (player.effect?.type === 0 && action?.type === 'move') {
       ctx.globalAlpha = 0.18;
-      roundRect(-30, -13, 34, 31, 8, colors[player.id]);
+      const trailX = Math.sign((action.to % game.columns) - (action.from % game.columns)) * -14;
+      const trailY =
+        Math.sign(Math.floor(action.to / game.columns) - Math.floor(action.from / game.columns)) *
+        -14;
+      drawCharacter(ctx, player.characterId, trailX, 27 + trailY, 72, 1, trailX > 0);
       ctx.globalAlpha = 1;
     }
     ctx.fillStyle = '#00000055';
     ctx.beginPath();
     ctx.ellipse(0, 19, 20, 8, 0, 0, Math.PI * 2);
     ctx.fill();
-    roundRect(-19, -18, 38, 37, 9, colors[player.id]);
-    roundRect(-13, -10, 26, 16, 5, '#152130');
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(-8, -5, 4, 5);
-    ctx.fillRect(4, -5, 4, 5);
-    roundRect(-14, 16, 10, 8, 3, colors[player.id]);
-    roundRect(4, 16, 10, 8, 3, colors[player.id]);
+    ctx.strokeStyle = colors[player.id];
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(0, 21, 21, 7, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    const walking = action?.type === 'move';
+    const bob = walking
+      ? Math.sin(progress * Math.PI * 2) * 3
+      : Math.sin(now / 350 + player.id) * 0.7;
+    const flip = walking && action.to % game.columns < action.from % game.columns;
+    drawCharacter(
+      ctx,
+      player.characterId,
+      0,
+      27 + bob,
+      72,
+      walking && progress > 0.15 && progress < 0.8 ? 1 : 0,
+      flip,
+    );
     ctx.textAlign = 'center';
     ctx.font = 'bold 11px monospace';
-    ctx.fillStyle = '#0c1420';
-    ctx.fillText(String(player.id + 1), 0, 15);
+    ctx.fillStyle = colors[player.id];
+    ctx.fillText(`P${player.id + 1}`, 0, 34);
     if (player.effect) {
       ctx.font = '22px sans-serif';
-      ctx.fillText(itemIcons[player.effect.type], 0, -26);
+      ctx.fillText(itemIcons[player.effect.type], 0, -42);
     }
     if (player.effect?.type === 1) {
       roundRect(-21, -21, 42, 8, 3, '#f6cc67');
@@ -367,6 +425,20 @@ function draw() {
   }
 }
 
+try {
+  await loadCharacters();
+  charactersReady = true;
+  $('character-load-status').textContent =
+    '캐릭터를 고른 뒤 알고리즘을 업로드하세요. 더미는 코비로 참가합니다.';
+  for (const card of document.querySelectorAll('.character-card')) {
+    const portrait = card.querySelector('canvas');
+    drawCharacter(portrait.getContext('2d'), card.querySelector('input').value, 90, 198, 200);
+  }
+  drawCharacter($('dummy-portrait').getContext('2d'), 'kobi', 40, 100, 100);
+} catch {
+  $('character-load-status').textContent =
+    '캐릭터 이미지를 불러오지 못했습니다. 새로고침해 주세요.';
+}
 try {
   const response = await fetch('/api/maps');
   const data = await response.json();

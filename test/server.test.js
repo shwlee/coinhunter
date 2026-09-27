@@ -20,11 +20,27 @@ test(
       body: '{}',
     });
     assert.equal(invalid.status, 403);
+    for (const characterId of ['kobi', 'unknown', null]) {
+      const badCharacter = await fetch(base + '/api/matches', {
+        method: 'POST',
+        headers: { cookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source,
+          mapId: maps[0].id,
+          dummyCount: 1,
+          blackMatter: false,
+          destroyWalls: false,
+          characterId,
+        }),
+      });
+      assert.equal(badCharacter.status, 400);
+    }
     const created = await fetch(base + '/api/matches', {
       method: 'POST',
       headers: { cookie, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         source,
+        characterId: 'lumi',
         mapId: maps[0].id,
         dummyCount: 1,
         blackMatter: false,
@@ -37,7 +53,12 @@ test(
     assert.equal(forbidden.status, 404);
     const own = await fetch(base + '/api/matches/' + id, { headers: { cookie } });
     assert.equal(own.status, 200);
-    assert.equal((await own.json()).game.players.length, 2);
+    const players = (await own.json()).game.players;
+    assert.equal(players.length, 2);
+    assert.deepEqual(
+      players.map((p) => p.characterId),
+      ['lumi', 'kobi'],
+    );
     const duplicate = await fetch(base + '/api/matches', {
       method: 'POST',
       headers: { cookie, 'Content-Type': 'application/json' },

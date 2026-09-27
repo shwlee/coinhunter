@@ -655,3 +655,150 @@ footer > span:last-child {
     width: 100%;
   }
 }
+/* Character selection uses native radios for keyboard and screen-reader support. */
+.character-panel {
+  padding: 22px 26px;
+  margin-bottom: 24px;
+}
+.character-options {
+  border: 0;
+  padding: 0;
+  margin: 16px 0 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.character-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2px solid #354558;
+  border-radius: 16px;
+  padding: 12px;
+  cursor: pointer;
+  background: #172433;
+  transition:
+    border-color 0.15s,
+    transform 0.15s;
+  min-width: 0;
+}
+.character-card:hover {
+  transform: translateY(-3px);
+}
+.character-card:has(input:checked) {
+  border-color: #b6f36e;
+  background: #233b34;
+}
+.character-card:has(input:focus-visible) {
+  outline: 3px solid #fff;
+  outline-offset: 4px;
+}
+.character-card input,
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.character-art {
+  width: 100%;
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  border-radius: 11px;
+  background: radial-gradient(ellipse, #b2dfff55, transparent 70%);
+}
+.nyangtami .character-art {
+  background: radial-gradient(ellipse, #c7dc9355, transparent 70%);
+}
+.dino .character-art {
+  background: radial-gradient(ellipse, #ffd68355, transparent 70%);
+}
+.lumi .character-art {
+  background: radial-gradient(ellipse, #c2a1fa66, transparent 70%);
+}
+.character-art canvas {
+  height: 150px;
+  width: 135px;
+  max-width: 100%;
+  object-fit: contain;
+}
+.character-name {
+  font-size: 18px;
+  font-weight: 800;
+  margin-top: 5px;
+}
+.selection-mark {
+  margin-left: 8px;
+  color: #b6f36e;
+  visibility: hidden;
+}
+.character-card:has(input:checked) .selection-mark {
+  visibility: visible;
+}
+.character-description {
+  font-size: 12px;
+  color: #aab8c6;
+  margin-top: 6px;
+  text-align: center;
+}
+.character-options:disabled .character-card {
+  cursor: default;
+  transform: none;
+}
+.character-options:disabled .character-card:not(:has(input:checked)) {
+  opacity: 0.5;
+}
+.dummy-note {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: #aab8c6;
+  gap: 8px;
+  line-height: 1.8;
+}
+.dummy-note canvas {
+  width: 40px;
+  height: 50px;
+}
+.score-portrait {
+  float: right;
+  width: 40px;
+  height: 50px;
+}
+.character-caption {
+  color: #c8d8e4;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+@media (max-width: 720px) {
+  .character-panel {
+    padding: 18px;
+  }
+  .character-panel .small-tag {
+    display: none;
+  }
+  .character-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .character-card {
+    padding: 8px;
+  }
+  .character-art,
+  .character-art canvas {
+    height: 125px;
+  }
+  .character-description {
+    font-size: 10px;
+  }
+  .score-portrait {
+    float: none;
+    display: block;
+    margin: auto;
+  }
+}

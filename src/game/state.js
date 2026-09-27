@@ -1,4 +1,5 @@
 import { validateMap } from './maps.js';
+import { DEFAULT_CHARACTER, isPlayableCharacter } from '../../public/characters.js';
 
 export class GameState {
   constructor(map, names, options = {}, random = Math.random) {
@@ -15,6 +16,11 @@ export class GameState {
     this.players = names.map((name, id) => ({
       id,
       name,
+      characterId: id
+        ? 'kobi'
+        : isPlayableCharacter(options.characterId)
+          ? options.characterId
+          : DEFAULT_CHARACTER,
       position: starts[id],
       score: 0,
       turn: 0,

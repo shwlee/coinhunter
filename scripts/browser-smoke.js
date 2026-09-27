@@ -26,6 +26,17 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.waitForSelector('#map-select option', { state: 'attached' });
   assert.equal(await page.locator('#start-button').isDisabled(), true);
+  assert.equal(await page.locator('input[name="character"]').count(), 4);
+  await page.locator('.character-card.lumi').click();
+  assert.equal(await page.getByRole('radio', { name: '루미', exact: true }).isChecked(), true);
+  const spritePixels = await page.locator('.lumi canvas').evaluate((canvas) => {
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let opaque = 0;
+    for (let i = 3; i < pixels.length; i += 4) if (pixels[i]) opaque++;
+    return { corner: pixels[3], opaque };
+  });
+  assert.equal(spritePixels.corner, 0);
+  assert.ok(spritePixels.opaque > 1000, 'Character portrait must be rendered');
   await mkdir('artifacts', { recursive: true });
   await page.screenshot({ path: 'artifacts/desktop-ready.png', fullPage: true });
   await page
@@ -36,8 +47,12 @@ try {
   await page.locator('.score-card .score').filter({ hasText: /[1-9]/ }).first().waitFor();
   await page.screenshot({ path: 'artifacts/desktop-playing.png', fullPage: true });
   assert.equal(await page.locator('.score-card').count(), 4);
+  assert.equal(await page.locator('.score-card[data-character="lumi"]').count(), 1);
+  assert.equal(await page.locator('.score-card[data-character="kobi"]').count(), 3);
+  assert.equal(await page.getByRole('radio', { name: '펭코', exact: true }).isDisabled(), true);
   await page.reload();
   await page.locator('#game-status').filter({ hasText: '진행 중' }).waitFor();
+  assert.equal(await page.getByRole('radio', { name: '루미', exact: true }).isChecked(), true);
   await page.locator('#stop-button').click();
   await page.locator('#game-status').filter({ hasText: '경기 종료' }).waitFor();
   assert.equal(await page.locator('#arena-overlay').isVisible(), true);

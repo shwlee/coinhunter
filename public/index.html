@@ -26,6 +26,17 @@
         </div>
         <div class="intro-mark"><span>01</span> PLAYGROUND</div>
       </section>
+      <section class="character-panel panel" aria-labelledby="character-heading">
+        <div class="panel-heading">
+          <h2 id="character-heading">함께할 캐릭터를 선택하세요</h2>
+          <span class="small-tag">CHOOSE YOUR PARTNER</span>
+        </div>
+        <p class="help">외형만 다르며, 모든 캐릭터의 능력치는 같습니다.</p>
+        <fieldset id="character-options" class="character-options">
+          <legend class="sr-only">플레이어 캐릭터</legend>
+        </fieldset>
+        <p id="character-load-status" class="help" role="status">캐릭터를 불러오고 있습니다…</p>
+      </section>
       <div class="workspace">
         <aside class="setup panel">
           <div class="panel-heading">
@@ -58,6 +69,10 @@
               <option value="2">더미 2명과 대결</option>
               <option value="3" selected>더미 3명과 대결</option>
             </select>
+            <p class="dummy-note">
+              <canvas id="dummy-portrait" width="80" height="100" aria-label="코비 로봇"></canvas
+              ><span><strong>코비</strong> · 더미 전용<br />AI 로봇과 전략을 연습하세요.</span>
+            </p>
             <div class="field-label"><span>04</span> 랜덤 기믹</div>
             <label class="toggle-row"
               ><span>BlackMatter 출현<small>500점 코인이 추가됩니다</small></span
