@@ -20,6 +20,21 @@ test(
       body: '{}',
     });
     assert.equal(invalid.status, 403);
+    for (const startSlot of [-1, 4, 1.5, '1', null]) {
+      const badSlot = await fetch(base + '/api/matches', {
+        method: 'POST',
+        headers: { cookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source,
+          mapId: maps[0].id,
+          dummyCount: 1,
+          blackMatter: false,
+          destroyWalls: false,
+          startSlot,
+        }),
+      });
+      assert.equal(badSlot.status, 400);
+    }
     for (const characterId of ['kobi', 'unknown', null]) {
       const badCharacter = await fetch(base + '/api/matches', {
         method: 'POST',
@@ -41,6 +56,7 @@ test(
       body: JSON.stringify({
         source,
         characterId: 'lumi',
+        startSlot: 3,
         mapId: maps[0].id,
         dummyCount: 1,
         blackMatter: false,
@@ -55,6 +71,8 @@ test(
     assert.equal(own.status, 200);
     const players = (await own.json()).game.players;
     assert.equal(players.length, 2);
+    assert.equal(players[0].startSlot, 3);
+    assert.equal(players[1].startSlot, 0);
     assert.deepEqual(
       players.map((p) => p.characterId),
       ['lumi', 'kobi'],

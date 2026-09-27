@@ -22,7 +22,9 @@ module.exports = class Player {
 };
 ```
 
-initialize는 경기 시작 전 한 번 호출된다. 번호는 0부터 시작하며 좌상·우상·좌하·우하 순이다. getName은 문자열을 반환하며 화면에 최대 40자까지 표시한다.
+initialize는 경기 시작 전 한 번 호출된다. `myNumber`는 경기 안에서 유지되는 플레이어 식별 번호(0~3)이며 시작 위치를 뜻하지 않는다. 현재 테스트 플레이에서 본인은 0, 더미는 1부터 순서대로 배정된다. 시작 위치를 바꿔도 번호는 바뀌지 않는다. getName은 문자열을 반환하며 화면에 최대 40자까지 표시한다.
+
+현재 위치는 반드시 `moveNext`의 `myPosition`으로 판단한다. 시작 위치가 필요하면 최초 moveNext 호출의 myPosition을 저장한다. 좌표는 `x = myPosition % column`, `y = Math.floor(myPosition / column)`으로 구한다. 이전의 번호→모서리 대응에 의존하는 코드는 이 방식으로 수정해야 한다. initialize에서는 위치에 의존하는 경로 계산을 하지 않는다.
 
 ## 이동 입력·반환
 

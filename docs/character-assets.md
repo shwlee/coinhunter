@@ -22,6 +22,12 @@
 
 > Replace only the background of this sprite atlas with one perfectly flat solid chroma-key color #00FF00 RGB(0,255,0). No gradients, no glow, no shadow, no texture. Entire background everywhere between and around figures must be identical pure neon green. Keep all ten figures exactly as drawn in these 5 columns and 2 rows, same sizes and placement, no cutoffs. Especially preserve the dinosaur's existing muted light green body, which is distinct from pure neon green. This is for a game engine that keys out pure green. Keep existing dark outlines. 1536x1024.
 
+## 경기 준비 UI
+
+게임판 블러 영역 안에서 캐릭터 선택 → 시작 위치 선택 순서로 진행한다. 다음 버튼으로 네 모서리 선택 화면에 들어가고, 이전 버튼으로 캐릭터를 다시 고를 수 있다. 위치 선택 단계와 알고리즘 업로드가 준비되면 경기 시작 버튼이 활성화된다. 경기 중에는 준비 UI가 숨겨지며 종료 후 캐릭터 선택부터 다시 진행한다.
+
+시작 위치는 왼쪽 위 / 오른쪽 위 / 왼쪽 아래 / 오른쪽 아래를 0~3으로 표현한다. POST /api/matches에 `startSlot`으로 전달하며 생략하면 0, 잘못된 값이면 400을 반환한다. 서버는 플레이어 상태의 `startSlot`에 배정한 위치를 기록하여 새로고침 후에도 복원한다. 더미는 남은 모서리를 번호순으로 배정한다. 플레이어 ID와 알고리즘의 initialize 인자는 위치에 따라 바뀌지 않는다.
+
 ## 검증
 
 `npm test` 및 `npm run test:browser`로 캐릭터 ID 검증, 더미 고정, 초상화 렌더링과 배경 투명화, 선택 잠금, 새로고침 후 유지, 모바일 가로 넘침 여부를 확인한다. 브라우저 스크린샷은 `artifacts/`에 생성한다.

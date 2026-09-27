@@ -26,17 +26,6 @@
         </div>
         <div class="intro-mark"><span>01</span> PLAYGROUND</div>
       </section>
-      <section class="character-panel panel" aria-labelledby="character-heading">
-        <div class="panel-heading">
-          <h2 id="character-heading">함께할 캐릭터를 선택하세요</h2>
-          <span class="small-tag">CHOOSE YOUR PARTNER</span>
-        </div>
-        <p class="help">외형만 다르며, 모든 캐릭터의 능력치는 같습니다.</p>
-        <fieldset id="character-options" class="character-options">
-          <legend class="sr-only">플레이어 캐릭터</legend>
-        </fieldset>
-        <p id="character-load-status" class="help" role="status">캐릭터를 불러오고 있습니다…</p>
-      </section>
       <div class="workspace">
         <aside class="setup panel">
           <div class="panel-heading">
@@ -83,7 +72,6 @@
               ><input id="destroy-walls" type="checkbox" role="switch"
             /></label>
             <p class="item-note">아이템 출현은 맵에 지정된 규칙을 따릅니다.</p>
-            <button id="start-button" class="primary" disabled>경기 시작 <span>→</span></button>
             <button id="stop-button" class="secondary" type="button" hidden>경기 종료</button>
             <p id="error-message" class="error-message" role="alert"></p>
           </form>
@@ -106,9 +94,70 @@
                 aria-label="게임 맵과 플레이어 위치"
               ></canvas>
               <div class="arena-overlay" id="arena-overlay">
-                <div class="overlay-icon">⌘</div>
-                <strong>당신의 알고리즘을 기다립니다</strong>
-                <p>샘플 파일을 내려받아 첫 경기를 시작해 보세요.</p>
+                <div id="arena-message" class="arena-message">
+                  <strong>함께할 캐릭터를 선택하세요</strong>
+                  <p>알고리즘을 업로드한 뒤 경기를 시작하세요.</p>
+                </div>
+                <section id="character-step" class="character-panel" aria-label="캐릭터 선택">
+                  <p class="setup-step-label">01 캐릭터 선택 → 02 시작 위치</p>
+                  <fieldset id="character-options" class="character-options">
+                    <legend class="sr-only">플레이어 캐릭터</legend>
+                  </fieldset>
+                  <p class="help">모든 캐릭터의 능력치는 같습니다 · 더미는 코비</p>
+                  <p id="character-load-status" class="help" role="status">
+                    캐릭터를 불러오고 있습니다…
+                  </p>
+                  <button id="position-next" type="button" class="setup-next">
+                    다음 · 시작 위치 선택 →
+                  </button>
+                </section>
+                <section
+                  id="position-step"
+                  class="position-panel"
+                  aria-label="시작 위치 선택"
+                  hidden
+                >
+                  <p class="setup-step-label">01 캐릭터 선택 → <strong>02 시작 위치</strong></p>
+                  <fieldset id="position-options" class="position-options">
+                    <legend class="sr-only">내 캐릭터의 시작 위치</legend>
+                    <label
+                      ><input type="radio" name="start-slot" value="0" checked /><span
+                        >↖ 왼쪽 위</span
+                      ></label
+                    >
+                    <label
+                      ><input type="radio" name="start-slot" value="1" /><span
+                        >오른쪽 위 ↗</span
+                      ></label
+                    >
+                    <label
+                      ><input type="radio" name="start-slot" value="2" /><span
+                        >↙ 왼쪽 아래</span
+                      ></label
+                    >
+                    <label
+                      ><input type="radio" name="start-slot" value="3" /><span
+                        >오른쪽 아래 ↘</span
+                      ></label
+                    >
+                  </fieldset>
+                  <p id="position-summary" class="help" role="status"></p>
+                  <p class="help">더미는 남은 모서리에서 시작합니다.</p>
+                  <div class="position-actions">
+                    <button id="character-back" type="button" class="character-back">
+                      ← 캐릭터 변경
+                    </button>
+                    <button
+                      id="start-button"
+                      class="primary"
+                      type="submit"
+                      form="setup-form"
+                      disabled
+                    >
+                      경기 시작 →
+                    </button>
+                  </div>
+                </section>
               </div>
             </div>
             <div class="legend">

@@ -3,6 +3,9 @@ import { loadCharacters, drawCharacter } from './character-renderer.js';
 const $ = (id) => document.getElementById(id);
 let selectedCharacter = DEFAULT_CHARACTER;
 let charactersReady = false;
+let setupStep = 'character';
+let selectedStartSlot = 0;
+const startNames = ['왼쪽 위', '오른쪽 위', '왼쪽 아래', '오른쪽 아래'];
 try {
   const saved = localStorage.getItem('coinhunter-character');
   if (isPlayableCharacter(saved)) selectedCharacter = saved;
@@ -48,12 +51,42 @@ function active() {
   return game && (game.status === 'playing' || game.status === 'hurryup');
 }
 function controls() {
-  $('start-button').disabled = !source || !charactersReady || busy || active();
+  $('start-button').disabled =
+    !source || !charactersReady || setupStep !== 'position' || busy || active();
   $('start-button').textContent = busy ? '알고리즘 준비 중…' : '경기 시작 →';
   $('stop-button').hidden = !active();
   for (const id of ['algorithm-file', 'map-select', 'dummy-count', 'black-matter', 'destroy-walls'])
     $(id).disabled = busy || active();
   $('character-options').disabled = busy || active();
+  $('position-options').disabled = busy || active();
+  $('position-next').disabled = !charactersReady || busy || active();
+  $('character-back').disabled = busy || active();
+}
+function showSetupStep(step) {
+  setupStep = step;
+  $('character-step').hidden = step !== 'character';
+  $('position-step').hidden = step !== 'position';
+  $('position-summary').textContent =
+    `${characterFor(selectedCharacter).name} · ${startNames[selectedStartSlot]}에서 시작`;
+  if (game?.status === 'ready') {
+    $('arena-message').querySelector('strong').textContent =
+      step === 'character' ? '함께할 캐릭터를 선택하세요' : '시작 위치를 선택하세요';
+  }
+  controls();
+}
+$('position-next').addEventListener('click', () => {
+  showSetupStep('position');
+  document.querySelector('input[name="start-slot"]:checked').focus();
+});
+$('character-back').addEventListener('click', () => {
+  showSetupStep('character');
+  document.querySelector('input[name="character"]:checked').focus();
+});
+for (const input of document.querySelectorAll('input[name="start-slot"]')) {
+  input.addEventListener('change', () => {
+    selectedStartSlot = Number(input.value);
+    showSetupStep('position');
+  });
 }
 async function loadFile(file) {
   if (busy || active() || !file) return;
@@ -94,14 +127,15 @@ function preview() {
   };
   $('arena-title').textContent = map.name;
   $('map-size').textContent = `${map.columns} × ${map.rows}`;
-  $('arena-overlay').innerHTML =
-    '<div class="overlay-icon">⌘</div><strong>당신의 알고리즘을 기다립니다</strong><p>샘플 파일을 내려받아 첫 경기를 시작해 보세요.</p>';
+  $('arena-message').innerHTML =
+    '<strong>함께할 캐릭터를 선택하세요</strong><p>알고리즘을 업로드한 뒤 경기를 시작하세요.</p>';
   renderInfo();
+  showSetupStep(setupStep);
 }
 
 $('setup-form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (!source || !charactersReady || busy || active()) return;
+  if (!source || !charactersReady || setupStep !== 'position' || busy || active()) return;
   busy = true;
   controls();
   setError('');
@@ -113,6 +147,7 @@ $('setup-form').addEventListener('submit', async (event) => {
       body: JSON.stringify({
         source,
         characterId: selectedCharacter,
+        startSlot: selectedStartSlot,
         mapId: $('map-select').value,
         dummyCount: Number($('dummy-count').value),
         blackMatter: $('black-matter').checked,
@@ -138,6 +173,9 @@ function connect() {
   events.addEventListener('snapshot', (event) => {
     const data = JSON.parse(event.data);
     game = data.game;
+    selectedStartSlot = game.players[0]?.startSlot ?? 0;
+    for (const input of document.querySelectorAll('input[name="start-slot"]'))
+      input.checked = Number(input.value) === selectedStartSlot;
     const characterId = game.players[0]?.characterId;
     if (isPlayableCharacter(characterId)) {
       selectedCharacter = characterId;
@@ -150,6 +188,7 @@ function connect() {
     renderLogs(data.logs);
     controls();
     if (game.status === 'finished') {
+      showSetupStep('character');
       events.close();
       sessionStorage.removeItem('coinhunter-match');
     }
@@ -190,10 +229,8 @@ function renderInfo() {
       .filter((p) => p.score === highest)
       .map((p) => p.name)
       .join(' · ');
-    overlay.replaceChildren();
-    const icon = document.createElement('div');
-    icon.className = 'overlay-icon';
-    icon.textContent = '✦';
+    const message = $('arena-message');
+    message.replaceChildren();
     const title = document.createElement('strong');
     title.textContent =
       game.reason === 'user-stopped'
@@ -204,7 +241,7 @@ function renderInfo() {
       game.reason === 'runtime-failure'
         ? '실행 환경 오류로 경기가 종료되었습니다.'
         : '알고리즘을 바꾸고 새로운 전략에 도전하세요.';
-    overlay.append(icon, title, detail);
+    message.append(title, detail);
   }
   const players = game.players.length
     ? game.players
@@ -428,8 +465,7 @@ function draw() {
 try {
   await loadCharacters();
   charactersReady = true;
-  $('character-load-status').textContent =
-    '캐릭터를 고른 뒤 알고리즘을 업로드하세요. 더미는 코비로 참가합니다.';
+  $('character-load-status').textContent = '';
   for (const card of document.querySelectorAll('.character-card')) {
     const portrait = card.querySelector('canvas');
     drawCharacter(portrait.getContext('2d'), card.querySelector('input').value, 90, 198, 200);

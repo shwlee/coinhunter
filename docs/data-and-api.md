@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | GET /api/maps | 없음 | 서버 등록 맵·설정 목록 |
 | GET /api/example | 없음 | 다운로드 가능한 샘플 JS 파일 |
-| POST /api/matches | source, mapId, dummyCount(0~3), blackMatter, destroyWalls | 준비 완료 후 경기 id |
+| POST /api/matches | source, mapId, dummyCount(0~3), blackMatter, destroyWalls, characterId, startSlot | 준비 완료 후 경기 id |
 | GET /api/matches/:id | 게스트 세션 쿠키 | 최신 상태·로그 |
 | GET /api/matches/:id/events | 게스트 세션 쿠키 | SSE snapshot 이벤트 |
 | DELETE /api/matches/:id | 게스트 세션 쿠키 | 경기 종료·프로세스 정리 후 ok |
@@ -17,6 +17,8 @@
 변경 요청은 JSON으로 전달한다. 다른 세션 경기에는 404를 반환한다. 같은 세션의 동시 경기는 한 개, 서버 전체 초기 한도는 네 경기다. 준비 중 경기도 한도에 포함한다. 게스트 식별 쿠키는 HttpOnly/SameSite=Strict이며 제품 계정 인증을 대체하지 않는다.
 
 현재 서버는 127.0.0.1 바인딩과 localhost/127.0.0.1 Host·Origin 검사만 지원한다. 실제 사내 호스트·TLS·프록시는 배포 단계에서 별도 설정한다.
+
+`characterId`는 pengko, nyangtami, dino, lumi 중 하나이며 생략 시 pengko다. `startSlot`은 0(왼쪽 위), 1(오른쪽 위), 2(왼쪽 아래), 3(오른쪽 아래)의 정수이며 생략 시 0이다. 잘못된 값에는 400을 반환한다. 더미는 남은 모서리에 번호순으로 배치한다. 플레이어 ID와 initialize의 myNumber는 시작 위치에 따라 바뀌지 않는다. 상태의 `players[].characterId`와 `players[].startSlot`으로 선택값을 복원한다.
 
 ## 실시간 상태
 

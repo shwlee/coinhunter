@@ -27,6 +27,7 @@ try {
   await page.waitForSelector('#map-select option', { state: 'attached' });
   assert.equal(await page.locator('#start-button').isDisabled(), true);
   assert.equal(await page.locator('input[name="character"]').count(), 4);
+  assert.equal(await page.locator('#arena-overlay .character-options').isVisible(), true);
   await page.locator('.character-card.lumi').click();
   assert.equal(await page.getByRole('radio', { name: '루미', exact: true }).isChecked(), true);
   const spritePixels = await page.locator('.lumi canvas').evaluate((canvas) => {
@@ -39,25 +40,66 @@ try {
   assert.ok(spritePixels.opaque > 1000, 'Character portrait must be rendered');
   await mkdir('artifacts', { recursive: true });
   await page.screenshot({ path: 'artifacts/desktop-ready.png', fullPage: true });
+  await page.locator('#position-next').click();
+  assert.equal(await page.locator('.character-options').isVisible(), false);
+  await page.getByRole('radio', { name: '오른쪽 아래' }).check();
+  await page.screenshot({ path: 'artifacts/desktop-position.png', fullPage: true });
   await page
     .locator('#algorithm-file')
     .setInputFiles(fileURLToPath(new URL('../examples/nearest-coin.js', import.meta.url)));
   await page.locator('#start-button').click();
   await page.locator('#game-status').filter({ hasText: '진행 중' }).waitFor();
+  assert.equal(await page.locator('.character-options').isVisible(), false);
   await page.locator('.score-card .score').filter({ hasText: /[1-9]/ }).first().waitFor();
   await page.screenshot({ path: 'artifacts/desktop-playing.png', fullPage: true });
   assert.equal(await page.locator('.score-card').count(), 4);
   assert.equal(await page.locator('.score-card[data-character="lumi"]').count(), 1);
   assert.equal(await page.locator('.score-card[data-character="kobi"]').count(), 3);
-  assert.equal(await page.getByRole('radio', { name: '펭코', exact: true }).isDisabled(), true);
+  assert.equal(await page.locator('input[name="character"][value="pengko"]').isDisabled(), true);
   await page.reload();
   await page.locator('#game-status').filter({ hasText: '진행 중' }).waitFor();
-  assert.equal(await page.getByRole('radio', { name: '루미', exact: true }).isChecked(), true);
+  assert.equal(await page.locator('input[name="character"][value="lumi"]').isChecked(), true);
+  assert.equal(await page.locator('input[name="start-slot"][value="3"]').isChecked(), true);
   await page.locator('#stop-button').click();
   await page.locator('#game-status').filter({ hasText: '경기 종료' }).waitFor();
   assert.equal(await page.locator('#arena-overlay').isVisible(), true);
+  assert.equal(await page.locator('.character-options').isVisible(), true);
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('.character-card.dino').click();
+  assert.equal(await page.getByRole('radio', { name: '디노', exact: true }).isChecked(), true);
+  const overlayBounds = await page.locator('#arena-overlay').boundingBox();
+  const choicesBounds = await page.locator('.character-options').boundingBox();
+  assert.ok(choicesBounds.y >= overlayBounds.y);
+  assert.ok(choicesBounds.y + choicesBounds.height <= overlayBounds.y + overlayBounds.height);
   await page.screenshot({ path: 'artifacts/mobile.png', fullPage: true });
+  await page.locator('#position-next').click();
+  await page.getByRole('radio', { name: '왼쪽 아래' }).check();
+  await page.locator('#character-back').click();
+  assert.equal(await page.getByRole('radio', { name: '디노', exact: true }).isChecked(), true);
+  await page.locator('#position-next').click();
+  assert.equal(await page.getByRole('radio', { name: '왼쪽 아래' }).isChecked(), true);
+  await page.screenshot({ path: 'artifacts/mobile-position.png', fullPage: true });
+  await page.setViewportSize({ width: 320, height: 720 });
+  for (const step of ['position', 'character']) {
+    if (step === 'character') await page.locator('#character-back').click();
+    const fits = await page.locator('#arena-overlay').evaluate((overlay) => {
+      const bounds = overlay.getBoundingClientRect();
+      return [...overlay.children]
+        .filter((child) => !child.hidden)
+        .every((child) => {
+          const rect = child.getBoundingClientRect();
+          return (
+            rect.top >= bounds.top &&
+            rect.bottom <= bounds.bottom &&
+            rect.left >= bounds.left &&
+            rect.right <= bounds.right
+          );
+        });
+    });
+    assert.equal(fits, true, `${step} must fit the 320px overlay`);
+    await page.screenshot({ path: `artifacts/mobile-320-${step}.png`, fullPage: true });
+  }
+  await page.locator('#position-next').click();
   assert.equal(
     await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     false,
@@ -76,6 +118,7 @@ try {
   await page.locator('#start-button').click();
   await page.locator('#debug-output').filter({ hasText: 'timeout' }).waitFor();
   await page.locator('#debug-output').filter({ hasText: '회복 2' }).waitFor();
+  assert.equal(await page.locator('.score-card[data-character="dino"]').count(), 1);
   await page.locator('#stop-button').click();
   await page.locator('#game-status').filter({ hasText: '경기 종료' }).waitFor();
   assert.deepEqual(errors, []);

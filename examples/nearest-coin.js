@@ -1,6 +1,7 @@
 // 단일 파일, 동기 알고리즘. 반환: 0=왼쪽, 1=위, 2=오른쪽, 3=아래, -1=제자리.
 module.exports = class Player {
   initialize(myNumber, column, row) {
+    // myNumber는 식별 번호이며 시작 모서리가 아니다. 위치는 moveNext에서 읽는다.
     this.number = myNumber;
     this.column = column;
     this.row = row;
@@ -10,6 +11,7 @@ module.exports = class Player {
     return '길찾기 ' + (this.number + 1);
   }
   moveNext(map, myPosition, items) {
+    // 선택한 시작 위치와 이후 이동 모두 서버가 전달한 myPosition을 기준으로 탐색한다.
     this.turn++;
     const visited = new Set([myPosition]);
     const queue = [{ position: myPosition, first: -1 }];

@@ -110,6 +110,11 @@ export function createGameServer() {
           return;
         }
         const input = await readJson(request);
+        const startSlot = input.startSlot === undefined ? 0 : input.startSlot;
+        if (!Number.isInteger(startSlot) || startSlot < 0 || startSlot > 3) {
+          json(response, 400, { error: '시작 위치를 확인하세요.' });
+          return;
+        }
         const characterId = input.characterId === undefined ? DEFAULT_CHARACTER : input.characterId;
         if (!isPlayableCharacter(characterId)) {
           json(response, 400, { error: '선택할 수 없는 캐릭터입니다.' });
@@ -143,7 +148,12 @@ export function createGameServer() {
         const match = new Match(
           map,
           [input.source, ...Array(input.dummyCount).fill(sampleSource)],
-          { blackMatter: input.blackMatter, destroyWalls: input.destroyWalls, characterId },
+          {
+            blackMatter: input.blackMatter,
+            destroyWalls: input.destroyWalls,
+            characterId,
+            startSlot,
+          },
         );
         const record = { owner, match, initializing: true, createdAt: Date.now() };
         matches.set(id, record);

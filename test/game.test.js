@@ -31,6 +31,54 @@ function effect(game, type, remaining = 3) {
   game.players[0].effect = { type, remaining, id: ++game.effectSequence };
 }
 
+test('all start slots place the user at the selected corner and dummies at unique remaining corners', () => {
+  const corners = [0, 5, 30, 35];
+  for (let slot = 0; slot < 4; slot++) {
+    for (let count = 1; count <= 4; count++) {
+      const g = new GameState(map(), Array(count).fill('test'), { startSlot: slot });
+      assert.equal(g.players[0].position, corners[slot]);
+      assert.equal(g.players[0].id, 0);
+      assert.equal(g.players[0].startSlot, slot);
+      assert.equal(new Set(g.players.map((p) => p.position)).size, count);
+      assert.ok(g.players.every((p) => corners.includes(p.position)));
+    }
+  }
+});
+
+test('algorithm identity stays fixed while first move receives the selected start position', async (t) => {
+  const source = `module.exports = class {
+    initialize(number, columns, rows) { this.number = number; this.columns = columns; this.rows = rows; }
+    getName() { return 'identity-' + this.number; }
+    moveNext(map, position) { debug.print(this.number, this.columns, this.rows, position); return -1; }
+  }`;
+  const match = new Match(map(), [source, source], { startSlot: 3 });
+  t.after(() => match.stop());
+  await match.start();
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      match.off('snapshot', check);
+      reject(new Error('First move logs missing'));
+    }, 3000);
+    function check() {
+      if (![0, 1].every((id) => match.logs.some((log) => log.player === id && log.turn === 1)))
+        return;
+      clearTimeout(timer);
+      match.off('snapshot', check);
+      resolve();
+    }
+    match.on('snapshot', check);
+    check();
+  });
+  assert.deepEqual(
+    match.state.players.map((p) => p.name),
+    ['identity-0', 'identity-1'],
+  );
+  assert.deepEqual(match.logs.find((log) => log.player === 0 && log.turn === 1).lines, [
+    '0 6 6 35',
+  ]);
+  assert.deepEqual(match.logs.find((log) => log.player === 1 && log.turn === 1).lines, ['1 6 6 0']);
+});
+
 test('-1 consumes only current action; normal movement resumes next turn', () => {
   const g = state();
   g.beginAction(0, { status: 'ok', value: -1 }, 0);

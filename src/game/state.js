@@ -13,6 +13,10 @@ export class GameState {
     this.items = [-1, -1, -1, -1];
     this.effectSequence = 0;
     const starts = [0, this.columns - 1, this.columns * (this.rows - 1), this.tiles.length - 1];
+    const startSlot = options.startSlot ?? 0;
+    if (!Number.isInteger(startSlot) || startSlot < 0 || startSlot > 3)
+      throw new Error('Invalid start slot');
+    const slots = [startSlot, ...[0, 1, 2, 3].filter((slot) => slot !== startSlot)];
     this.players = names.map((name, id) => ({
       id,
       name,
@@ -21,7 +25,8 @@ export class GameState {
         : isPlayableCharacter(options.characterId)
           ? options.characterId
           : DEFAULT_CHARACTER,
-      position: starts[id],
+      startSlot: slots[id],
+      position: starts[slots[id]],
       score: 0,
       turn: 0,
       effect: null,
