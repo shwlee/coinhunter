@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Coin Hunter · 알고리즘 아레나</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/"
+        ><span class="brand-icon">C<span>H</span></span> COIN HUNTER</a
+      ><span class="top-label">ALGORITHM ARENA</span
+      ><span class="guest"><i></i> 게스트 플레이</span>
+    </header>
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">YOUR CODE. YOUR STRATEGY.</p>
+          <h1>
+            코드로 움직이고,<br class="mobile-break" />
+            코인으로 증명하세요.
+          </h1>
+          <p class="subtitle">나만의 알고리즘으로 길을 찾고, 더미와 경쟁하세요.</p>
+        </div>
+        <div class="intro-mark"><span>01</span> PLAYGROUND</div>
+      </section>
+      <div class="workspace">
+        <aside class="setup panel">
+          <div class="panel-heading">
+            <h2>경기 준비</h2>
+            <span class="small-tag">JAVASCRIPT</span>
+          </div>
+          <form id="setup-form">
+            <label class="field-label" for="algorithm-file"><span>01</span> 알고리즘</label>
+            <label class="upload-zone" id="drop-zone" for="algorithm-file"
+              ><span class="upload-icon">↑</span
+              ><strong id="file-label">.js 파일을 선택하세요</strong
+              ><span>클릭하거나 파일을 끌어다 놓으세요</span
+              ><input
+                id="algorithm-file"
+                type="file"
+                accept=".js,text/javascript"
+                aria-describedby="file-help"
+            /></label>
+            <p id="file-help" class="help">최대 64 KiB · 한 파일의 동기 알고리즘</p>
+            <a href="/api/example" class="text-link" download="nearest-coin.js"
+              >샘플 알고리즘 내려받기 <span>↗</span></a
+            >
+            <label class="field-label" for="map-select"><span>02</span> 맵 선택</label>
+            <select id="map-select" required></select>
+            <div class="map-meta"><span>상하좌우 대칭</span><span id="map-size">12 × 10</span></div>
+            <label class="field-label" for="dummy-count"><span>03</span> 더미 플레이어</label>
+            <select id="dummy-count">
+              <option value="0">혼자 연습하기</option>
+              <option value="1">더미 1명과 대결</option>
+              <option value="2">더미 2명과 대결</option>
+              <option value="3" selected>더미 3명과 대결</option>
+            </select>
+            <div class="field-label"><span>04</span> 랜덤 기믹</div>
+            <label class="toggle-row"
+              ><span>BlackMatter 출현<small>500점 코인이 추가됩니다</small></span
+              ><input id="black-matter" type="checkbox" role="switch"
+            /></label>
+            <label class="toggle-row"
+              ><span>벽 파괴<small>새로운 길이 열립니다</small></span
+              ><input id="destroy-walls" type="checkbox" role="switch"
+            /></label>
+            <p class="item-note">아이템 출현은 맵에 지정된 규칙을 따릅니다.</p>
+            <button id="start-button" class="primary" disabled>경기 시작 <span>→</span></button>
+            <button id="stop-button" class="secondary" type="button" hidden>경기 종료</button>
+            <p id="error-message" class="error-message" role="alert"></p>
+          </form>
+        </aside>
+        <section class="arena-column">
+          <div class="arena panel">
+            <div class="arena-heading">
+              <div>
+                <span class="live-dot" id="live-dot"></span>
+                <h2 id="arena-title">대칭 정원</h2>
+                <span id="game-status" class="status">준비</span>
+              </div>
+              <div class="timer" id="timer">02:00</div>
+            </div>
+            <div class="canvas-wrap">
+              <canvas
+                id="board"
+                width="960"
+                height="800"
+                aria-label="게임 맵과 플레이어 위치"
+              ></canvas>
+              <div class="arena-overlay" id="arena-overlay">
+                <div class="overlay-icon">⌘</div>
+                <strong>당신의 알고리즘을 기다립니다</strong>
+                <p>샘플 파일을 내려받아 첫 경기를 시작해 보세요.</p>
+              </div>
+            </div>
+            <div class="legend">
+              <span><i class="coin-dot copper"></i>10</span
+              ><span><i class="coin-dot silver"></i>30</span
+              ><span><i class="coin-dot gold"></i>100</span
+              ><span><i class="coin-dot diamond"></i>200</span
+              ><span><i class="coin-dot matter"></i>500</span
+              ><span class="legend-end">← ↑ → ↓ &nbsp; 한 번에 한 칸</span>
+            </div>
+          </div>
+          <div id="scoreboard" class="scoreboard" aria-live="polite"></div>
+          <section class="logs panel">
+            <div class="panel-heading">
+              <h2>실행 로그</h2>
+              <span id="log-count">OUTPUT</span>
+            </div>
+            <pre id="debug-output">
+경기가 시작되면 debug.print 출력과 실행 결과가 여기에 표시됩니다.</pre>
+          </section>
+        </section>
+      </div>
+      <footer>
+        <span>COIN HUNTER</span>
+        <p>같은 맵, 서로 다른 전략.</p>
+        <span>500 ms / 알고리즘 호출</span>
+      </footer>
+    </main>
+  </body>
+</html>

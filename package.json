@@ -1,0 +1,26 @@
+{
+  "name": "coinhunter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Coin Hunter web game and persistent algorithm runtime",
+  "engines": {
+    "node": ">=18.20.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test",
+    "test:browser": "node scripts/browser-smoke.js",
+    "format:check": "prettier --check src public scripts test examples package.json .prettierrc.json .github",
+    "verify:runtime": "node scripts/verify-runtime.js",
+    "demo": "node scripts/demo-match.js"
+  },
+  "dependencies": {
+    "acorn": "8.18.0",
+    "quickjs-emscripten": "0.32.0"
+  },
+  "devDependencies": {
+    "playwright-core": "1.51.1",
+    "prettier": "3.9.9"
+  }
+}

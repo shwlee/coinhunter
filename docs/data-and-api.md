@@ -1,0 +1,43 @@
+# 첫 웹 구현의 데이터와 API
+
+- 기준일: 2026-09-27
+- 현재는 로컬 게스트 플레이만 구현했다. 사용자 계정·DB·영구 저장 API는 아직 없다.
+
+## HTTP
+
+| 메서드·경로 | 요청 | 응답 |
+| --- | --- | --- |
+| GET /api/maps | 없음 | 서버 등록 맵·설정 목록 |
+| GET /api/example | 없음 | 다운로드 가능한 샘플 JS 파일 |
+| POST /api/matches | source, mapId, dummyCount(0~3), blackMatter, destroyWalls | 준비 완료 후 경기 id |
+| GET /api/matches/:id | 게스트 세션 쿠키 | 최신 상태·로그 |
+| GET /api/matches/:id/events | 게스트 세션 쿠키 | SSE snapshot 이벤트 |
+| DELETE /api/matches/:id | 게스트 세션 쿠키 | 경기 종료·프로세스 정리 후 ok |
+
+변경 요청은 JSON으로 전달한다. 다른 세션 경기에는 404를 반환한다. 같은 세션의 동시 경기는 한 개, 서버 전체 초기 한도는 네 경기다. 준비 중 경기도 한도에 포함한다. 게스트 식별 쿠키는 HttpOnly/SameSite=Strict이며 제품 계정 인증을 대체하지 않는다.
+
+현재 서버는 127.0.0.1 바인딩과 localhost/127.0.0.1 Host·Origin 검사만 지원한다. 실제 사내 호스트·TLS·프록시는 배포 단계에서 별도 설정한다.
+
+## 실시간 상태
+
+snapshot 이벤트는 sequence, game, logs를 포함한다. game에는 서버 시각, 맵 크기·타일·아이템, 플레이어 상태, 경기 상태·종료 사유·남은 시간이 포함된다. 최초 연결과 재연결 시 최신 전체 상태를 보낸다.
+
+플레이어에는 id, name, position, score, turn, effect, action, thinking, lastStatus가 있다. action에는 type, from, to, startedAt, endsAt, effectId가 있다. 브라우저는 서버 시각과 수신 시점으로 애니메이션 시간을 보정한다.
+
+통신은 전체 상태를 보내는 첫 구현이다. 연결 버퍼가 과도하게 누적되면 연결을 종료하여 재연결하게 한다. 향후 동시 경기 부하 검증 후 이벤트 증분 전송 여부를 결정한다.
+
+## 프로세스 통신
+
+Node IPC 메시지는 id, type, payload로 구성한다. type은 initialize, move, close다. 응답은 같은 id와 ok/result 또는 error를 포함한다. 부모의 요청 맵으로 결과를 연결하며 동일 플레이어의 move 중첩을 거부한다.
+
+move 결과는 status, value, elapsedMs, logs, droppedLogs, pid를 포함한다. pid는 내부 검증용이며 브라우저 경기 상태에는 포함하지 않는다.
+
+## 보관 범위
+
+- 경기별 코드와 맵은 시작 시 복사하여 실행한다.
+- 업로드한 코드는 런타임 생성 후 경기 객체가 유지하는 메모리에 존재하며 디스크에 저장하지 않는다.
+- 완료 경기는 최대 약 5분(정리 검사 간격 30초) 동안 메모리에 남는다.
+- 실행 로그는 최근 40개 출력/오류 이벤트를 보관한다. 턴별 메시지는 별도 출력 제한을 적용한다.
+- 서버 재시작 시 경기와 결과는 사라진다.
+
+영구 저장 도입 시 사용자·알고리즘·맵·옵션·결과 스키마를 이 문서에 추가한다. 코드 이력 기능은 추가하지 않는다.
