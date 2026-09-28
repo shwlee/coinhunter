@@ -15,6 +15,8 @@ const stepTitles = [
   '시작 위치를 선택하세요',
 ];
 let selectedStartSlot = 0;
+let finishStage = null;
+let finishTimer = null;
 const startNames = ['왼쪽 위', '오른쪽 위', '왼쪽 아래', '오른쪽 아래'];
 try {
   const saved = localStorage.getItem('coinhunter-character');
@@ -169,6 +171,11 @@ $('dummy-count').addEventListener('change', () => {
 function preview() {
   const map = maps.find((map) => map.id === $('map-select').value);
   if (!map) return;
+  clearTimeout(finishTimer);
+  finishTimer = null;
+  finishStage = null;
+  $('game-over').hidden = true;
+  $('arena-overlay').classList.remove('show-game-over');
   game = {
     ...map,
     items: [-1, -1, -1, -1],
@@ -293,13 +300,25 @@ function renderInfo() {
   const overlay = $('arena-overlay');
   overlay.hidden = active();
   if (game.status === 'finished') {
-    $('result-podium').hidden = false;
-    overlay.classList.add('show-results');
-    renderPodium($('result-podium'), game.players);
+    if (finishStage === null) {
+      finishStage = 'message';
+      finishTimer = setTimeout(() => {
+        finishTimer = null;
+        if (game?.status !== 'finished' || finishStage !== 'message') return;
+        finishStage = 'results';
+        renderInfo();
+      }, 3000);
+    }
+    const showingMessage = finishStage === 'message';
+    $('game-over').hidden = !showingMessage;
+    $('result-podium').hidden = showingMessage;
+    overlay.classList.toggle('show-game-over', showingMessage);
+    overlay.classList.toggle('show-results', !showingMessage);
+    if (!showingMessage) renderPodium($('result-podium'), game.players);
     $('setup-form').hidden = true;
     $('setup-progress').hidden = true;
-    $('play-again').hidden = false;
-    $('replay-hint').hidden = false;
+    $('play-again').hidden = showingMessage;
+    $('replay-hint').hidden = showingMessage;
     const message = $('arena-message');
     message.replaceChildren();
     const title = document.createElement('strong');
@@ -369,7 +388,7 @@ function drawBoard() {
   }
   ctx.fillStyle = '#0c1420';
   ctx.fillRect(0, 0, width, height);
-  const now = serverAt + (performance.now() - receivedAt);
+  const now = game.status === 'finished' ? serverAt : serverAt + (performance.now() - receivedAt);
   for (let y = 0; y < game.rows; y++)
     for (let x = 0; x < game.columns; x++) {
       const px = pad + x * cell,

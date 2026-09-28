@@ -216,6 +216,17 @@ try {
   assert.equal(await page.locator('input[name="start-slot"][value="3"]').isChecked(), true);
   await page.locator('#stop-button').click();
   await page.locator('#game-status').filter({ hasText: '경기 종료' }).waitFor();
+  assert.equal(await page.locator('#game-over').isVisible(), true);
+  assert.equal(await page.locator('#result-podium').isVisible(), false);
+  assert.equal(await page.locator('#play-again').isVisible(), false);
+  const gameOverAt = Date.now();
+  await page.screenshot({ path: 'artifacts/game-over.png', fullPage: true });
+  await page.locator('#result-podium').waitFor({ state: 'visible' });
+  assert.ok(
+    Date.now() - gameOverAt >= 2700,
+    'Game-over message must remain for about three seconds',
+  );
+  assert.equal(await page.locator('#game-over').isVisible(), false);
   assert.equal(await page.locator('#arena-overlay').isVisible(), true);
   assert.equal(await page.locator('#file-step').isVisible(), false);
   assert.equal(await page.locator('#setup-progress').isVisible(), false);
@@ -347,6 +358,7 @@ try {
   assert.equal(await page.locator('.score-card[data-character="dino"]').count(), 1);
   await page.locator('#stop-button').click();
   await page.locator('#game-status').filter({ hasText: '경기 종료' }).waitFor();
+  await page.locator('#result-podium').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#setup-form').isVisible(), false);
   assert.equal(await page.locator('#result-podium .podium-player').count(), 1);
   await page.locator('#play-again').click();
