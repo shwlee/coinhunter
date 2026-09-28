@@ -7,7 +7,7 @@ export class Match extends EventEmitter {
   constructor(map, sources, options = {}) {
     super();
     if (sources.length < 1 || sources.length > 4) throw new Error('플레이어는 1~4명이어야 합니다.');
-    this.map = map;
+    this.map = structuredClone(map);
     this.sources = sources;
     this.options = options;
     this.runners = [];

@@ -1,0 +1,55 @@
+# 파일 기반 맵 관리
+
+## 저장 구조
+
+- `maps/samples/crossroads.json`: 현재 12 × 10 기본 맵. 코인 52개, 벽 8개, 빈칸 60개.
+- `maps/samples/four-courtyards.json`: 20 × 16 ‘네 개의 안뜰’. 코인 144개, 벽 36개, 빈칸 140개. 네 모서리에서 중앙으로 이어지는 우회 통로와 중앙 고득점 구역을 제공한다.
+- `maps/registry.json`: 저장소에 포함된 샘플맵의 게시 버전, 활성 여부, 표시 순서.
+- `data/maps/registry.json`: 관리자 맵의 임시 저장 버전, 게시 버전, 활성 여부, 표시 순서. 첫 저장 시 생성한다.
+- `data/maps/<id>/<revision>.json`: 관리자 맵 버전별 원본. 게시된 버전을 덮어쓰지 않는다.
+
+관리자 데이터는 Git에서 제외한다. `COINHUNTER_MAP_DIR`에 절대 경로를 지정해 배포 파일과 분리할 수 있다. 백업 시 등록 파일과 버전별 JSON을 함께 보관한다. 현재는 단일 서버 프로세스와 하나의 MapRepository 인스턴스가 쓰는 구조다. 여러 서버에서 공유 저장소를 수정하려면 DB 트랜잭션 또는 별도 잠금이 필요하다.
+
+## 맵 형식
+
+샘플 JSON을 복사해 새 맵의 기반으로 사용한다. `schemaVersion: 1`, 고유 `id`, `name`, `description`, `revision`, `columns`, `rows`, `tiles`, `settings`를 저장한다. ID는 영문 소문자·숫자·하이픈으로 최대 64자이며 경로로 직접 입력받지 않는다. 타일은 왼쪽 위에서 행 단위로 읽는 1차원 배열이다. `-1`은 벽, `0`은 빈칸, `10/30/100/200/500`은 코인 점수다. 경기 중 아이템 위치와 캐릭터 위치는 저장하지 않는다.
+
+옵션과 타일은 기존 게임 설정을 유지한다. 맵 크기는 가로 4~40, 세로 4~30이다. `actionMs`는 50~10000ms, `runningTimeMs`는 1000~3600000ms, `itemFirstMs`는 0~3600000ms, 각 반복 주기는 100~3600000ms, `itemDuration`은 1~100을 허용한다.
+
+## 저장·게시 흐름
+
+관리자 화면과 인증 API는 이번 변경에 포함하지 않는다. 향후 화면은 `MapRepository.saveDraft`, `getDraft`, `publish`, `setEnabled`, `registry`를 호출하는 인증된 서버 API에 연결한다. 일반 게임 API에 쓰기 기능은 노출하지 않는다.
+
+1. 샘플을 복사하고 **새 ID**를 지정한다. 샘플 원본은 저장 API로 수정할 수 없다.
+2. `saveDraft(document, {expectedRevision})`는 새 버전을 저장한다. 신규 맵은 expectedRevision=0이며 이후에는 읽어온 draft 버전을 전달한다. 오래된 버전으로 저장하면 거부한다.
+3. 임시 저장에서도 형식·시작점·설정값을 검사한다. 비대칭 또는 연결되지 않은 편집 중 맵은 저장 가능하다.
+4. `publish(id, revision)`은 최신 draft에 대칭·연결성·코인 존재 검사를 추가한 후 게시한다. 기본 이동만으로 모든 빈칸·시작점·코인에 접근 가능해야 한다.
+5. 게시하지 않은 draft는 사용자 목록에 나타나지 않는다. 기존 게시 맵을 편집하는 중에는 이전 게시 버전이 계속 서비스된다.
+6. `setEnabled`로 게시된 관리자 맵을 비활성화하거나 표시 순서를 변경한다. 삭제 기능 대신 비활성화를 사용한다. 샘플의 활성 여부·순서는 현재 `maps/registry.json`에서 관리한다.
+
+버전 JSON을 먼저 저장한 뒤 등록 파일을 임시 파일→이름 변경으로 교체한다. 저장 실패로 새 버전 파일만 남아도 등록된 이전 맵은 유지된다. 서버는 목록 조회 및 게임 시작 시 등록 파일을 다시 읽으므로 게시 변경에 재시작이 필요 없다. 이미 열려 있는 브라우저 목록은 새로고침하면 갱신된다.
+
+## 관리자 UI 구현 전 사용법
+
+```powershell
+npm run maps -- list
+# 샘플을 복사한 JSON에서 id/name 등을 변경한 뒤:
+npm run maps -- import artifacts/my-map.json
+npm run maps -- publish my-map 1
+# 다음 수정은 현재 draft 버전(1)을 지정:
+npm run maps -- import artifacts/my-map.json 1
+npm run maps -- publish my-map 2
+npm run maps -- disable my-map
+npm run maps -- enable my-map
+npm run maps -- export my-map artifacts/exported-map.json
+```
+
+내보내기는 draft가 있으면 최신 draft, 없으면 게시된 샘플을 사용한다. 기존 출력 파일은 덮어쓰지 않는다. JSON 전체 가져오기를 제공하며, 기존 `int[]`만 가져오는 UI는 향후 편집기에서 크기·설정 정보를 함께 받아 이 형식으로 변환한다. 랜덤 생성도 편집기에서 결과를 만든 뒤 같은 저장 함수를 사용한다.
+
+## 경기 독립성
+
+경기 생성 시 맵 전체를 복사해 `Match.map`에 보관하고, 상태에는 `mapId`와 `mapRevision`을 포함한다. 이후 게시·비활성화가 진행 중인 경기에 영향을 주지 않는다. 관리자 버전 파일도 보존한다. 경기 기록의 영구 저장 및 재현 기능 자체는 아직 구현하지 않았으므로 현재 Match 원본은 서버 메모리 내 경기 생명주기 동안 보관한다.
+
+## 검증
+
+파일 로딩, 초안 비공개, 게시 버전 분리, 동시 저장 충돌, 원본 보존, 비활성화, 재시작 복원, 경로 ID 검증, 비대칭·고립 영역 게시 거부, API 목록 반영을 자동 테스트한다.

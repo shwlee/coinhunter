@@ -4,6 +4,8 @@ import { DEFAULT_CHARACTER, isPlayableCharacter } from '../../public/characters.
 export class GameState {
   constructor(map, names, options = {}, random = Math.random) {
     validateMap(map);
+    this.mapId = map.id ?? null;
+    this.mapRevision = map.revision ?? null;
     this.columns = map.columns;
     this.rows = map.rows;
     this.tiles = [...map.tiles];
@@ -230,6 +232,8 @@ export class GameState {
   }
   snapshot(now) {
     return structuredClone({
+      mapId: this.mapId,
+      mapRevision: this.mapRevision,
       columns: this.columns,
       rows: this.rows,
       tiles: this.tiles,

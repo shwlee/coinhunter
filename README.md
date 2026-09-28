@@ -20,7 +20,8 @@ npm start
 - 플레이어별 프로세스·QuickJS 인스턴스를 경기 동안 유지
 - 턴마다 500ms 실행 제한, 시간 초과 후 같은 인스턴스로 계속 진행
 - 독립 턴, 현재 턴만 적용되는 제자리 패널티
-- 고정 대칭 맵, 최대 4인, 코인·점수·HurryUp
+- JSON 파일 기반 대칭 맵, 최대 4인, 코인·점수·HurryUp
+- 샘플·관리자 맵 저장 경로 분리, 임시 저장·게시·비활성화·버전 관리 및 관리 CLI
 - 신발·망치·x2·랜덤점프 기본 규칙과 개발용 연출
 - BlackMatter·벽 파괴 개별 옵션
 - 파일 업로드, `debug.print`, 실시간 경기 화면, 새로고침 후 재연결
@@ -51,4 +52,5 @@ npm run test:browser
 - [게임 규칙 및 첫 구현 결정](docs/game-rules.md)
 - [알고리즘 API](docs/algorithm-api.md)
 - [데이터와 통신](docs/data-and-api.md)
+- [맵 파일 형식과 관리 명령](docs/map-files.md)
 - [실행 환경 검증 결과](docs/runtime-verification.md)

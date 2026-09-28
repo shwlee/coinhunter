@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { MAPS } from '../src/game/maps.js';
+import { MAPS } from '../src/game/map-repository.js';
 import { Match } from '../src/game/match.js';
 
 const source = await readFile(new URL('../examples/nearest-coin.js', import.meta.url), 'utf8');

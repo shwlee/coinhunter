@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import { createGameServer } from '../src/server.js';
 import { GameState } from '../src/game/state.js';
-import { MAPS } from '../src/game/maps.js';
+import { MAPS } from '../src/game/map-repository.js';
 
 const candidates = [
   process.env.COINHUNTER_BROWSER,

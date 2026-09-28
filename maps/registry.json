@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "maps": [
+    { "id": "crossroads", "publishedRevision": 1, "enabled": true, "order": 0 },
+    { "id": "four-courtyards", "publishedRevision": 1, "enabled": true, "order": 1 }
+  ]
+}

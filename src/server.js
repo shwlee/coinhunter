@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { MAPS } from './game/maps.js';
+import { mapRepository } from './game/map-repository.js';
 import { Match } from './game/match.js';
 import { DEFAULT_CHARACTER, isPlayableCharacter } from '../public/characters.js';
 import { MAX_SOURCE_BYTES, validateSource } from './runtime/policy.js';
@@ -15,7 +15,6 @@ const sampleSource = await readFile(
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
-  ['/player-layout.js', ['player-layout.js', 'text/javascript; charset=utf-8']],
   ['/coin-renderer.js', ['coin-renderer.js', 'text/javascript; charset=utf-8']],
   ['/podium.js', ['podium.js', 'text/javascript; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
@@ -60,7 +59,7 @@ async function readJson(request) {
   }
 }
 
-export function createGameServer() {
+export function createGameServer({ maps = mapRepository } = {}) {
   const matches = new Map();
   const streams = new Set();
   let closing = false;
@@ -113,7 +112,7 @@ export function createGameServer() {
         return;
       }
       if (request.method === 'GET' && url.pathname === '/api/maps') {
-        json(response, 200, { maps: MAPS });
+        json(response, 200, { maps: maps.listPublished() });
         return;
       }
       if (request.method === 'GET' && url.pathname === '/api/example') {
@@ -140,7 +139,7 @@ export function createGameServer() {
           json(response, 400, { error: '선택할 수 없는 캐릭터입니다.' });
           return;
         }
-        const map = MAPS.find((item) => item.id === input.mapId);
+        const map = maps.getPublished(input.mapId);
         if (
           !map ||
           !Number.isInteger(input.dummyCount) ||

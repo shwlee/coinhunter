@@ -2,7 +2,6 @@ import { CHARACTERS, DEFAULT_CHARACTER, characterFor, isPlayableCharacter } from
 import { loadCharacters, drawCharacter, drawDirectionalCharacter } from './character-renderer.js';
 import { renderPodium } from './podium.js';
 import { loadCoins, drawCoin, drawCoinPickup } from './coin-renderer.js';
-import { playerVisuals } from './player-layout.js';
 const $ = (id) => document.getElementById(id);
 let selectedCharacter = DEFAULT_CHARACTER;
 let charactersReady = false;
@@ -175,7 +174,6 @@ function preview() {
   };
   serverAt = 0;
   receivedAt = performance.now();
-  drawBoard();
   $('arena-title').textContent = map.name;
   $('map-size').textContent = `${map.columns} × ${map.rows}`;
   $('arena-message').innerHTML =
@@ -193,6 +191,7 @@ $('setup-form').addEventListener('submit', async (event) => {
   events?.close();
   try {
     $('arena-overlay').classList.add('counting-down');
+    drawBoard();
     $('start-countdown').hidden = false;
     for (const number of [3, 2, 1]) {
       $('countdown-number').textContent = String(number);
@@ -376,6 +375,8 @@ function draw() {
 }
 function drawBoard() {
   if (!game) return;
+  // Preparation fully covers the board. Avoid animating hidden tiles and coins.
+  if (game.status === 'ready' && !$('arena-overlay').classList.contains('counting-down')) return;
   const cell = 64,
     pad = 24;
   const width = game.columns * cell + pad * 2,
@@ -421,17 +422,29 @@ function drawBoard() {
         ctx.fillText(itemIcons[item], px + 32, py + 42);
       }
     }
-  for (const { player, x, y, progress, offset, scale } of playerVisuals(
-    game.players,
-    game.columns,
-    now,
-  )) {
+  for (const player of game.players) {
+    let x = player.position % game.columns,
+      y = Math.floor(player.position / game.columns);
     const action = player.action;
+    let progress = 0;
+    if (action) {
+      progress = Math.max(
+        0,
+        Math.min(1, (now - action.startedAt) / (action.endsAt - action.startedAt)),
+      );
+      if (action.type === 'move') {
+        x += ((action.to % game.columns) - x) * progress;
+        y += (Math.floor(action.to / game.columns) - y) * progress;
+      }
+      if (action.type === 'jump' && progress > 0.5) {
+        x = action.to % game.columns;
+        y = Math.floor(action.to / game.columns);
+      }
+    }
     const px = pad + x * cell + cell / 2,
       py = pad + y * cell + cell / 2;
     ctx.save();
-    ctx.translate(px + offset, py + 27 * (1 - scale));
-    ctx.scale(scale, scale);
+    ctx.translate(px, py);
     if (action?.type === 'jump') {
       const scale = 0.5 + Math.abs(progress - 0.5);
       ctx.scale(scale, scale);
