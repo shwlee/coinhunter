@@ -143,6 +143,7 @@ h1 {
   display: none;
 }
 .workspace {
+  margin-top: 24px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 24px;
