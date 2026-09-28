@@ -1,5 +1,6 @@
 import { CHARACTERS, DEFAULT_CHARACTER, characterFor, isPlayableCharacter } from './characters.js';
 import { loadCharacters, drawCharacter } from './character-renderer.js';
+import { renderPodium } from './podium.js';
 const $ = (id) => document.getElementById(id);
 let selectedCharacter = DEFAULT_CHARACTER;
 let charactersReady = false;
@@ -79,6 +80,8 @@ function showSetupStep(step) {
   $('setup-form').hidden = false;
   $('setup-progress').hidden = false;
   $('play-again').hidden = true;
+  $('result-podium').hidden = true;
+  $('arena-overlay').classList.remove('show-results');
   for (const name of setupSteps) $(`${name}-step`).hidden = name !== step;
   $('setup-progress').textContent =
     `${setupSteps.indexOf(step) + 1} / 4 · 알고리즘 → 경기 설정 → 캐릭터 → 시작 위치`;
@@ -257,21 +260,16 @@ function renderInfo() {
   const overlay = $('arena-overlay');
   overlay.hidden = active();
   if (game.status === 'finished') {
+    $('result-podium').hidden = false;
+    overlay.classList.add('show-results');
+    renderPodium($('result-podium'), game.players);
     $('setup-form').hidden = true;
     $('setup-progress').hidden = true;
     $('play-again').hidden = false;
-    const highest = Math.max(...game.players.map((p) => p.score));
-    const winners = game.players
-      .filter((p) => p.score === highest)
-      .map((p) => p.name)
-      .join(' · ');
     const message = $('arena-message');
     message.replaceChildren();
     const title = document.createElement('strong');
-    title.textContent =
-      game.reason === 'user-stopped'
-        ? '경기를 종료했습니다'
-        : `${winners} · ${highest.toLocaleString()}점`;
+    title.textContent = game.reason === 'user-stopped' ? '경기를 종료했습니다' : '최종 경기 결과';
     const detail = document.createElement('p');
     detail.textContent =
       game.reason === 'runtime-failure'

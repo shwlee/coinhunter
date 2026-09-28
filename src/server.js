@@ -15,6 +15,7 @@ const sampleSource = await readFile(
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
+  ['/podium.js', ['podium.js', 'text/javascript; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
   ['/characters.js', ['characters.js', 'text/javascript; charset=utf-8']],
   ['/character-renderer.js', ['character-renderer.js', 'text/javascript; charset=utf-8']],

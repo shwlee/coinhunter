@@ -95,6 +95,17 @@ try {
   assert.equal(await page.locator('#arena-overlay').isVisible(), true);
   assert.equal(await page.locator('#file-step').isVisible(), false);
   assert.equal(await page.locator('#setup-progress').isVisible(), false);
+  assert.equal(await page.locator('#result-podium .podium-player').count(), 4);
+  const resultScores = await page.locator('#result-podium .podium-score').allTextContents();
+  assert.equal(resultScores.length, 4);
+  const podiumBounds = await page.locator('#result-podium').boundingBox();
+  const replayBounds = await page.locator('#play-again').boundingBox();
+  assert.ok(replayBounds.y >= podiumBounds.y + podiumBounds.height);
+  await page.screenshot({ path: 'artifacts/podium-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 320, height: 720 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  await page.screenshot({ path: 'artifacts/podium-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1100 });
   assert.equal(
     await page.locator('#arena-message').innerText(),
     '경기를 종료했습니다\n\n알고리즘을 바꾸고 새로운 전략에 도전하세요.',
@@ -102,6 +113,7 @@ try {
   await page.locator('#play-again').click();
   assert.equal(await page.locator('#file-step').isVisible(), true);
   assert.equal(await page.locator('#play-again').isVisible(), false);
+  assert.equal(await page.locator('#result-podium').isVisible(), false);
   await page
     .locator('#algorithm-file')
     .setInputFiles(fileURLToPath(new URL('../examples/nearest-coin.js', import.meta.url)));
@@ -176,6 +188,7 @@ try {
   await page.locator('#stop-button').click();
   await page.locator('#game-status').filter({ hasText: '경기 종료' }).waitFor();
   assert.equal(await page.locator('#setup-form').isVisible(), false);
+  assert.equal(await page.locator('#result-podium .podium-player').count(), 1);
   await page.locator('#play-again').click();
   assert.equal(await page.locator('#file-label').textContent(), 'timeout.js');
   assert.equal(await page.locator('#file-next').isEnabled(), true);

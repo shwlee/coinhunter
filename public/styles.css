@@ -1062,3 +1062,113 @@ footer > span:last-child {
     min-width: 140px;
   }
 }
+/* Podium reuses the actual character sprites; scores and ties remain live data. */
+.result-podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: min(100%, 660px);
+  margin: 20px 0 24px;
+  padding: 0 4px;
+  list-style: none;
+  gap: 8px;
+  border-bottom: 3px solid #6c7894;
+}
+.podium-player {
+  flex: 1;
+  min-width: 0;
+  max-width: 170px;
+  text-align: center;
+}
+.podium-identity {
+  font-size: 11px;
+  color: #cdd9e9;
+}
+.podium-name {
+  font-size: 11px;
+  color: #899ab3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 5px 0;
+}
+.podium-character {
+  width: 117px;
+  height: 130px;
+  object-fit: contain;
+  margin: 0 auto -5px;
+  position: relative;
+  z-index: 1;
+}
+.podium-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  height: 62px;
+  padding: 14px 4px 4px;
+  border-radius: 7px 7px 0 0;
+  background: linear-gradient(120deg, #7086a4, #344561);
+  border-top: 5px solid #abc1de;
+  box-shadow: inset -8px 0 #00000018;
+}
+.rank-1 .podium-block {
+  height: 138px;
+  background: linear-gradient(120deg, #f3cd71, #ae772c);
+  border-color: #fff0b4;
+}
+.rank-2 .podium-block {
+  height: 110px;
+  background: linear-gradient(120deg, #cbd7e4, #74899e);
+  border-color: #eef5ff;
+}
+.rank-3 .podium-block {
+  height: 84px;
+  background: linear-gradient(120deg, #dfa879, #985b3e);
+  border-color: #ffd5ac;
+}
+.podium-rank {
+  color: #182131;
+  font-weight: 800;
+  font-size: 18px;
+}
+.result-podium .podium-score {
+  color: #172031;
+  font-size: 17px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.show-results {
+  background: radial-gradient(ellipse at center, #25364af0, #0c1420ee 75%);
+}
+.show-results #play-again {
+  padding: 12px 28px;
+  background: var(--accent);
+  color: #172415;
+  border: 0;
+  font-weight: 700;
+}
+@media (max-width: 720px) {
+  .result-podium {
+    gap: 4px;
+    padding: 0;
+  }
+  .podium-character {
+    width: 72px;
+    height: 80px;
+  }
+  .podium-identity,
+  .podium-name {
+    font-size: 9px;
+  }
+  .podium-rank {
+    font-size: 13px;
+  }
+  .result-podium .podium-score {
+    font-size: 11px;
+  }
+  .podium-block {
+    gap: 7px;
+    padding: 10px 2px 2px;
+  }
+}
