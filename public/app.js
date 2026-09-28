@@ -99,7 +99,14 @@ function showSetupStep(step) {
 }
 $('play-again').addEventListener('click', () => {
   if (busy || active()) return;
-  showSetupStep('file');
+  events?.close();
+  events = null;
+  matchId = null;
+  sessionStorage.removeItem('coinhunter-match');
+  setError('');
+  renderLogs([]);
+  setupStep = 'file';
+  preview();
   $('algorithm-file').focus();
 });
 for (const [id, step] of [
@@ -165,6 +172,9 @@ function preview() {
     status: 'ready',
     remainingMs: map.settings.runningTimeMs,
   };
+  serverAt = 0;
+  receivedAt = performance.now();
+  drawBoard();
   $('arena-title').textContent = map.name;
   $('map-size').textContent = `${map.columns} × ${map.rows}`;
   $('arena-message').innerHTML =
@@ -352,6 +362,9 @@ function roundRect(x, y, w, h, r, fill) {
 }
 function draw() {
   requestAnimationFrame(draw);
+  drawBoard();
+}
+function drawBoard() {
   if (!game) return;
   const cell = 64,
     pad = 24;

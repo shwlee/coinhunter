@@ -212,6 +212,12 @@ try {
   }
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.locator('#play-again').click();
+  assert.equal(await page.locator('#game-status').textContent(), '준비');
+  assert.equal(await page.locator('#log-count').textContent(), '0 EVENTS');
+  assert.ok(
+    (await page.locator('.score-card .score').allTextContents()).every((score) => score === '0'),
+  );
+  assert.equal(await page.evaluate(() => sessionStorage.getItem('coinhunter-match')), null);
   assert.equal(await page.locator('#file-step').isVisible(), true);
   assert.equal(await page.locator('#play-again').isVisible(), false);
   assert.equal(await page.locator('#replay-hint').isVisible(), false);

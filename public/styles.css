@@ -417,8 +417,8 @@ canvas {
 .arena-overlay {
   position: absolute;
   inset: 0;
-  background: #0c1420ce;
-  backdrop-filter: blur(2px);
+  background: #0c1420;
+  backdrop-filter: none;
   display: flex;
   align-items: center;
   justify-content: safe center;
@@ -426,6 +426,10 @@ canvas {
   flex-direction: column;
   text-align: center;
   padding: 20px;
+}
+.arena-overlay.counting-down {
+  background: #0c1420ce;
+  backdrop-filter: blur(2px);
 }
 .arena-overlay > * {
   flex-shrink: 0;
@@ -1146,6 +1150,7 @@ footer > span:last-child {
 }
 .show-results {
   background: radial-gradient(ellipse at center, #25364af0, #0c1420ee 75%);
+  backdrop-filter: blur(2px);
 }
 .show-results #play-again {
   padding: 12px 28px;
