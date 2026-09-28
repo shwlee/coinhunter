@@ -21,6 +21,7 @@ const assets = new Map([
   ['/characters.js', ['characters.js', 'text/javascript; charset=utf-8']],
   ['/character-renderer.js', ['character-renderer.js', 'text/javascript; charset=utf-8']],
   ['/assets/characters/atlas.png', ['assets/characters/atlas.png', 'image/png']],
+  ['/assets/characters/atlas-hammer.png', ['assets/characters/atlas-hammer.png', 'image/png']],
 ]);
 for (const file of [
   'Coins.png',

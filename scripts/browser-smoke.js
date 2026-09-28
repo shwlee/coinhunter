@@ -25,6 +25,36 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.waitForSelector('#map-select option', { state: 'attached' });
+  const helmetChecks = await page.evaluate(async () => {
+    const { loadCharacters, drawCharacter } = await import('/character-renderer.js');
+    await loadCharacters();
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    const frame = (id, pose, hammer) => {
+      ctx.clearRect(0, 0, 128, 128);
+      drawCharacter(ctx, id, 64, 128, 128, pose, false, hammer);
+      return canvas.toDataURL();
+    };
+    const blank = canvas.toDataURL();
+    return ['kobi', 'pengko', 'nyangtami', 'dino', 'lumi'].every((id) => {
+      const idle = frame(id, 0, true);
+      const walk = frame(id, 1, true);
+      const normal = frame(id, 0, false);
+      const restored = frame(id, 0, true) === idle && frame(id, 0, false) === normal;
+      frame(id, 0, true);
+      const transparent = ctx.getImageData(64, 1, 1, 1).data[3] === 0;
+      return (
+        idle !== blank &&
+        walk !== blank &&
+        idle !== walk &&
+        idle !== normal &&
+        restored &&
+        transparent
+      );
+    });
+  });
+  assert.equal(helmetChecks, true, 'All five helmets render both poses and switch back to normal');
   const coinChecks = await page.evaluate(async () => {
     const { loadCoins, drawCoin, drawCoinPickup } = await import('/coin-renderer.js');
     await loadCoins();

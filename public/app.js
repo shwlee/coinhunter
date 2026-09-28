@@ -458,6 +458,7 @@ function draw() {
       72,
       walking && progress > 0.15 && progress < 0.8 ? 1 : 0,
       flip,
+      player.effect?.type === 1,
     );
     ctx.textAlign = 'center';
     ctx.font = 'bold 11px monospace';
@@ -466,10 +467,6 @@ function draw() {
     if (player.effect) {
       ctx.font = '22px sans-serif';
       ctx.fillText(itemIcons[player.effect.type], 0, -42);
-    }
-    if (player.effect?.type === 1) {
-      roundRect(-21, -21, 42, 8, 3, '#f6cc67');
-      roundRect(-14, -28, 28, 11, 6, '#f6cc67');
     }
     if (action?.type === 'break') {
       ctx.font = '24px sans-serif';
