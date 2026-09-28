@@ -18,7 +18,7 @@ export function createMap(columns = 12, rows = 10) {
     rows,
     tiles,
     settings: {
-      actionMs: 300,
+      actionMs: 400,
       runningTimeMs: 120000,
       itemFirstMs: 5000,
       itemIntervalMs: 15000,

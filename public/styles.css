@@ -1177,3 +1177,20 @@ footer > span:last-child {
     padding: 10px 2px 2px;
   }
 }
+.arena-overlay.counting-down > :not(.start-countdown) {
+  display: none !important;
+}
+.start-countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  color: #cdd9e9;
+}
+.arena-overlay .start-countdown strong {
+  font-size: clamp(72px, 12vw, 128px);
+  line-height: 1.1;
+  font-weight: 800;
+  color: var(--accent);
+  text-shadow: 0 0 36px #b6f36e55;
+}

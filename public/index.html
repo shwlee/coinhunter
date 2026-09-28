@@ -45,6 +45,16 @@
                 aria-label="게임 맵과 플레이어 위치"
               ></canvas>
               <div class="arena-overlay" id="arena-overlay">
+                <div
+                  id="start-countdown"
+                  class="start-countdown"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  hidden
+                >
+                  <span>준비하세요</span><strong id="countdown-number">3</strong>
+                </div>
                 <p id="setup-progress" class="setup-step-label" aria-live="polite"></p>
                 <div id="arena-message" class="arena-message">
                   <strong>함께할 캐릭터를 선택하세요</strong>
@@ -190,7 +200,7 @@
                         form="setup-form"
                         disabled
                       >
-                        경기 시작 →
+                        게임 시작 →
                       </button>
                     </div>
                   </section>

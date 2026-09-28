@@ -61,7 +61,7 @@ function active() {
 function controls() {
   $('start-button').disabled =
     !source || !charactersReady || setupStep !== 'position' || busy || active();
-  $('start-button').textContent = busy ? '알고리즘 준비 중…' : '경기 시작 →';
+  $('start-button').textContent = busy ? '게임 준비 중…' : '게임 시작 →';
   $('stop-button').hidden = !active();
   for (const id of ['algorithm-file', 'map-select', 'dummy-count', 'black-matter', 'destroy-walls'])
     $(id).disabled = busy || active();
@@ -180,6 +180,14 @@ $('setup-form').addEventListener('submit', async (event) => {
   setError('');
   events?.close();
   try {
+    $('arena-overlay').classList.add('counting-down');
+    $('start-countdown').hidden = false;
+    for (const number of [3, 2, 1]) {
+      $('countdown-number').textContent = String(number);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    $('countdown-number').textContent = '시작!';
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     const response = await fetch('/api/matches', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -201,6 +209,8 @@ $('setup-form').addEventListener('submit', async (event) => {
   } catch (error) {
     setError(error.message);
   } finally {
+    $('start-countdown').hidden = true;
+    $('arena-overlay').classList.remove('counting-down');
     busy = false;
     controls();
   }

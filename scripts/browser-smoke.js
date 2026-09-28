@@ -77,8 +77,26 @@ try {
   assert.equal(await page.locator('.character-options').isVisible(), false);
   await page.getByRole('radio', { name: '오른쪽 아래' }).check();
   await page.screenshot({ path: 'artifacts/desktop-position.png', fullPage: true });
+  assert.equal(await page.locator('#start-button').textContent(), '게임 시작 →');
+  let startsDuringCountdown = 0;
+  const countStarts = (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/matches')
+      startsDuringCountdown++;
+  };
+  page.on('request', countStarts);
   await page.locator('#start-button').click();
+  for (const number of ['3', '2', '1', '시작!']) {
+    await page
+      .locator('#countdown-number')
+      .filter({ hasText: new RegExp(`^${number}$`) })
+      .waitFor();
+    assert.equal(startsDuringCountdown, 0, 'Server must not start the game during countdown');
+    assert.equal(await page.locator('#start-button').isDisabled(), true);
+  }
   await page.locator('#game-status').filter({ hasText: '진행 중' }).waitFor();
+  page.off('request', countStarts);
+  assert.equal(startsDuringCountdown, 1);
+  assert.equal(await page.locator('#start-countdown').isVisible(), false);
   assert.equal(await page.locator('.character-options').isVisible(), false);
   await page.locator('.score-card .score').filter({ hasText: /[1-9]/ }).first().waitFor();
   await page.screenshot({ path: 'artifacts/desktop-playing.png', fullPage: true });
