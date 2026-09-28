@@ -106,13 +106,38 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.screenshot({ path: 'artifacts/podium-mobile.png', fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1100 });
-  assert.equal(
-    await page.locator('#arena-message').innerText(),
-    '경기를 종료했습니다\n\n알고리즘을 바꾸고 새로운 전략에 도전하세요.',
-  );
+  assert.equal(await page.locator('#arena-message').innerText(), '경기를 종료했습니다');
+  // Exercise distinct ranks: the live smoke match may finish with four tied scores.
+  await page.evaluate(async () => {
+    const { renderPodium } = await import('/podium.js');
+    renderPodium(document.getElementById('result-podium'), [
+      { id: 0, name: 'First', characterId: 'lumi', score: 12340 },
+      { id: 1, name: 'Second', characterId: 'kobi', score: 9500 },
+      { id: 2, name: 'Third', characterId: 'kobi', score: 6800 },
+      { id: 3, name: 'Fourth', characterId: 'kobi', score: 3500 },
+    ]);
+  });
+  for (const width of [1440, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    const fits = await page.locator('#result-podium').evaluate((podium) => {
+      const overlay = podium.parentElement;
+      return (
+        overlay.scrollHeight <= overlay.clientHeight + 1 &&
+        [...podium.querySelectorAll('.podium-block')].every((block) => {
+          const bounds = block.getBoundingClientRect();
+          const score = block.querySelector('.podium-score').getBoundingClientRect();
+          return score.bottom <= bounds.bottom && score.top >= bounds.top;
+        })
+      );
+    });
+    assert.equal(fits, true, `All podium scores must fit at ${width}px`);
+    await page.screenshot({ path: `artifacts/podium-ranks-${width}.png`, fullPage: true });
+  }
+  await page.setViewportSize({ width: 1440, height: 1100 });
   await page.locator('#play-again').click();
   assert.equal(await page.locator('#file-step').isVisible(), true);
   assert.equal(await page.locator('#play-again').isVisible(), false);
+  assert.equal(await page.locator('#replay-hint').isVisible(), false);
   assert.equal(await page.locator('#result-podium').isVisible(), false);
   await page
     .locator('#algorithm-file')

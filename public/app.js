@@ -80,6 +80,7 @@ function showSetupStep(step) {
   $('setup-form').hidden = false;
   $('setup-progress').hidden = false;
   $('play-again').hidden = true;
+  $('replay-hint').hidden = true;
   $('result-podium').hidden = true;
   $('arena-overlay').classList.remove('show-results');
   for (const name of setupSteps) $(`${name}-step`).hidden = name !== step;
@@ -88,6 +89,7 @@ function showSetupStep(step) {
   $('position-summary').textContent =
     `${characterFor(selectedCharacter).name} · ${startNames[selectedStartSlot]}에서 시작`;
   $('arena-message').querySelector('strong').textContent = stepTitles[setupSteps.indexOf(step)];
+  $('arena-message').querySelector('p').hidden = false;
   $('arena-message').querySelector('p').textContent =
     step === 'file'
       ? '샘플 파일을 내려받거나 자신의 .js 파일을 올리세요.'
@@ -266,15 +268,15 @@ function renderInfo() {
     $('setup-form').hidden = true;
     $('setup-progress').hidden = true;
     $('play-again').hidden = false;
+    $('replay-hint').hidden = false;
     const message = $('arena-message');
     message.replaceChildren();
     const title = document.createElement('strong');
     title.textContent = game.reason === 'user-stopped' ? '경기를 종료했습니다' : '최종 경기 결과';
     const detail = document.createElement('p');
     detail.textContent =
-      game.reason === 'runtime-failure'
-        ? '실행 환경 오류로 경기가 종료되었습니다.'
-        : '알고리즘을 바꾸고 새로운 전략에 도전하세요.';
+      game.reason === 'runtime-failure' ? '실행 환경 오류로 경기가 종료되었습니다.' : '';
+    detail.hidden = game.reason !== 'runtime-failure';
     message.append(title, detail);
   }
   const players = game.players.length
