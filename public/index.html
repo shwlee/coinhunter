@@ -201,15 +201,58 @@
               <p id="error-message" class="error-message" role="alert"></p>
             </div>
             <div class="legend">
-              <span><i class="coin-dot copper"></i>10</span
-              ><span><i class="coin-dot silver"></i>30</span
-              ><span><i class="coin-dot gold"></i>100</span
-              ><span><i class="coin-dot diamond"></i>200</span
-              ><span><i class="coin-dot matter"></i>500</span
+              <span title="동전 · 10점"
+                ><canvas
+                  class="coin-sample"
+                  data-value="10"
+                  width="48"
+                  height="48"
+                  aria-hidden="true"
+                ></canvas
+                >10</span
+              ><span title="은화 · 30점"
+                ><canvas
+                  class="coin-sample"
+                  data-value="30"
+                  width="48"
+                  height="48"
+                  aria-hidden="true"
+                ></canvas
+                >30</span
+              ><span title="금화 · 100점"
+                ><canvas
+                  class="coin-sample"
+                  data-value="100"
+                  width="48"
+                  height="48"
+                  aria-hidden="true"
+                ></canvas
+                >100</span
+              ><span title="다이아몬드 · 200점"
+                ><canvas
+                  class="coin-sample"
+                  data-value="200"
+                  width="48"
+                  height="48"
+                  aria-hidden="true"
+                ></canvas
+                >200</span
+              ><span title="블랙매터 · 500점"
+                ><canvas
+                  class="coin-sample"
+                  data-value="500"
+                  width="48"
+                  height="48"
+                  aria-hidden="true"
+                ></canvas
+                >500</span
               ><span class="legend-end">← ↑ → ↓ &nbsp; 한 번에 한 칸</span>
             </div>
           </div>
-          <div id="scoreboard" class="scoreboard" aria-live="polite"></div>
+          <section id="rank-panel" class="rank-panel panel" aria-labelledby="rank-heading">
+            <h2 id="rank-heading">참가자 준비</h2>
+            <ol id="scoreboard" class="scoreboard" aria-live="polite" aria-relevant="text"></ol>
+          </section>
           <section class="logs panel">
             <div class="panel-heading">
               <h2>실행 로그</h2>

@@ -21,6 +21,13 @@ const { server, close } = createGameServer();
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 let browser;
 const errors = [];
+const arenaLayout = (page) =>
+  page.evaluate(() =>
+    ['.arena.panel', '.canvas-wrap', '.match-toolbar', '#rank-panel'].map((selector) => {
+      const { x, y, width, height } = document.querySelector(selector).getBoundingClientRect();
+      return { x, y, width, height };
+    }),
+  );
 try {
   browser = await chromium.launch({ executablePath, headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
@@ -166,6 +173,7 @@ try {
   await page.getByRole('radio', { name: '오른쪽 아래' }).check();
   await page.screenshot({ path: 'artifacts/desktop-position.png', fullPage: true });
   assert.equal(await page.locator('#start-button').textContent(), '게임 시작 →');
+  const preparedLayout = await arenaLayout(page);
   let startsDuringCountdown = 0;
   const countStarts = (request) => {
     if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/matches')
@@ -179,9 +187,19 @@ try {
       .filter({ hasText: new RegExp(`^${number}$`) })
       .waitFor();
     assert.equal(startsDuringCountdown, 0, 'Server must not start the game during countdown');
+    assert.deepEqual(
+      await arenaLayout(page),
+      preparedLayout,
+      'Countdown must preserve the prepared layout',
+    );
     assert.equal(await page.locator('#start-button').isDisabled(), true);
   }
   await page.locator('#game-status').filter({ hasText: '진행 중' }).waitFor();
+  assert.deepEqual(
+    await arenaLayout(page),
+    preparedLayout,
+    'Playing must preserve the prepared layout',
+  );
   page.off('request', countStarts);
   assert.equal(startsDuringCountdown, 1);
   assert.equal(await page.locator('#start-countdown').isVisible(), false);
@@ -205,6 +223,11 @@ try {
   const resultScores = await page.locator('#result-podium .podium-score').allTextContents();
   assert.equal(resultScores.length, 4);
   const podiumBounds = await page.locator('#result-podium').boundingBox();
+  assert.deepEqual(
+    await arenaLayout(page),
+    preparedLayout,
+    'Results must preserve the prepared layout',
+  );
   const replayBounds = await page.locator('#play-again').boundingBox();
   assert.ok(replayBounds.y >= podiumBounds.y + podiumBounds.height);
   await page.screenshot({ path: 'artifacts/podium-desktop.png', fullPage: true });
@@ -371,6 +394,61 @@ try {
   assert.equal(portraits[0], portraits[2], 'Replacing hammer removes the helmet');
   assert.equal(portraits[1], portraits[3], 'Reacquiring hammer restores the helmet');
   assert.equal(portraits[0], portraits[4], 'Hammer expiration removes the helmet');
+  equipmentGame.players[1].score = 30;
+  await equipmentPage.evaluate(
+    (game) => window.sendEquipmentSnapshot(game),
+    equipmentGame.snapshot(0),
+  );
+  assert.deepEqual(
+    await equipmentPage
+      .locator('#scoreboard .score-card')
+      .evaluateAll((cards) => cards.map((card) => Number(card.dataset.player))),
+    [1, 0],
+  );
+  equipmentGame.players[0].score = 30;
+  await equipmentPage.evaluate(
+    (game) => window.sendEquipmentSnapshot(game),
+    equipmentGame.snapshot(0),
+  );
+  assert.deepEqual(
+    await equipmentPage
+      .locator('#scoreboard .score-card')
+      .evaluateAll((cards) => cards.map((card) => Number(card.dataset.player))),
+    [1, 0],
+  );
+  assert.deepEqual(await equipmentPage.locator('#scoreboard .live-rank').allTextContents(), [
+    '공동 1위',
+    '공동 1위',
+  ]);
+  equipmentGame.players[0].score = 100;
+  await equipmentPage.evaluate(
+    (game) => window.sendEquipmentSnapshot(game),
+    equipmentGame.snapshot(0),
+  );
+  assert.deepEqual(
+    await equipmentPage
+      .locator('#scoreboard .score-card')
+      .evaluateAll((cards) => cards.map((card) => Number(card.dataset.player))),
+    [0, 1],
+  );
+  await equipmentPage.waitForTimeout(300);
+  for (const width of [1440, 390]) {
+    await equipmentPage.setViewportSize({ width, height: 1100 });
+    const panel = await equipmentPage.locator('#rank-panel').boundingBox();
+    const arena = await equipmentPage.locator('.arena.panel').boundingBox();
+    assert.ok(
+      width === 1440 ? panel.x + panel.width <= arena.x : panel.y >= arena.y + arena.height,
+    );
+    assert.ok(panel.x >= 0 && panel.x + panel.width <= width);
+    await equipmentPage.screenshot({ path: `artifacts/live-ranks-${width}.png`, fullPage: true });
+  }
+  equipmentGame.finish('user-stopped');
+  await equipmentPage.evaluate(
+    (game) => window.sendEquipmentSnapshot(game),
+    equipmentGame.snapshot(0),
+  );
+  assert.equal(await equipmentPage.locator('#rank-panel').isVisible(), true);
+  assert.equal(await equipmentPage.locator('#rank-heading').textContent(), '최종 순위');
   await equipmentPage.close();
   console.log(
     'Browser smoke passed: upload, four players, scoring, reconnect, stop, mobile layout, timeout recovery.',

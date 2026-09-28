@@ -1,7 +1,8 @@
-import { CHARACTERS, DEFAULT_CHARACTER, characterFor, isPlayableCharacter } from './characters.js';
+﻿import { CHARACTERS, DEFAULT_CHARACTER, characterFor, isPlayableCharacter } from './characters.js';
 import { loadCharacters, drawCharacter, drawDirectionalCharacter } from './character-renderer.js';
 import { renderPodium } from './podium.js';
-import { loadCoins, drawCoin, drawCoinPickup } from './coin-renderer.js';
+import { renderLeaderboard } from './leaderboard.js';
+import { loadCoins, drawCoin, drawCoinPickup, drawCoinSample } from './coin-renderer.js';
 const $ = (id) => document.getElementById(id);
 let selectedCharacter = DEFAULT_CHARACTER;
 let charactersReady = false;
@@ -161,6 +162,9 @@ for (const name of ['dragleave', 'drop'])
   });
 $('drop-zone').addEventListener('drop', (event) => loadFile(event.dataTransfer.files[0]));
 $('map-select').addEventListener('change', preview);
+$('dummy-count').addEventListener('change', () => {
+  if (game?.status === 'ready') renderInfo();
+});
 
 function preview() {
   const map = maps.find((map) => map.id === $('map-select').value);
@@ -269,6 +273,12 @@ $('stop-button').addEventListener('click', async () => {
 });
 
 function renderInfo() {
+  $('rank-heading').textContent =
+    game.status === 'ready'
+      ? '참가자 준비'
+      : game.status === 'finished'
+        ? '최종 순위'
+        : '실시간 순위';
   $('game-status').textContent = {
     ready: '준비',
     playing: '진행 중',
@@ -302,46 +312,18 @@ function renderInfo() {
   }
   const players = game.players.length
     ? game.players
-    : Array.from({ length: 4 }, (_, id) => ({
+    : Array.from({ length: Number($('dummy-count').value) + 1 }, (_, id) => ({
         id,
         name: id ? '더미 ' + id : '내 알고리즘',
         characterId: id ? 'kobi' : selectedCharacter,
         score: 0,
         turn: 0,
       }));
-  for (let i = 0; i < players.length; i++) {
-    let card = $('scoreboard').children[i];
-    if (!card) {
-      card = document.createElement('div');
-      card.className = 'score-card';
-      card.innerHTML =
-        '<canvas class="score-portrait" width="64" height="80" aria-hidden="true"></canvas><div class="character-caption"></div><div class="name"><i class="player-marker"></i><span></span></div><div class="score"></div><div class="detail"></div>';
-      $('scoreboard').append(card);
-    }
-    const player = players[i];
-    card.dataset.character = player.characterId;
-    card.querySelector('.character-caption').textContent = characterFor(player.characterId).name;
-    const portrait = card.querySelector('canvas');
-    const portraitContext = portrait.getContext('2d');
-    portraitContext.clearRect(0, 0, portrait.width, portrait.height);
-    drawCharacter(
-      portraitContext,
-      player.characterId,
-      32,
-      80,
-      80,
-      0,
-      false,
-      player.effect?.type === 1,
-    );
-    card.querySelector('.name span').textContent = player.name;
-    card.querySelector('.player-marker').style.backgroundColor = colors[player.id];
-    card.querySelector('.score').textContent = player.score.toLocaleString();
-    card.querySelector('.detail').textContent = player.effect
-      ? `${effectNames[player.effect.type]} · ${player.effect.remaining} 남음`
-      : `TURN ${String(player.turn).padStart(3, '0')}`;
-  }
-  while ($('scoreboard').children.length > players.length) $('scoreboard').lastChild.remove();
+  renderLeaderboard($('scoreboard'), players, {
+    colors,
+    effectNames,
+    reset: game.status === 'ready',
+  });
 }
 function renderLogs(logs) {
   const key = JSON.stringify(logs);
@@ -517,6 +499,8 @@ function drawBoard() {
 
 try {
   await Promise.all([loadCharacters(), loadCoins()]);
+  for (const sample of document.querySelectorAll('.coin-sample'))
+    drawCoinSample(sample.getContext('2d'), Number(sample.dataset.value));
   charactersReady = true;
   $('character-load-status').textContent = '';
   for (const card of document.querySelectorAll('.character-card')) {

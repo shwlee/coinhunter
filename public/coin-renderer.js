@@ -41,6 +41,16 @@ function sprite(ctx, file, frame, x, y, size) {
   );
 }
 
+export function drawCoinSample(ctx, value) {
+  const definition = definitions[value];
+  if (!images || !definition) return;
+  const frame = frames[definition.file].frames.find((frame) =>
+    frame.name.startsWith(definition.prefix),
+  );
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  sprite(ctx, definition.file, frame, ctx.canvas.width / 2, ctx.canvas.height / 2, 40);
+}
+
 export function drawCoin(ctx, value, x, y, now, index = 0, bornAt) {
   const definition = definitions[value];
   if (!images || !definition) return;
