@@ -17,6 +17,8 @@ const stepTitles = [
 let selectedStartSlot = 0;
 let finishStage = null;
 let finishTimer = null;
+let hurryAnnounced = false;
+let hurryTimer = null;
 const startNames = ['왼쪽 위', '오른쪽 위', '왼쪽 아래', '오른쪽 아래'];
 try {
   const saved = localStorage.getItem('coinhunter-character');
@@ -174,6 +176,7 @@ function preview() {
   clearTimeout(finishTimer);
   finishTimer = null;
   finishStage = null;
+  hurryAnnounced = false;
   $('game-over').hidden = true;
   $('arena-overlay').classList.remove('show-game-over');
   game = {
@@ -280,6 +283,20 @@ $('stop-button').addEventListener('click', async () => {
 });
 
 function renderInfo() {
+  const hurry = game.status === 'hurryup';
+  document.querySelector('.arena').classList.toggle('hurry-phase', hurry);
+  if (hurry && !hurryAnnounced) {
+    hurryAnnounced = true;
+    $('hurry-banner').hidden = false;
+    hurryTimer = setTimeout(() => {
+      $('hurry-banner').hidden = true;
+      hurryTimer = null;
+    }, 1000);
+  } else if (!hurry) {
+    clearTimeout(hurryTimer);
+    hurryTimer = null;
+    $('hurry-banner').hidden = true;
+  }
   $('rank-heading').textContent =
     game.status === 'ready'
       ? '참가자 준비'
@@ -386,8 +403,9 @@ function drawBoard() {
     canvas.width = width;
     canvas.height = height;
   }
-  ctx.fillStyle = '#0c1420';
-  ctx.fillRect(0, 0, width, height);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#92a99d';
+  ctx.fillRect(pad, pad, game.columns * cell, game.rows * cell);
   const now = game.status === 'finished' ? serverAt : serverAt + (performance.now() - receivedAt);
   for (let y = 0; y < game.rows; y++)
     for (let x = 0; x < game.columns; x++) {
@@ -395,7 +413,7 @@ function drawBoard() {
         py = pad + y * cell,
         index = y * game.columns + x,
         tile = game.tiles[index];
-      roundRect(px + 1, py + 1, cell - 2, cell - 2, 4, (x + y) % 2 ? '#162333' : '#182638');
+      roundRect(px + 1, py + 1, cell - 2, cell - 2, 4, (x + y) % 2 ? '#c7d3bf' : '#b7cbb0');
       if (tile === -1) {
         roundRect(px + 5, py + 8, cell - 10, cell - 12, 5, '#334759');
         roundRect(px + 5, py + 5, cell - 10, cell - 15, 5, '#4b6577');
@@ -487,6 +505,9 @@ function drawBoard() {
     ctx.textAlign = 'center';
     ctx.font = 'bold 11px monospace';
     ctx.fillStyle = colors[player.id];
+    ctx.strokeStyle = '#172331';
+    ctx.lineWidth = 3;
+    ctx.strokeText(`P${player.id + 1}`, 0, 34);
     ctx.fillText(`P${player.id + 1}`, 0, 34);
     if (player.effect) {
       ctx.font = '22px sans-serif';
@@ -505,6 +526,9 @@ function drawBoard() {
     if (['confused', 'penalty'].includes(action?.type)) {
       ctx.font = 'bold 25px monospace';
       ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#172331';
+      ctx.lineWidth = 3;
+      ctx.strokeText('?', 24, -20);
       ctx.fillText('?', 24, -20);
     }
     if (action?.type === 'jump-failed') {

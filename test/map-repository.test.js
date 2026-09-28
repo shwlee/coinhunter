@@ -73,6 +73,26 @@ test('unsafe IDs and sample edits rejected; invalid symmetry and islands cannot 
   await assert.rejects(repo.saveDraft(bad), /옵션/);
 });
 
+test('HurryUp intervals reject invalid settings and accept older maps', () => {
+  for (const value of [
+    null,
+    [],
+    100,
+    { 10: 0 },
+    { 10: 60001 },
+    { 10: 1.5 },
+    { 10: '300' },
+    { 20: 300 },
+  ]) {
+    const map = custom();
+    map.settings.hurryUpRemovalIntervalMs = value;
+    assert.throws(() => validateMapDocument(map), /소멸 간격|hurryUpRemovalIntervalMs/);
+  }
+  const map = custom();
+  delete map.settings.hurryUpRemovalIntervalMs;
+  validateMapDocument(map);
+});
+
 test('concurrent saves reject stale revision and keep a readable registry', async (t) => {
   const repo = await repository(t);
   const results = await Promise.allSettled([repo.saveDraft(custom()), repo.saveDraft(custom())]);

@@ -1,4 +1,4 @@
-import { validateMap } from './maps.js';
+import { validateMap, DEFAULT_HURRY_UP_REMOVAL_INTERVAL_MS } from './maps.js';
 import { DEFAULT_CHARACTER, isPlayableCharacter } from '../../public/characters.js';
 
 export class GameState {
@@ -9,7 +9,13 @@ export class GameState {
     this.columns = map.columns;
     this.rows = map.rows;
     this.tiles = [...map.tiles];
-    this.settings = { ...map.settings };
+    this.settings = {
+      ...map.settings,
+      hurryUpRemovalIntervalMs: {
+        ...DEFAULT_HURRY_UP_REMOVAL_INTERVAL_MS,
+        ...map.settings.hurryUpRemovalIntervalMs,
+      },
+    };
     this.options = { blackMatter: false, destroyWalls: false, ...options };
     this.random = random;
     this.items = [-1, -1, -1, -1];
@@ -213,7 +219,7 @@ export class GameState {
         const cheapest = Math.min(...values);
         const coins = this.tiles.flatMap((value, index) => (value === cheapest ? [index] : []));
         this.tiles[this.choose(coins)] = 0;
-        this.nextRemovalAt = now + { 10: 300, 30: 700, 100: 1000, 200: 1300, 500: 1300 }[cheapest];
+        this.nextRemovalAt = now + this.settings.hurryUpRemovalIntervalMs[cheapest];
       }
       this.checkFinished();
     }

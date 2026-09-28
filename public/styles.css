@@ -387,6 +387,78 @@ select {
 .timer.hurry {
   color: #ff977d;
 }
+.arena.hurry-phase {
+  animation: hurry-border 1.6s ease-in-out infinite;
+}
+.hurry-phase .canvas-wrap {
+  animation: hurry-background 1.6s ease-in-out infinite;
+}
+@keyframes hurry-border {
+  0%,
+  100% {
+    border-color: #9b3b39;
+    background-color: #241821;
+    box-shadow: 0 0 8px #a92d2925;
+  }
+  50% {
+    border-color: #ff6963;
+    background-color: #65272b;
+    box-shadow: 0 0 24px #ed484855;
+  }
+}
+@keyframes hurry-background {
+  0%,
+  100% {
+    background-color: #231721;
+  }
+  50% {
+    background-color: #752b30;
+  }
+}
+.hurry-phase .status {
+  color: #ffcf89;
+  background: #6a2f20;
+  font-weight: 800;
+}
+.hurry-banner {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  pointer-events: none;
+  background: #0c142055;
+  text-shadow: 0 3px 12px #000;
+  animation: hurry-enter 250ms ease-out;
+}
+.hurry-banner strong {
+  font: 900 clamp(36px, 6vw, 72px) var(--mono);
+  color: #ffb16e;
+}
+@keyframes hurry-enter {
+  from {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hurry-banner {
+    animation: none;
+  }
+  .arena.hurry-phase,
+  .hurry-phase .canvas-wrap {
+    animation: none;
+    background-color: #522329;
+    border-color: #ff6963;
+  }
+}
 .canvas-wrap {
   width: 100%;
   position: relative;

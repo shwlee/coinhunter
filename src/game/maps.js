@@ -17,6 +17,14 @@
     throw new Error('시작점은 빈칸이어야 합니다.');
 }
 
+export const DEFAULT_HURRY_UP_REMOVAL_INTERVAL_MS = Object.freeze({
+  10: 300,
+  30: 700,
+  100: 1000,
+  200: 1300,
+  500: 1300,
+});
+
 export function validateMapDocument(map, { published = true } = {}) {
   if (
     !map ||
@@ -46,6 +54,20 @@ export function validateMapDocument(map, { published = true } = {}) {
     const value = map.settings?.[key];
     if (!Number.isInteger(value) || value < min || value > max)
       throw new Error(`잘못된 맵 옵션: ${key}`);
+  }
+  const removal = map.settings.hurryUpRemovalIntervalMs;
+  if (removal !== undefined) {
+    if (!removal || typeof removal !== 'object' || Array.isArray(removal))
+      throw new Error('잘못된 맵 옵션: hurryUpRemovalIntervalMs');
+    for (const [score, interval] of Object.entries(removal)) {
+      if (
+        !Object.hasOwn(DEFAULT_HURRY_UP_REMOVAL_INTERVAL_MS, score) ||
+        !Number.isInteger(interval) ||
+        interval < 100 ||
+        interval > 60000
+      )
+        throw new Error(`잘못된 코인 소멸 간격: ${score}`);
+    }
   }
   if (!published) return;
   const { columns, rows, tiles } = map;

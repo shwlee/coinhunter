@@ -248,12 +248,42 @@ test('insufficient four empty spaces spawns nothing; jump failure consumes one e
   assert.equal(g.players[0].position, 0);
 });
 
+test('map-specific HurryUp intervals override defaults and are copied per game', () => {
+  const source = map();
+  source.settings.hurryUpRemovalIntervalMs = { 10: 1500 };
+  const g = new GameState(source, ['test'], {}, () => 0);
+  g.start(0);
+  source.settings.hurryUpRemovalIntervalMs[10] = 100;
+  g.update(10000);
+  assert.equal(g.tiles[21], 0);
+  assert.equal(g.settings.hurryUpRemovalIntervalMs[100], 1000);
+  g.update(11499);
+  assert.equal(g.tiles[14], 100);
+  g.update(11500);
+  assert.equal(g.status, 'finished');
+});
+
 test('item schedule remains active during HurryUp', () => {
   const g = state();
   g.settings.runningTimeMs = 500;
   g.update(1000);
   assert.equal(g.status, 'hurryup');
   assert.ok(g.items.every((index) => index >= 0));
+});
+
+test('HurryUp starts at the time limit and removes cheapest coins until the game ends', () => {
+  const g = state();
+  g.update(9999);
+  assert.equal(g.status, 'playing');
+  g.update(10000);
+  assert.equal(g.status, 'hurryup');
+  assert.equal(g.tiles[21], 0);
+  assert.equal(g.tiles[14], 100);
+  g.update(10299);
+  assert.equal(g.tiles[14], 100);
+  g.update(10300);
+  assert.equal(g.status, 'finished');
+  assert.equal(g.tiles[14], 0);
 });
 
 test('random jump turn does not invoke user runtime at all', async () => {

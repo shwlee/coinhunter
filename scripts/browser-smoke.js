@@ -454,6 +454,23 @@ try {
     assert.ok(panel.x >= 0 && panel.x + panel.width <= width);
     await equipmentPage.screenshot({ path: `artifacts/live-ranks-${width}.png`, fullPage: true });
   }
+  const beforeHurry = await arenaLayout(equipmentPage);
+  equipmentGame.update(equipmentGame.settings.runningTimeMs);
+  await equipmentPage.evaluate(
+    (game) => window.sendEquipmentSnapshot(game),
+    equipmentGame.snapshot(equipmentGame.settings.runningTimeMs),
+  );
+  assert.equal(await equipmentPage.locator('#hurry-banner').isVisible(), true);
+  assert.equal(await equipmentPage.locator('#game-status').textContent(), 'HURRY UP');
+  assert.equal(await equipmentPage.locator('#arena-overlay').isVisible(), false);
+  assert.deepEqual(await arenaLayout(equipmentPage), beforeHurry);
+  await equipmentPage.screenshot({ path: 'artifacts/hurry-up.png', fullPage: true });
+  await equipmentPage.locator('#hurry-banner').waitFor({ state: 'hidden' });
+  await equipmentPage.evaluate(
+    (game) => window.sendEquipmentSnapshot(game),
+    equipmentGame.snapshot(equipmentGame.settings.runningTimeMs + 100),
+  );
+  assert.equal(await equipmentPage.locator('#hurry-banner').isVisible(), false);
   equipmentGame.finish('user-stopped');
   await equipmentPage.evaluate(
     (game) => window.sendEquipmentSnapshot(game),
