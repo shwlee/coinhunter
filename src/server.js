@@ -15,12 +15,24 @@ const sampleSource = await readFile(
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
+  ['/coin-renderer.js', ['coin-renderer.js', 'text/javascript; charset=utf-8']],
   ['/podium.js', ['podium.js', 'text/javascript; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
   ['/characters.js', ['characters.js', 'text/javascript; charset=utf-8']],
   ['/character-renderer.js', ['character-renderer.js', 'text/javascript; charset=utf-8']],
   ['/assets/characters/atlas.png', ['assets/characters/atlas.png', 'image/png']],
 ]);
+for (const file of [
+  'Coins.png',
+  'Diamond.png',
+  'blackmatter.png',
+  'appear_blackmatter.png',
+  'frames.json',
+])
+  assets.set('/assets/coins/' + file, [
+    'assets/coins/' + file,
+    file.endsWith('.json') ? 'application/json' : 'image/png',
+  ]);
 
 async function readJson(request) {
   if (!request.headers['content-type']?.startsWith('application/json'))

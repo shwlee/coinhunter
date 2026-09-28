@@ -179,6 +179,8 @@ test('last doubled coin retains its animation marker after effect expires', () =
   assert.equal(g.players[0].effect, null);
   assert.equal(g.players[0].score, 60);
   assert.equal(g.players[0].coinBurstBoosted, true);
+  assert.equal(g.players[0].coinBurstValue, 30);
+  assert.equal(g.players[0].coinBurstPosition, 1);
 });
 
 test('spawn exclusions are orthogonal, apply to every player, and keep four unique items', () => {

@@ -25,6 +25,35 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.waitForSelector('#map-select option', { state: 'attached' });
+  const coinChecks = await page.evaluate(async () => {
+    const { loadCoins, drawCoin, drawCoinPickup } = await import('/coin-renderer.js');
+    await loadCoins();
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 96;
+    const ctx = canvas.getContext('2d');
+    const frame = (value, time, bornAt) => {
+      ctx.clearRect(0, 0, 96, 96);
+      drawCoin(ctx, value, 48, 48, time, 0, bornAt);
+      return canvas.toDataURL();
+    };
+    const blank = canvas.toDataURL();
+    const visible = [10, 30, 100, 200, 500].every((value) => frame(value, 0) !== blank);
+    const animated = [10, 30, 100, 200, 500].every(
+      (value) => frame(value, 0) !== frame(value, 180),
+    );
+    const appearance = frame(500, 50, 0) !== frame(500, 50);
+    ctx.clearRect(0, 0, 96, 96);
+    drawCoinPickup(
+      ctx,
+      { coinBurstAt: 0, coinBurstPosition: 0, coinBurstValue: 100, coinBurstBoosted: true },
+      100,
+      1,
+      64,
+      16,
+    );
+    return { visible, animated, appearance, pickup: canvas.toDataURL() !== blank };
+  });
+  assert.deepEqual(coinChecks, { visible: true, animated: true, appearance: true, pickup: true });
   assert.equal(await page.locator('#start-button').isDisabled(), true);
   assert.equal(await page.locator('input[name="character"]').count(), 4);
   assert.equal(await page.locator('#file-step').isVisible(), true);

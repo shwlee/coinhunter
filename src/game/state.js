@@ -11,6 +11,7 @@ export class GameState {
     this.options = { blackMatter: false, destroyWalls: false, ...options };
     this.random = random;
     this.items = [-1, -1, -1, -1];
+    this.coinAppearances = {};
     this.effectSequence = 0;
     const starts = [0, this.columns - 1, this.columns * (this.rows - 1), this.tiles.length - 1];
     const startSlot = options.startSlot ?? 0;
@@ -145,6 +146,9 @@ export class GameState {
           if (effect?.type === 2) effect.remaining--;
           this.tiles[action.to] = 0;
           player.coinBurstAt = now;
+          player.coinBurstValue = coin;
+          player.coinBurstPosition = action.to;
+          delete this.coinAppearances[action.to];
           player.coinBurstBoosted = effect?.type === 2;
         }
         const item = this.items.indexOf(action.to);
@@ -191,6 +195,7 @@ export class GameState {
         const chosen = this.choose(spaces);
         spaces.splice(spaces.indexOf(chosen), 1);
         this.tiles[chosen] = 500;
+        this.coinAppearances[chosen] = now;
       }
     }
     if (this.options.destroyWalls && now >= this.nextWallAt) {
@@ -227,6 +232,7 @@ export class GameState {
       rows: this.rows,
       tiles: this.tiles,
       items: this.items,
+      coinAppearances: this.coinAppearances,
       players: this.players,
       status: this.status,
       reason: this.reason,

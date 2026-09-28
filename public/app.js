@@ -1,6 +1,7 @@
 import { CHARACTERS, DEFAULT_CHARACTER, characterFor, isPlayableCharacter } from './characters.js';
 import { loadCharacters, drawCharacter } from './character-renderer.js';
 import { renderPodium } from './podium.js';
+import { loadCoins, drawCoin, drawCoinPickup } from './coin-renderer.js';
 const $ = (id) => document.getElementById(id);
 let selectedCharacter = DEFAULT_CHARACTER;
 let charactersReady = false;
@@ -379,28 +380,15 @@ function draw() {
         ctx.fillRect(px + 9, py + 30, cell - 18, 3);
         ctx.fillRect(px + 31, py + 11, 3, 20);
       } else if (tile > 0) {
-        const color = {
-          10: '#ce956b',
-          30: '#c8d8e4',
-          100: '#f6cc67',
-          200: '#79e8ef',
-          500: '#c19aff',
-        }[tile];
-        const size = tile >= 100 ? 13 : 9;
-        ctx.shadowColor = color;
-        ctx.shadowBlur = tile >= 100 ? 10 : 0;
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(px + cell / 2, py + cell / 2, size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = '#ffffff55';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(px + cell / 2, py + cell / 2, size - 3, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = '#29314388';
-        ctx.fillRect(px + cell / 2 - 1, py + cell / 2 - 5, 2, 10);
+        drawCoin(
+          ctx,
+          tile,
+          px + cell / 2,
+          py + cell / 2,
+          now,
+          index,
+          game.coinAppearances?.[index],
+        );
       }
       const item = game.items.indexOf(index);
       if (item >= 0) {
@@ -496,20 +484,13 @@ function draw() {
       ctx.font = '20px sans-serif';
       ctx.fillText('✧', 20 + progress * 15, -30 + progress * 12);
     }
-    if (player.coinBurstAt && now - player.coinBurstAt < 250 && player.coinBurstBoosted) {
-      ctx.fillStyle = '#f6cc67';
-      for (let i = 0; i < 5; i++) {
-        ctx.beginPath();
-        ctx.arc(Math.cos(i * 1.3) * 26, Math.sin(i * 1.3) * 26 - 10, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
     ctx.restore();
   }
+  for (const player of game.players) drawCoinPickup(ctx, player, now, game.columns, cell, pad);
 }
 
 try {
-  await loadCharacters();
+  await Promise.all([loadCharacters(), loadCoins()]);
   charactersReady = true;
   $('character-load-status').textContent = '';
   for (const card of document.querySelectorAll('.character-card')) {
@@ -518,8 +499,7 @@ try {
   }
   drawCharacter($('dummy-portrait').getContext('2d'), 'kobi', 40, 100, 100);
 } catch {
-  $('character-load-status').textContent =
-    '캐릭터 이미지를 불러오지 못했습니다. 새로고침해 주세요.';
+  $('character-load-status').textContent = '게임 이미지를 불러오지 못했습니다. 새로고침해 주세요.';
 }
 try {
   const response = await fetch('/api/maps');

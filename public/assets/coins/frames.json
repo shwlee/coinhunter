@@ -1,0 +1,215 @@
+{
+  "Coins.png": {
+    "width": 67,
+    "height": 50,
+    "frames": [
+      {
+        "name": "Cooper0",
+        "x": 4,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "name": "Cooper1",
+        "x": 22,
+        "y": 4,
+        "w": 6,
+        "h": 8
+      },
+      {
+        "name": "Cooper2",
+        "x": 40,
+        "y": 4,
+        "w": 4,
+        "h": 8
+      },
+      {
+        "name": "Cooper3",
+        "x": 56,
+        "y": 4,
+        "w": 6,
+        "h": 8
+      },
+      {
+        "name": "Silver0",
+        "x": 4,
+        "y": 21,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "name": "Silver1",
+        "x": 22,
+        "y": 21,
+        "w": 6,
+        "h": 8
+      },
+      {
+        "name": "Silver2",
+        "x": 40,
+        "y": 21,
+        "w": 4,
+        "h": 8
+      },
+      {
+        "name": "Silver3",
+        "x": 56,
+        "y": 21,
+        "w": 6,
+        "h": 8
+      },
+      {
+        "name": "Gold0",
+        "x": 4,
+        "y": 38,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "name": "Gold1",
+        "x": 22,
+        "y": 38,
+        "w": 6,
+        "h": 8
+      },
+      {
+        "name": "Gold2",
+        "x": 40,
+        "y": 38,
+        "w": 4,
+        "h": 8
+      },
+      {
+        "name": "Gold3",
+        "x": 56,
+        "y": 38,
+        "w": 6,
+        "h": 8
+      }
+    ]
+  },
+  "Diamond.png": {
+    "width": 32,
+    "height": 8,
+    "frames": [
+      {
+        "name": "Diamond_0",
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "name": "Diamond_1",
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "name": "Diamond_2",
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "name": "Diamond_3",
+        "x": 24,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      }
+    ]
+  },
+  "blackmatter.png": {
+    "width": 40,
+    "height": 8,
+    "frames": [
+      {
+        "name": "blackmatter_0",
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "name": "blackmatter_1",
+        "x": 9,
+        "y": 0,
+        "w": 6,
+        "h": 8
+      },
+      {
+        "name": "blackmatter_2",
+        "x": 17,
+        "y": 0,
+        "w": 6,
+        "h": 8
+      },
+      {
+        "name": "blackmatter_3",
+        "x": 26,
+        "y": 0,
+        "w": 4,
+        "h": 8
+      },
+      {
+        "name": "blackmatter_4",
+        "x": 32,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      }
+    ]
+  },
+  "appear_blackmatter.png": {
+    "width": 48,
+    "height": 8,
+    "frames": [
+      {
+        "name": "appear_blackmatter_0",
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "name": "appear_blackmatter_1",
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "name": "appear_blackmatter_2",
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "name": "appear_blackmatter_3",
+        "x": 24,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "name": "appear_blackmatter_4",
+        "x": 32,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "name": "appear_blackmatter_5",
+        "x": 40,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      }
+    ]
+  }
+}
