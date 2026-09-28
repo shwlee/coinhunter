@@ -1,7 +1,8 @@
 import { CHARACTERS, DEFAULT_CHARACTER, characterFor, isPlayableCharacter } from './characters.js';
-import { loadCharacters, drawCharacter } from './character-renderer.js';
+import { loadCharacters, drawCharacter, drawDirectionalCharacter } from './character-renderer.js';
 import { renderPodium } from './podium.js';
 import { loadCoins, drawCoin, drawCoinPickup } from './coin-renderer.js';
+import { playerVisuals } from './player-layout.js';
 const $ = (id) => document.getElementById(id);
 let selectedCharacter = DEFAULT_CHARACTER;
 let charactersReady = false;
@@ -324,7 +325,16 @@ function renderInfo() {
     const portrait = card.querySelector('canvas');
     const portraitContext = portrait.getContext('2d');
     portraitContext.clearRect(0, 0, portrait.width, portrait.height);
-    drawCharacter(portraitContext, player.characterId, 32, 80, 80);
+    drawCharacter(
+      portraitContext,
+      player.characterId,
+      32,
+      80,
+      80,
+      0,
+      false,
+      player.effect?.type === 1,
+    );
     card.querySelector('.name span').textContent = player.name;
     card.querySelector('.player-marker').style.backgroundColor = colors[player.id];
     card.querySelector('.score').textContent = player.score.toLocaleString();
@@ -411,29 +421,17 @@ function drawBoard() {
         ctx.fillText(itemIcons[item], px + 32, py + 42);
       }
     }
-  for (const player of game.players) {
-    let x = player.position % game.columns,
-      y = Math.floor(player.position / game.columns);
+  for (const { player, x, y, progress, offset, scale } of playerVisuals(
+    game.players,
+    game.columns,
+    now,
+  )) {
     const action = player.action;
-    let progress = 0;
-    if (action) {
-      progress = Math.max(
-        0,
-        Math.min(1, (now - action.startedAt) / (action.endsAt - action.startedAt)),
-      );
-      if (action.type === 'move') {
-        x += ((action.to % game.columns) - x) * progress;
-        y += (Math.floor(action.to / game.columns) - y) * progress;
-      }
-      if (action.type === 'jump' && progress > 0.5) {
-        x = action.to % game.columns;
-        y = Math.floor(action.to / game.columns);
-      }
-    }
     const px = pad + x * cell + cell / 2,
       py = pad + y * cell + cell / 2;
     ctx.save();
-    ctx.translate(px, py);
+    ctx.translate(px + offset, py + 27 * (1 - scale));
+    ctx.scale(scale, scale);
     if (action?.type === 'jump') {
       const scale = 0.5 + Math.abs(progress - 0.5);
       ctx.scale(scale, scale);
@@ -446,7 +444,7 @@ function drawBoard() {
       const trailY =
         Math.sign(Math.floor(action.to / game.columns) - Math.floor(action.from / game.columns)) *
         -14;
-      drawCharacter(ctx, player.characterId, trailX, 27 + trailY, 72, 1, trailX > 0);
+      drawDirectionalCharacter(ctx, player.characterId, trailX, 27 + trailY, 72, player.facing, 1);
       ctx.globalAlpha = 1;
     }
     ctx.fillStyle = '#00000055';
@@ -460,17 +458,16 @@ function drawBoard() {
     ctx.stroke();
     const walking = action?.type === 'move';
     const bob = walking
-      ? Math.sin(progress * Math.PI * 2) * 3
+      ? -Math.sin(progress * Math.PI) * 1.5
       : Math.sin(now / 350 + player.id) * 0.7;
-    const flip = walking && action.to % game.columns < action.from % game.columns;
-    drawCharacter(
+    drawDirectionalCharacter(
       ctx,
       player.characterId,
       0,
       27 + bob,
       72,
+      player.facing,
       walking && progress > 0.15 && progress < 0.8 ? 1 : 0,
-      flip,
       player.effect?.type === 1,
     );
     ctx.textAlign = 'center';
@@ -483,7 +480,13 @@ function drawBoard() {
     }
     if (action?.type === 'break') {
       ctx.font = '24px sans-serif';
-      ctx.fillText('🔨', 23, Math.sin(progress * 10) * 8);
+      const [hammerX, hammerY] = [
+        [-23, 0],
+        [0, -30],
+        [23, 0],
+        [0, 15],
+      ][player.facing ?? 3];
+      ctx.fillText('🔨', hammerX, hammerY + Math.sin(progress * 10) * 8);
     }
     if (['confused', 'penalty'].includes(action?.type)) {
       ctx.font = 'bold 25px monospace';

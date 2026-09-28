@@ -31,6 +31,39 @@ function effect(game, type, remaining = 3) {
   game.players[0].effect = { type, remaining, id: ++game.effectSequence };
 }
 
+test('facing follows each direction and persists through idle, penalty and snapshots', () => {
+  for (const direction of [0, 1, 2, 3]) {
+    const g = state();
+    g.players[0].position = 8;
+    g.beginAction(0, { status: 'ok', value: direction }, 0);
+    assert.equal(g.players[0].facing, direction);
+    g.completeAction(0, 300);
+    assert.equal(g.snapshot(300).players[0].facing, direction);
+    g.beginAction(0, { status: 'timeout', value: -1 }, 300);
+    g.completeAction(0, 600);
+    assert.equal(g.players[0].facing, direction);
+  }
+});
+
+test('wall actions face the wall; hammer expiration and random jumps preserve facing', () => {
+  const g = state();
+  g.beginAction(0, { status: 'ok', value: 0 }, 0);
+  assert.equal(g.players[0].action.type, 'confused');
+  assert.equal(g.players[0].facing, 0);
+  g.completeAction(0, 300);
+  g.players[0].position = 8;
+  g.tiles[7] = -1;
+  effect(g, 1, 1);
+  g.beginAction(0, { status: 'ok', value: 0 }, 300);
+  assert.equal(g.players[0].action.type, 'break');
+  g.completeAction(0, 600);
+  assert.equal(g.players[0].effect, null);
+  assert.equal(g.players[0].facing, 0);
+  effect(g, 3);
+  g.beginAction(0, { status: 'ok', value: 2 }, 600);
+  assert.equal(g.players[0].facing, 0);
+});
+
 test('all start slots place the user at the selected corner and dummies at unique remaining corners', () => {
   const corners = [0, 5, 30, 35];
   for (let slot = 0; slot < 4; slot++) {

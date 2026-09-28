@@ -15,6 +15,7 @@ const sampleSource = await readFile(
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
+  ['/player-layout.js', ['player-layout.js', 'text/javascript; charset=utf-8']],
   ['/coin-renderer.js', ['coin-renderer.js', 'text/javascript; charset=utf-8']],
   ['/podium.js', ['podium.js', 'text/javascript; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
@@ -23,6 +24,11 @@ const assets = new Map([
   ['/assets/characters/atlas.png', ['assets/characters/atlas.png', 'image/png']],
   ['/assets/characters/atlas-hammer.png', ['assets/characters/atlas-hammer.png', 'image/png']],
 ]);
+for (const direction of ['left', 'up', 'right', 'down'])
+  assets.set(`/assets/characters/${direction}.png`, [
+    `assets/characters/${direction}.png`,
+    'image/png',
+  ]);
 for (const file of [
   'Coins.png',
   'Diamond.png',

@@ -28,6 +28,7 @@ export class GameState {
           : DEFAULT_CHARACTER,
       startSlot: slots[id],
       position: starts[slots[id]],
+      facing: 3,
       score: 0,
       turn: 0,
       effect: null,
@@ -113,6 +114,7 @@ export class GameState {
       result.value >= 0 &&
       result.value <= 3
     ) {
+      player.facing = result.value;
       const target = this.neighbor(player.position, result.value);
       action.type = 'confused';
       if (target >= 0) {

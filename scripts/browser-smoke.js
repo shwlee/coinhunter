@@ -4,6 +4,8 @@ import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import { createGameServer } from '../src/server.js';
+import { GameState } from '../src/game/state.js';
+import { MAPS } from '../src/game/maps.js';
 
 const candidates = [
   process.env.COINHUNTER_BROWSER,
@@ -55,6 +57,33 @@ try {
     });
   });
   assert.equal(helmetChecks, true, 'All five helmets render both poses and switch back to normal');
+  const directionChecks = await page.evaluate(async () => {
+    const { drawDirectionalCharacter } = await import('/character-renderer.js');
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    const blank = canvas.toDataURL();
+    return ['kobi', 'pengko', 'nyangtami', 'dino', 'lumi'].every((id) => {
+      const frames = new Set();
+      for (let direction = 0; direction < 4; direction++) {
+        for (const hammer of [false, true]) {
+          for (let pose = 0; pose < 2; pose++) {
+            ctx.clearRect(0, 0, 128, 128);
+            drawDirectionalCharacter(ctx, id, 64, 120, 100, direction, pose, hammer);
+            const image = canvas.toDataURL();
+            if (image === blank || ctx.getImageData(0, 0, 1, 1).data[3] !== 0) return false;
+            frames.add(image);
+          }
+        }
+      }
+      return frames.size === 16;
+    });
+  });
+  assert.equal(
+    directionChecks,
+    true,
+    'All 80 directional costume/pose sprites must be distinct and visible',
+  );
   const coinChecks = await page.evaluate(async () => {
     const { loadCoins, drawCoin, drawCoinPickup } = await import('/coin-renderer.js');
     await loadCoins();
@@ -301,6 +330,48 @@ try {
   assert.equal(await page.locator('#file-label').textContent(), 'timeout.js');
   assert.equal(await page.locator('#file-next').isEnabled(), true);
   assert.deepEqual(errors, []);
+  // Exercise the actual snapshot-to-scoreboard path, including dummy equipment changes.
+  const equipmentPage = await browser.newPage();
+  await equipmentPage.addInitScript(() => {
+    sessionStorage.setItem('coinhunter-match', 'equipment-fixture');
+    window.EventSource = class {
+      addEventListener(name, handler) {
+        if (name === 'snapshot')
+          window.sendEquipmentSnapshot = (game) =>
+            handler({ data: JSON.stringify({ game, logs: [] }) });
+      }
+      close() {}
+    };
+  });
+  await equipmentPage.route('**/api/matches/equipment-fixture', (route) =>
+    route.fulfill({ json: {} }),
+  );
+  await equipmentPage.goto(`http://127.0.0.1:${server.address().port}`);
+  await equipmentPage.waitForSelector('#map-select option', { state: 'attached' });
+  const equipmentGame = new GameState(MAPS[0], ['User', 'Dummy']);
+  equipmentGame.start(0);
+  const portraits = [];
+  for (const type of [null, 1, 0, 1, null]) {
+    equipmentGame.players[1].effect = type === null ? null : { type, remaining: 3, id: 1 };
+    await equipmentPage.evaluate(
+      (game) => window.sendEquipmentSnapshot(game),
+      equipmentGame.snapshot(0),
+    );
+    portraits.push(
+      await equipmentPage
+        .locator('.score-card[data-character="kobi"] canvas')
+        .evaluate((canvas) => canvas.toDataURL()),
+    );
+  }
+  assert.notEqual(
+    portraits[0],
+    portraits[1],
+    'Dummy portrait must wear a helmet after hammer pickup',
+  );
+  assert.equal(portraits[0], portraits[2], 'Replacing hammer removes the helmet');
+  assert.equal(portraits[1], portraits[3], 'Reacquiring hammer restores the helmet');
+  assert.equal(portraits[0], portraits[4], 'Hammer expiration removes the helmet');
+  await equipmentPage.close();
   console.log(
     'Browser smoke passed: upload, four players, scoring, reconnect, stop, mobile layout, timeout recovery.',
   );
