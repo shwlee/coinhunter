@@ -91,7 +91,14 @@
                 <p id="replay-hint" hidden>알고리즘을 바꾸고 새로운 전략에 도전하세요.</p>
                 <form id="setup-form" class="setup-wizard">
                   <section id="file-step" class="wizard-step">
-                    <label class="field-label" for="algorithm-file"><span>01</span> 알고리즘</label>
+                    <label class="field-label" for="match-mode">플레이 방식</label>
+                    <select id="match-mode">
+                      <option value="practice">더미 / 혼자 연습</option>
+                      <option value="duel">이전 알고리즘과 1:1 대결</option>
+                    </select>
+                    <label class="field-label" for="algorithm-file"
+                      ><span>01</span> 현재 알고리즘</label
+                    >
                     <label class="upload-zone" id="drop-zone" for="algorithm-file"
                       ><span class="upload-icon">↑</span
                       ><strong id="file-label">.js 파일을 선택하세요</strong
@@ -103,6 +110,12 @@
                         aria-describedby="file-help"
                     /></label>
                     <p id="file-help" class="help">최대 64 KiB · 한 파일의 동기 알고리즘</p>
+                    <div id="opponent-upload" hidden>
+                      <label class="field-label" for="opponent-file"
+                        >이전 알고리즘 (.js · 최대 64 KiB)</label
+                      >
+                      <input id="opponent-file" type="file" accept=".js,text/javascript" />
+                    </div>
                     <a href="/api/example" class="text-link" download="nearest-coin.js"
                       >샘플 알고리즘 내려받기 <span>↗</span></a
                     >
@@ -141,6 +154,10 @@
                       ><span
                         ><strong>코비</strong> · 더미 전용<br />AI 로봇과 전략을 연습하세요.</span
                       >
+                    </p>
+                    <p id="duel-note" class="help" hidden>
+                      현재 코드와 이전 코드가 대각선 위치에서 대결합니다. 이전 코드의 캐릭터는
+                      자동으로 배정됩니다.
                     </p>
                     <div class="field-label"><span>04</span> 랜덤 기믹</div>
                     <label class="toggle-row"

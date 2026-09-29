@@ -34,6 +34,51 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.waitForSelector('#map-select option', { state: 'attached' });
+  const duelPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
+  duelPage.on('pageerror', (error) => errors.push(error.message));
+  await duelPage.goto(`http://127.0.0.1:${server.address().port}`);
+  await duelPage.waitForSelector('#map-select option', { state: 'attached' });
+  await duelPage.selectOption('#match-mode', 'duel');
+  await duelPage.setInputFiles('#algorithm-file', 'examples/nearest-coin.js');
+  assert.equal(await duelPage.locator('#file-next').isDisabled(), true);
+  await duelPage.setInputFiles('#opponent-file', 'examples/hammer-test.js');
+  await duelPage.waitForFunction(() => !document.getElementById('file-next').disabled);
+  for (const width of [1440, 768, 390, 320]) {
+    await duelPage.setViewportSize({ width, height: 1000 });
+    assert.equal(
+      await duelPage.evaluate(() => {
+        const panel = document.querySelector('.canvas-wrap').getBoundingClientRect();
+        const next = document.getElementById('file-next').getBoundingClientRect();
+        const overlay = document.getElementById('arena-overlay');
+        return next.bottom <= panel.bottom && overlay.scrollHeight <= overlay.clientHeight + 1;
+      }),
+      true,
+      `Duel file selection fits at ${width}px`,
+    );
+  }
+  await duelPage.setViewportSize({ width: 1440, height: 1100 });
+  await duelPage.click('#file-next');
+  assert.equal(await duelPage.locator('#dummy-count').isVisible(), false);
+  await duelPage.click('#settings-next');
+  await duelPage.click('#position-next');
+  const duelCreated = duelPage.waitForResponse(
+    (response) => response.url().endsWith('/api/matches') && response.request().method() === 'POST',
+  );
+  await duelPage.click('#start-button');
+  const duelResponse = await duelCreated;
+  assert.equal(duelResponse.status(), 201);
+  const duelId = (await duelResponse.json()).id;
+  await duelPage.waitForFunction(() =>
+    document.getElementById('scoreboard').textContent.includes('이전 ·'),
+  );
+  await duelPage.request.delete(`http://127.0.0.1:${server.address().port}/api/matches/${duelId}`);
+  await duelPage.locator('#analysis-toggle').waitFor({ state: 'visible' });
+  await duelPage.click('#analysis-toggle');
+  assert.match(await duelPage.locator('#result-analysis').textContent(), /현재 ·/);
+  assert.match(await duelPage.locator('#result-analysis').textContent(), /이전 ·/);
+  await duelPage.click('#play-again');
+  assert.equal(await duelPage.locator('#file-next').isEnabled(), true);
+  await duelPage.close();
   const helmetChecks = await page.evaluate(async () => {
     const { loadCharacters, drawCharacter } = await import('/character-renderer.js');
     await loadCharacters();

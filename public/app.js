@@ -1,4 +1,5 @@
-﻿import { CHARACTERS, DEFAULT_CHARACTER, characterFor, isPlayableCharacter } from './characters.js';
+import { CHARACTERS, DEFAULT_CHARACTER, characterFor, isPlayableCharacter } from './characters.js';
+import { rivalCharacterFor } from './characters.js';
 import { loadCharacters, drawCharacter, drawDirectionalCharacter } from './character-renderer.js';
 import { renderPodium } from './podium.js';
 import { renderResultAnalysis } from './result-analysis.js';
@@ -52,6 +53,7 @@ const canvas = $('board');
 const ctx = canvas.getContext('2d');
 let maps = [],
   source = '',
+  opponentSource = '',
   game = null,
   matchId = null,
   events = null,
@@ -66,24 +68,35 @@ function setError(message) {
 function active() {
   return game && (game.status === 'playing' || game.status === 'hurryup');
 }
+const isDuel = () => $('match-mode').value === 'duel';
+const filesReady = () => Boolean(source && (!isDuel() || opponentSource));
 function controls() {
   $('start-button').disabled =
-    !source || !charactersReady || setupStep !== 'position' || busy || active();
+    !filesReady() || !charactersReady || setupStep !== 'position' || busy || active();
   $('start-button').textContent = busy ? '게임 준비 중…' : '게임 시작 →';
   $('stop-button').hidden = !active();
-  for (const id of ['algorithm-file', 'map-select', 'dummy-count', 'black-matter', 'destroy-walls'])
+  for (const id of [
+    'match-mode',
+    'opponent-file',
+    'algorithm-file',
+    'map-select',
+    'dummy-count',
+    'black-matter',
+    'destroy-walls',
+  ])
     $(id).disabled = busy || active();
   $('character-options').disabled = busy || active();
   $('position-options').disabled = busy || active();
   $('position-next').disabled = !charactersReady || busy || active();
   $('character-back').disabled = busy || active();
-  $('file-next').disabled = !source || busy || active();
-  $('settings-next').disabled = !source || !maps.length || !charactersReady || busy || active();
+  $('file-next').disabled = !filesReady() || busy || active();
+  $('settings-next').disabled =
+    !filesReady() || !maps.length || !charactersReady || busy || active();
   for (const id of ['file-back', 'settings-back']) $(id).disabled = busy || active();
 }
 function showSetupStep(step) {
   if (busy || active()) return;
-  if (step !== 'file' && !source) step = 'file';
+  if (step !== 'file' && !filesReady()) step = 'file';
   setupStep = step;
   $('setup-form').hidden = false;
   $('setup-progress').hidden = false;
@@ -98,7 +111,8 @@ function showSetupStep(step) {
   $('setup-progress').textContent =
     `${setupSteps.indexOf(step) + 1} / 4 · 알고리즘 → 경기 설정 → 캐릭터 → 시작 위치`;
   $('position-summary').textContent =
-    `${characterFor(selectedCharacter).name} · ${startNames[selectedStartSlot]}에서 시작`;
+    `${characterFor(selectedCharacter).name} · ${startNames[selectedStartSlot]}에서 시작` +
+    (isDuel() ? ` / 이전 코드: ${startNames[3 - selectedStartSlot]}` : '');
   $('arena-message').querySelector('strong').textContent = stepTitles[setupSteps.indexOf(step)];
   $('arena-message').querySelector('p').hidden = false;
   $('arena-message').querySelector('p').textContent =
@@ -165,6 +179,32 @@ async function loadFile(file) {
   controls();
 }
 $('algorithm-file').addEventListener('change', (event) => loadFile(event.target.files[0]));
+$('opponent-file').addEventListener('change', async (event) => {
+  opponentSource = '';
+  controls();
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.js') || file.size > 65536) {
+    setError('이전 알고리즘도 64 KiB 이하의 .js 파일이어야 합니다.');
+    return;
+  }
+  const content = await file.text();
+  if (event.target.files[0] !== file) return;
+  opponentSource = content;
+  setError('');
+  controls();
+});
+$('match-mode').addEventListener('change', () => {
+  const duel = isDuel();
+  $('opponent-upload').hidden = !duel;
+  $('file-step').classList.toggle('duel-files', duel);
+  $('dummy-count').parentElement.hidden = duel;
+  document.querySelector('.dummy-note').hidden = duel;
+  $('duel-note').hidden = !duel;
+  setError('');
+  controls();
+  if (game?.status === 'ready') renderInfo();
+});
 for (const name of ['dragenter', 'dragover'])
   $('drop-zone').addEventListener(name, (event) => {
     event.preventDefault();
@@ -209,7 +249,7 @@ function preview() {
 
 $('setup-form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (!source || !charactersReady || setupStep !== 'position' || busy || active()) return;
+  if (!filesReady() || !charactersReady || setupStep !== 'position' || busy || active()) return;
   busy = true;
   controls();
   setError('');
@@ -232,7 +272,9 @@ $('setup-form').addEventListener('submit', async (event) => {
         characterId: selectedCharacter,
         startSlot: selectedStartSlot,
         mapId: $('map-select').value,
-        dummyCount: Number($('dummy-count').value),
+        mode: isDuel() ? 'duel' : 'practice',
+        opponentSource: isDuel() ? opponentSource : undefined,
+        dummyCount: isDuel() ? 0 : Number($('dummy-count').value),
         blackMatter: $('black-matter').checked,
         destroyWalls: $('destroy-walls').checked,
       }),
@@ -366,10 +408,20 @@ function renderInfo() {
   }
   const players = game.players.length
     ? game.players
-    : Array.from({ length: Number($('dummy-count').value) + 1 }, (_, id) => ({
+    : Array.from({ length: isDuel() ? 2 : Number($('dummy-count').value) + 1 }, (_, id) => ({
         id,
-        name: id ? '더미 ' + id : '내 알고리즘',
-        characterId: id ? 'kobi' : selectedCharacter,
+        name: isDuel()
+          ? id
+            ? '이전 알고리즘'
+            : '현재 알고리즘'
+          : id
+            ? '더미 ' + id
+            : '내 알고리즘',
+        characterId: id
+          ? isDuel()
+            ? rivalCharacterFor(selectedCharacter)
+            : 'kobi'
+          : selectedCharacter,
         score: 0,
         turn: 0,
       }));

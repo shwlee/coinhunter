@@ -50,7 +50,7 @@ async function readJson(request) {
   for await (const chunk of request) {
     size += chunk.length;
     // JSON can represent a single source byte with up to six escaped bytes.
-    if (size > MAX_SOURCE_BYTES * 6 + 8192)
+    if (size > MAX_SOURCE_BYTES * 6 * 2 + 8192)
       throw Object.assign(new Error('업로드 크기를 초과했습니다.'), { status: 413 });
     chunks.push(chunk);
   }
@@ -131,6 +131,15 @@ export function createGameServer({ maps = mapRepository } = {}) {
           return;
         }
         const input = await readJson(request);
+        const mode = input.mode ?? 'practice';
+        if (
+          !['practice', 'duel'].includes(mode) ||
+          (mode === 'duel' && input.dummyCount !== 0) ||
+          (mode === 'practice' && input.opponentSource !== undefined)
+        ) {
+          json(response, 400, { error: '대결 모드에서는 이전 알고리즘 1개만 참가할 수 있습니다.' });
+          return;
+        }
         const startSlot = input.startSlot === undefined ? 0 : input.startSlot;
         if (!Number.isInteger(startSlot) || startSlot < 0 || startSlot > 3) {
           json(response, 400, { error: '시작 위치를 확인하세요.' });
@@ -154,6 +163,7 @@ export function createGameServer({ maps = mapRepository } = {}) {
           return;
         }
         validateSource(input.source);
+        if (mode === 'duel') validateSource(input.opponentSource);
         const active = [...matches.values()].filter(
           (record) => record.initializing || !record.match.stopping,
         );
@@ -168,8 +178,11 @@ export function createGameServer({ maps = mapRepository } = {}) {
         const id = randomUUID();
         const match = new Match(
           map,
-          [input.source, ...Array(input.dummyCount).fill(sampleSource)],
+          mode === 'duel'
+            ? [input.source, input.opponentSource]
+            : [input.source, ...Array(input.dummyCount).fill(sampleSource)],
           {
+            mode,
             blackMatter: input.blackMatter,
             destroyWalls: input.destroyWalls,
             characterId,

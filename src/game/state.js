@@ -1,5 +1,9 @@
 import { validateMap, DEFAULT_HURRY_UP_REMOVAL_INTERVAL_MS } from './maps.js';
-import { DEFAULT_CHARACTER, isPlayableCharacter } from '../../public/characters.js';
+import {
+  DEFAULT_CHARACTER,
+  isPlayableCharacter,
+  rivalCharacterFor,
+} from '../../public/characters.js';
 
 export class GameState {
   constructor(map, names, options = {}, random = Math.random) {
@@ -25,12 +29,18 @@ export class GameState {
     const startSlot = options.startSlot ?? 0;
     if (!Number.isInteger(startSlot) || startSlot < 0 || startSlot > 3)
       throw new Error('Invalid start slot');
-    const slots = [startSlot, ...[0, 1, 2, 3].filter((slot) => slot !== startSlot)];
+    const duel = options.mode === 'duel';
+    const slots = duel
+      ? [startSlot, 3 - startSlot]
+      : [startSlot, ...[0, 1, 2, 3].filter((slot) => slot !== startSlot)];
     this.players = names.map((name, id) => ({
       id,
-      name,
+      name: duel ? `${id === 0 ? '현재' : '이전'} · ${name}` : name,
+      role: duel ? (id === 0 ? 'current' : 'previous') : id === 0 ? 'current' : 'dummy',
       characterId: id
-        ? 'kobi'
+        ? duel
+          ? rivalCharacterFor(options.characterId || DEFAULT_CHARACTER)
+          : 'kobi'
         : isPlayableCharacter(options.characterId)
           ? options.characterId
           : DEFAULT_CHARACTER,

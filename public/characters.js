@@ -6,5 +6,7 @@ export const CHARACTERS = [
   { id: 'lumi', name: '루미', description: '별빛을 따라가는 마법사', column: 4, playable: true },
 ];
 export const DEFAULT_CHARACTER = 'pengko';
+export const rivalCharacterFor = (id) =>
+  CHARACTERS.find((character) => character.playable && character.id !== id).id;
 export const isPlayableCharacter = (id) => CHARACTERS.some((c) => c.id === id && c.playable);
 export const characterFor = (id) => CHARACTERS.find((c) => c.id === id) || CHARACTERS[1];
