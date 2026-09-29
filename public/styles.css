@@ -1295,6 +1295,79 @@ footer > span:last-child {
   border: 0;
   font-weight: 700;
 }
+.result-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.result-actions #play-again,
+.result-actions #analysis-toggle {
+  width: auto;
+  margin: 0;
+  white-space: nowrap;
+}
+.result-analysis {
+  width: 100%;
+  max-width: 850px;
+  height: 330px;
+  overflow: auto;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111c2b;
+}
+.arena-overlay .analysis-note {
+  padding: 8px 12px;
+  margin: 0;
+  font-size: 11px;
+}
+.result-analysis table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+}
+.result-analysis caption {
+  padding: 8px;
+  text-align: left;
+}
+.result-analysis th,
+.result-analysis td {
+  min-width: 125px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.result-analysis thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #243449;
+  overflow-wrap: anywhere;
+}
+.result-analysis tbody th {
+  text-align: left;
+  color: #becde0;
+}
+.result-analysis .analysis-group {
+  background: #1e2e42;
+  color: #eef4ff;
+}
+.result-analysis .analysis-self {
+  background-color: #243b2e;
+}
+@media (max-width: 720px) {
+  .result-actions {
+    gap: 8px;
+  }
+  .result-actions #analysis-toggle,
+  .result-actions #play-again {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
 @media (max-width: 720px) {
   .result-podium {
     gap: 4px;

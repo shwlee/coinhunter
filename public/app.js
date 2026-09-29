@@ -1,6 +1,7 @@
 ﻿import { CHARACTERS, DEFAULT_CHARACTER, characterFor, isPlayableCharacter } from './characters.js';
 import { loadCharacters, drawCharacter, drawDirectionalCharacter } from './character-renderer.js';
 import { renderPodium } from './podium.js';
+import { renderResultAnalysis } from './result-analysis.js';
 import { renderLeaderboard } from './leaderboard.js';
 import { loadCoins, drawCoin, drawCoinPickup, drawCoinSample } from './coin-renderer.js';
 const $ = (id) => document.getElementById(id);
@@ -17,6 +18,7 @@ const stepTitles = [
 let selectedStartSlot = 0;
 let finishStage = null;
 let finishTimer = null;
+let analysisOpen = false;
 let hurryAnnounced = false;
 let hurryTimer = null;
 const startNames = ['왼쪽 위', '오른쪽 위', '왼쪽 아래', '오른쪽 아래'];
@@ -88,6 +90,9 @@ function showSetupStep(step) {
   $('play-again').hidden = true;
   $('replay-hint').hidden = true;
   $('result-podium').hidden = true;
+  $('result-actions').hidden = true;
+  $('result-analysis').hidden = true;
+  analysisOpen = false;
   $('arena-overlay').classList.remove('show-results');
   for (const name of setupSteps) $(`${name}-step`).hidden = name !== step;
   $('setup-progress').textContent =
@@ -113,6 +118,12 @@ $('play-again').addEventListener('click', () => {
   setupStep = 'file';
   preview();
   $('algorithm-file').focus();
+});
+$('analysis-toggle').addEventListener('click', () => {
+  if (game?.status !== 'finished' || finishStage !== 'results') return;
+  analysisOpen = !analysisOpen;
+  renderInfo();
+  if (analysisOpen) $('result-analysis').focus();
 });
 for (const [id, step] of [
   ['file-next', 'settings'],
@@ -328,10 +339,17 @@ function renderInfo() {
     }
     const showingMessage = finishStage === 'message';
     $('game-over').hidden = !showingMessage;
-    $('result-podium').hidden = showingMessage;
+    $('result-podium').hidden = showingMessage || analysisOpen;
+    $('result-analysis').hidden = showingMessage || !analysisOpen;
+    $('result-actions').hidden = showingMessage;
+    $('analysis-toggle').textContent = analysisOpen ? '포디엄 보기' : '결과 분석';
+    $('analysis-toggle').setAttribute('aria-expanded', String(analysisOpen));
     overlay.classList.toggle('show-game-over', showingMessage);
     overlay.classList.toggle('show-results', !showingMessage);
-    if (!showingMessage) renderPodium($('result-podium'), game.players);
+    if (!showingMessage) {
+      if (analysisOpen) renderResultAnalysis($('result-analysis'), game.players);
+      else renderPodium($('result-podium'), game.players);
+    }
     $('setup-form').hidden = true;
     $('setup-progress').hidden = true;
     $('play-again').hidden = showingMessage;

@@ -43,6 +43,25 @@ export class GameState {
       action: null,
       thinking: false,
       lastStatus: 'ready',
+      stats: {
+        coins: { 10: 0, 30: 0, 100: 0, 200: 0, 500: 0 },
+        bonusScore: 0,
+        completedTurns: 0,
+        moves: 0,
+        wallCollisions: 0,
+        penalties: 0,
+        wallsBroken: 0,
+        jumps: 0,
+        jumpFailures: 0,
+        itemsAcquired: [0, 0, 0, 0],
+        itemsUsed: [0, 0, 0, 0],
+        algorithmCalls: 0,
+        algorithmTotalMs: 0,
+        algorithmMaxMs: 0,
+        timeouts: 0,
+        exceptions: 0,
+        invalidResults: 0,
+      },
     }));
     this.status = 'ready';
     this.reason = null;
@@ -95,6 +114,18 @@ export class GameState {
     ];
   }
 
+  recordAlgorithmResult(id, result) {
+    if (!this.isRunning()) return;
+    const stats = this.players[id].stats;
+    stats.algorithmCalls++;
+    const elapsed = Number.isFinite(result.elapsedMs) ? Math.max(0, result.elapsedMs) : 0;
+    stats.algorithmTotalMs += elapsed;
+    stats.algorithmMaxMs = Math.max(stats.algorithmMaxMs, elapsed);
+    if (result.status === 'timeout') stats.timeouts++;
+    if (result.status === 'exception') stats.exceptions++;
+    if (result.status === 'invalid-result') stats.invalidResults++;
+  }
+
   beginAction(id, result, now) {
     if (!this.isRunning()) return;
     const player = this.players[id];
@@ -144,15 +175,30 @@ export class GameState {
     const action = player.action;
     if (!action || now < action.endsAt || !this.isRunning()) return false;
     const effect = player.effect?.id === action.effectId ? player.effect : null;
+    const stats = player.stats;
+    stats.completedTurns++;
+    if (action.type === 'confused') stats.wallCollisions++;
+    if (action.type === 'penalty') stats.penalties++;
+    if (action.type === 'jump-failed') stats.jumpFailures++;
+    if (effect?.type === 0 || effect?.type === 3) stats.itemsUsed[effect.type]++;
     if (action.type === 'break' && this.tiles[action.to] === -1) {
       this.tiles[action.to] = 0;
+      stats.wallsBroken++;
+      if (effect?.type === 1) stats.itemsUsed[1]++;
       if (effect?.type === 1) effect.remaining--;
     } else if (action.type === 'move' || action.type === 'jump') {
       if (this.tiles[action.to] !== -1) {
         player.position = action.to;
+        if (action.type === 'move') stats.moves++;
+        else stats.jumps++;
         const coin = this.tiles[action.to];
         if (coin > 0) {
           player.score += coin * (effect?.type === 2 ? 2 : 1);
+          stats.coins[coin]++;
+          if (effect?.type === 2) {
+            stats.bonusScore += coin;
+            stats.itemsUsed[2]++;
+          }
           if (effect?.type === 2) effect.remaining--;
           this.tiles[action.to] = 0;
           player.coinBurstAt = now;
@@ -164,6 +210,7 @@ export class GameState {
         const item = this.items.indexOf(action.to);
         if (item >= 0) {
           this.items[item] = -1;
+          stats.itemsAcquired[item]++;
           player.effect = {
             type: item,
             remaining: this.settings.itemDuration,

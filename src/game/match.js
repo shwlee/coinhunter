@@ -76,6 +76,7 @@ export class Match extends EventEmitter {
       return;
     }
     if (this.stopping || !this.state.isRunning()) return;
+    this.state.recordAlgorithmResult(id, result);
     if (result.logs.length || result.status !== 'ok' || result.value === -1) {
       this.logs.push({
         player: id,

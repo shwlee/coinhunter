@@ -17,6 +17,7 @@ const assets = new Map([
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/coin-renderer.js', ['coin-renderer.js', 'text/javascript; charset=utf-8']],
   ['/podium.js', ['podium.js', 'text/javascript; charset=utf-8']],
+  ['/result-analysis.js', ['result-analysis.js', 'text/javascript; charset=utf-8']],
   ['/leaderboard.js', ['leaderboard.js', 'text/javascript; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
   ['/characters.js', ['characters.js', 'text/javascript; charset=utf-8']],

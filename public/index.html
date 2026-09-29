@@ -67,9 +67,27 @@
                   aria-label="최종 순위와 점수"
                   hidden
                 ></ol>
-                <button id="play-again" class="setup-next" type="button" hidden>
-                  다시 플레이 →
-                </button>
+                <section
+                  id="result-analysis"
+                  class="result-analysis"
+                  aria-label="경기 결과 분석"
+                  tabindex="0"
+                  hidden
+                ></section>
+                <div id="result-actions" class="result-actions" hidden>
+                  <button
+                    id="analysis-toggle"
+                    class="secondary"
+                    type="button"
+                    aria-controls="result-analysis"
+                    aria-expanded="false"
+                  >
+                    결과 분석
+                  </button>
+                  <button id="play-again" class="setup-next" type="button" hidden>
+                    다시 플레이 →
+                  </button>
+                </div>
                 <p id="replay-hint" hidden>알고리즘을 바꾸고 새로운 전략에 도전하세요.</p>
                 <form id="setup-form" class="setup-wizard">
                   <section id="file-step" class="wizard-step">
