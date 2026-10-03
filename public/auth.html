@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>로그인 · Coin Hunter</title>
+    <link rel="stylesheet" href="/entry.css" />
+    <script type="module" src="/entry.js"></script>
+  </head>
+  <body data-page="auth">
+    <header><a class="brand" href="/">COIN HUNTER</a><a href="/">← 시작 화면</a></header>
+    <main class="auth-main">
+      <section class="auth-card">
+        <nav class="auth-tabs" aria-label="로그인 및 가입">
+          <a id="signin-tab" href="/signin">Sign in · 로그인</a
+          ><a id="signup-tab" href="/signup">Sign up · 가입</a>
+        </nav>
+        <h1 id="auth-title">로그인</h1>
+        <p id="destination"></p>
+        <p id="auth-description">
+          회사 계정으로 로그인하세요. 처음 로그인하면 게임 계정이 자동으로 만들어집니다.
+        </p>
+        <form id="auth-form">
+          <div id="mock-identity" hidden>
+            <label for="identity">개발용 계정</label
+            ><select id="identity" required></select>
+            <p class="mock-note">
+              로컬 목업 로그인입니다. 실제 Google 계정 인증은 수행하지 않습니다.
+            </p>
+          </div>
+          <button id="authenticate" type="submit" disabled>로그인 준비 중…</button>
+        </form>
+        <p id="entry-status" role="status" aria-live="polite"></p>
+        <a id="guest-link" href="/game" hidden>게스트로 게임 플레이 →</a>
+        <p id="guest-help" hidden>
+          게스트는 로컬 파일로 플레이할 수 있으며 코드 작성·계정 저장은 사용할 수 없습니다.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

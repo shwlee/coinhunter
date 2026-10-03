@@ -10,7 +10,7 @@
   </head>
   <body data-panel="writing">
     <header>
-      <a href="/">← 게임 플레이</a><strong>알고리즘 작업실</strong>
+      <a href="/">← 시작 화면</a><a href="/game">게임 플레이</a><strong>알고리즘 작업실</strong>
       <div id="account-bar"></div>
     </header>
     <p id="notice" role="status">로그인 상태를 확인하고 있습니다.</p>
@@ -91,11 +91,10 @@
         <section class="testing">
           <h2>테스트 플레이</h2>
           <p id="test-info">
-            편집 중인 코드를 게임 설정으로 전달합니다. 이후 편집은 진행 중 경기에 영향을 주지
-            않습니다.
+            맵과 시작 위치만 선택해 혼자 테스트합니다. 캐릭터는 실행할 때마다 무작위로 배정됩니다.
           </p>
           <button id="test" disabled>현재 코드로 테스트 준비</button
-          ><iframe id="game" title="알고리즘 테스트 게임" src="/?editor=1"></iframe>
+          ><iframe id="game" title="알고리즘 테스트 게임" src="/game?editor=1"></iframe>
         </section>
       </div>
       <section id="admin" hidden>

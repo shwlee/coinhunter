@@ -7,6 +7,13 @@ import { renderResultAnalysis } from './result-analysis.js';
 import { renderLeaderboard } from './leaderboard.js';
 import { loadCoins, drawCoin, drawCoinPickup, drawCoinSample } from './coin-renderer.js';
 const $ = (id) => document.getElementById(id);
+const testMode =
+  window.parent !== window && new URLSearchParams(location.search).get('editor') === '1';
+const matchStorageKey = testMode ? 'coinhunter-test-match' : 'coinhunter-match';
+if (testMode) {
+  document.body.classList.add('test-game', 'embedded-game');
+  $('dummy-count').value = '0';
+}
 let selectedCharacter = DEFAULT_CHARACTER;
 let charactersReady = false;
 let setupStep = 'file';
@@ -79,7 +86,7 @@ function controls() {
     );
   $('start-button').disabled =
     !filesReady() || !charactersReady || setupStep !== 'position' || busy || active();
-  $('start-button').textContent = busy ? '게임 준비 중…' : '게임 시작 →';
+  $('start-button').textContent = busy ? '준비 중…' : testMode ? '테스트 시작 →' : '게임 시작 →';
   $('stop-button').hidden = !active();
   for (const id of [
     'match-mode',
@@ -102,7 +109,8 @@ function controls() {
 }
 function showSetupStep(step) {
   if (busy || active()) return;
-  if (step !== 'file' && !filesReady()) step = 'file';
+  if (testMode) step = 'position';
+  else if (step !== 'file' && !filesReady()) step = 'file';
   setupStep = step;
   $('setup-form').hidden = false;
   $('setup-progress').hidden = false;
@@ -125,6 +133,15 @@ function showSetupStep(step) {
     step === 'file'
       ? '샘플 파일을 내려받거나 자신의 .js 파일을 올리세요.'
       : '선택한 값은 이전 단계로 돌아가도 유지됩니다.';
+  if (testMode) {
+    $('settings-step').hidden = false;
+    $('setup-progress').hidden = true;
+    $('arena-message').querySelector('strong').textContent = '테스트 설정';
+    $('arena-message').querySelector('p').textContent = source
+      ? '맵과 시작 위치를 선택하세요.'
+      : '작업실에서 현재 코드를 전달해 주세요.';
+    $('position-summary').textContent = `${startNames[selectedStartSlot]} · 캐릭터 자동 배정`;
+  }
   controls();
 }
 $('play-again').addEventListener('click', () => {
@@ -132,7 +149,7 @@ $('play-again').addEventListener('click', () => {
   events?.close();
   events = null;
   matchId = null;
-  sessionStorage.removeItem('coinhunter-match');
+  sessionStorage.removeItem(matchStorageKey);
   setError('');
   renderLogs([]);
   setupStep = 'file';
@@ -257,19 +274,23 @@ $('setup-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!filesReady() || !charactersReady || setupStep !== 'position' || busy || active()) return;
   busy = true;
+  if (testMode) {
+    const playable = CHARACTERS.filter((character) => character.playable);
+    selectedCharacter = playable[Math.floor(Math.random() * playable.length)].id;
+  }
   controls();
   setError('');
   events?.close();
   try {
     $('arena-overlay').classList.add('counting-down');
     drawBoard();
-    $('start-countdown').hidden = false;
-    for (const number of [3, 2, 1]) {
+    $('start-countdown').hidden = testMode;
+    for (const number of testMode ? [] : [3, 2, 1]) {
       $('countdown-number').textContent = String(number);
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     $('countdown-number').textContent = '시작!';
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (!testMode) await new Promise((resolve) => setTimeout(resolve, 1000));
     const response = await fetch('/api/matches', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -278,17 +299,17 @@ $('setup-form').addEventListener('submit', async (event) => {
         characterId: selectedCharacter,
         startSlot: selectedStartSlot,
         mapId: $('map-select').value,
-        mode: isDuel() ? 'duel' : 'practice',
-        opponentSource: isDuel() ? opponentSource : undefined,
-        dummyCount: isDuel() ? 0 : Number($('dummy-count').value),
-        blackMatter: $('black-matter').checked,
-        destroyWalls: $('destroy-walls').checked,
+        mode: !testMode && isDuel() ? 'duel' : 'practice',
+        opponentSource: !testMode && isDuel() ? opponentSource : undefined,
+        dummyCount: testMode || isDuel() ? 0 : Number($('dummy-count').value),
+        blackMatter: !testMode && $('black-matter').checked,
+        destroyWalls: !testMode && $('destroy-walls').checked,
       }),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
     matchId = data.id;
-    sessionStorage.setItem('coinhunter-match', matchId);
+    sessionStorage.setItem(matchStorageKey, matchId);
     connect();
   } catch (error) {
     setError(error.message);
@@ -322,7 +343,7 @@ function connect() {
     controls();
     if (game.status === 'finished') {
       events.close();
-      sessionStorage.removeItem('coinhunter-match');
+      sessionStorage.removeItem(matchStorageKey);
     }
   });
   events.onopen = () => setError('');
@@ -375,6 +396,15 @@ function renderInfo() {
     `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   const overlay = $('arena-overlay');
   overlay.hidden = active();
+  if (testMode) {
+    if (game.status === 'finished') {
+      showSetupStep('position');
+      $('arena-message').querySelector('strong').textContent = '테스트 종료';
+      $('arena-message').querySelector('p').textContent =
+        `${game.players[0]?.score ?? 0}점 · 코드를 수정하거나 설정을 바꿔 다시 실행하세요.`;
+    }
+    return;
+  }
   if (game.status === 'finished') {
     if (finishStage === null) {
       finishStage = 'message';
@@ -641,13 +671,13 @@ try {
     $('map-select').append(option);
   }
   preview();
-  const previous = sessionStorage.getItem('coinhunter-match');
+  const previous = sessionStorage.getItem(matchStorageKey);
   if (previous) {
     const result = await fetch(`/api/matches/${previous}`);
     if (result.ok) {
       matchId = previous;
       connect();
-    } else sessionStorage.removeItem('coinhunter-match');
+    } else sessionStorage.removeItem(matchStorageKey);
   }
 } catch {
   setError('서버 연결을 확인한 후 새로고침하세요.');
@@ -656,8 +686,8 @@ controls();
 draw();
 
 try {
-  const session = await accountBar();
-  if (session.user) {
+  const session = testMode ? null : await accountBar();
+  if (session?.user) {
     $('saved-algorithms').hidden = false;
     const updateLibrary = async () => {
       const data = await api('/api/algorithms');
@@ -715,14 +745,12 @@ window.addEventListener('message', async (event) => {
       throw new Error('코드는 64 KiB 이하로 작성하세요.');
     events?.close();
     matchId = null;
-    sessionStorage.removeItem('coinhunter-match');
+    sessionStorage.removeItem(matchStorageKey);
     setupStep = 'file';
     preview();
     await loadFile(new File([event.data.source], '편집 중 코드.js'));
     showSetupStep('settings');
-    feedback(
-      '실행할 코드 사본을 전달했습니다. 게임 패널에서 설정을 선택한 뒤 시작하세요. 이전 코드 대결은 알고리즘 단계에서 선택할 수 있습니다.',
-    );
+    feedback('코드를 전달했습니다. 맵과 시작 위치를 선택한 뒤 테스트를 시작하세요.');
   } catch (error) {
     feedback(error.message);
   }

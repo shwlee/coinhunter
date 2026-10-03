@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Coin Hunter</title>
+    <link rel="stylesheet" href="/entry.css" />
+    <script type="module" src="/entry.js"></script>
+  </head>
+  <body data-page="home">
+    <header>
+      <a class="brand" href="/">COIN HUNTER</a>
+      <div id="account-bar"></div>
+    </header>
+    <main>
+      <p class="eyebrow">ALGORITHM PLAYGROUND</p>
+      <h1>어떤 도전을 시작할까요?</h1>
+      <p class="intro">전략을 만들고, 게임에서 확인하세요.</p>
+      <div class="choices">
+        <a class="choice" id="go-editor" href="/signin?next=%2Feditor"
+          ><span class="symbol">{ }</span>
+          <h2>알고리즘 작성</h2>
+          <p>코드를 작성하고 저장하세요.<br />테스트와 결과 분석으로 전략을 다듬을 수 있습니다.</p>
+          <strong>작업실로 이동 →</strong><small>로그인 필요</small></a
+        >
+        <a class="choice" id="go-game" href="/signin?next=%2Fgame"
+          ><span class="symbol">◈</span>
+          <h2>게임 플레이</h2>
+          <p>
+            준비한 알고리즘으로 코인을 수집하세요.<br />이전 코드와 대결하거나 더미와 연습할 수
+            있습니다.
+          </p>
+          <strong>게임으로 이동 →</strong><small>로그인 또는 게스트 플레이</small></a
+        >
+      </div>
+      <p id="entry-status" role="status"></p>
+    </main>
+  </body>
+</html>

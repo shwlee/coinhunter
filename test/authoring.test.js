@@ -43,6 +43,9 @@ test('local accounts persist, isolate code, reject conflicts and revoke disabled
     };
   };
   assert.equal((await call('/api/algorithms')).status, 401);
+  const protectedPage = await fetch(base + '/editor', { redirect: 'manual' });
+  assert.equal(protectedPage.status, 302);
+  assert.equal(protectedPage.headers.get('location'), '/signin?next=%2Feditor');
   assert.equal((await call('/api/auth/mock', 'POST', { email: 'anyone@gmail.com' })).status, 403);
   const admin = await login('vactormanbear@gmail.com');
   const a = await login('developer@company.test');

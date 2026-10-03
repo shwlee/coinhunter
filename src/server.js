@@ -14,7 +14,12 @@ const sampleSource = await readFile(
   'utf8',
 );
 const assets = new Map([
-  ['/', ['index.html', 'text/html; charset=utf-8']],
+  ['/', ['home.html', 'text/html; charset=utf-8']],
+  ['/game', ['index.html', 'text/html; charset=utf-8']],
+  ['/signin', ['auth.html', 'text/html; charset=utf-8']],
+  ['/signup', ['auth.html', 'text/html; charset=utf-8']],
+  ['/entry.css', ['entry.css', 'text/css; charset=utf-8']],
+  ['/entry.js', ['entry.js', 'text/javascript; charset=utf-8']],
   ['/editor', ['editor.html', 'text/html; charset=utf-8']],
   ['/editor.js', ['editor.js', 'text/javascript; charset=utf-8']],
   ['/code-editor.js', ['generated/code-editor.js', 'text/javascript; charset=utf-8']],
@@ -119,6 +124,11 @@ export function createGameServer({ maps = mapRepository, authoring = createAutho
           }
       };
       if (await authoring.route(request, response, url, user, readJson, json, revoke)) return;
+      if (request.method === 'GET' && url.pathname === '/editor' && !user) {
+        response.writeHead(302, { Location: '/signin?next=%2Feditor' });
+        response.end();
+        return;
+      }
       if (request.method === 'GET' && url.pathname === '/favicon.ico') {
         response.writeHead(204);
         response.end();

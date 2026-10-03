@@ -32,11 +32,11 @@ try {
   browser = await chromium.launch({ executablePath, headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${server.address().port}`);
+  await page.goto(`http://127.0.0.1:${server.address().port}/game`);
   await page.waitForSelector('#map-select option', { state: 'attached' });
   const duelPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
   duelPage.on('pageerror', (error) => errors.push(error.message));
-  await duelPage.goto(`http://127.0.0.1:${server.address().port}`);
+  await duelPage.goto(`http://127.0.0.1:${server.address().port}/game`);
   await duelPage.waitForSelector('#map-select option', { state: 'attached' });
   await duelPage.selectOption('#match-mode', 'duel');
   await duelPage.setInputFiles('#algorithm-file', 'examples/nearest-coin.js');
@@ -439,7 +439,7 @@ try {
   await equipmentPage.route('**/api/matches/equipment-fixture', (route) =>
     route.fulfill({ json: {} }),
   );
-  await equipmentPage.goto(`http://127.0.0.1:${server.address().port}`);
+  await equipmentPage.goto(`http://127.0.0.1:${server.address().port}/game`);
   await equipmentPage.waitForSelector('#map-select option', { state: 'attached' });
   const equipmentGame = new GameState(MAPS[0], ['User', 'Dummy']);
   equipmentGame.start(0);

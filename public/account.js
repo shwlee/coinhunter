@@ -22,33 +22,18 @@ export async function accountBar(onChange = () => {}) {
       if (!confirm('로그아웃하면 실행 중인 테스트가 종료됩니다. 계속할까요?')) return;
       try {
         await api('/api/auth/logout', { method: 'POST', body: '{}' });
-        location.reload();
+        location.assign('/');
       } catch (error) {
         alert(error.message);
       }
     };
     host.append(logout);
-  } else if (session.mock) {
-    const select = document.createElement('select');
-    select.setAttribute('aria-label', '개발용 로그인 계정');
-    for (const email of session.identities) select.add(new Option(email, email));
-    const login = document.createElement('button');
-    login.textContent = '목업 로그인';
-    login.type = 'button';
-    login.onclick = async () => {
-      try {
-        await api('/api/auth/mock', {
-          method: 'POST',
-          body: JSON.stringify({ email: select.value }),
-        });
-        location.reload();
-      } catch (error) {
-        alert(error.message);
-      }
-    };
-    host.append(select, login);
   } else {
-    label.textContent = 'Google 로그인 연결 설정이 필요합니다.';
+    const login = document.createElement('a');
+    login.textContent = '로그인 / 가입';
+    const next = ['/editor', '/game'].includes(location.pathname) ? location.pathname : '/';
+    login.href = `/signin?next=${encodeURIComponent(next)}`;
+    host.append(login);
   }
   onChange(session);
   return session;

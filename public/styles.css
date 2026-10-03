@@ -1164,6 +1164,38 @@ footer > span:last-child {
 .embedded-game .rank-panel {
   min-height: 0;
 }
+.test-game #rank-panel,
+.test-game .legend,
+.test-game #settings-step > :not(.settings-fields),
+.test-game .settings-fields > div:nth-child(2),
+.test-game #position-step > .help:not(#position-summary),
+.test-game #character-back {
+  display: none !important;
+}
+.test-game .settings-fields {
+  display: block;
+}
+.test-game .setup-wizard > section {
+  min-height: 0;
+}
+.test-game .position-options {
+  align-self: center;
+}
+.test-game .position-actions {
+  margin-top: 8px;
+}
+.test-game .field-label span {
+  display: none;
+}
+.test-game .setup-wizard #position-step {
+  margin-top: 16px;
+}
+.test-game .arena-column {
+  display: block;
+}
+.test-game .logs {
+  margin-top: 12px;
+}
 .embedded-game .upload-zone {
   padding: 8px;
   gap: 4px;

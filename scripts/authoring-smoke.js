@@ -23,10 +23,22 @@ try {
   const page = await browser.newPage({ viewport: { width: 1550, height: 1100 } });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(base + '/editor');
-  await page.waitForSelector('#account-bar button');
-  assert.equal(await page.locator('#workbench').isVisible(), false);
-  await page.getByRole('button', { name: '목업 로그인', exact: true }).click();
+  await page.goto(base + '/');
+  await page.click('#go-game');
+  await page.locator('#guest-link').waitFor({ state: 'visible' });
+  await page.click('#guest-link');
+  await page.waitForURL(base + '/game');
+  await page.goto(base + '/');
+  await mkdir('artifacts', { recursive: true });
+  await page.screenshot({ path: 'artifacts/entry-desktop.png', fullPage: true });
+  await page.click('#go-editor');
+  await page.waitForURL(/\/signin\?next=%2Feditor/);
+  assert.equal(await page.locator('#guest-link').isVisible(), false);
+  await page.click('#signup-tab');
+  await page.waitForURL(/\/signup\?next=%2Feditor/);
+  await page.locator('#authenticate:enabled').waitFor();
+  await page.screenshot({ path: 'artifacts/signup-desktop.png', fullPage: true });
+  await page.click('#authenticate');
   await page.waitForSelector('#workbench', { state: 'visible' });
   await page.locator('#name').fill('브라우저 저장 테스트');
   await page.getByRole('button', { name: '저장', exact: true }).click();
@@ -51,28 +63,45 @@ try {
     .waitFor();
   await page.locator('#test:enabled').waitFor();
   const game = page.frameLocator('#game');
-  await game.locator('#refresh-library').click();
-  const stored = (await (await page.request.get(base + '/api/algorithms')).json()).algorithms[0];
-  await game.locator(`#saved-opponent option[value="${stored.id}"]`).waitFor({ state: 'attached' });
-  await game.locator('#saved-opponent').selectOption(stored.id);
-  await game.locator('#match-mode option[value="duel"]:checked').waitFor({ state: 'attached' });
   await page.click('#test');
   await game.locator('#settings-step').waitFor({ state: 'visible' });
+  assert.equal(
+    await game.locator('#start-button').evaluate((button) => {
+      const board = document.querySelector('.canvas-wrap').getBoundingClientRect();
+      return button.getBoundingClientRect().bottom <= board.bottom;
+    }),
+    true,
+    'Test start button fits inside the board',
+  );
   assert.equal(await game.locator('#dummy-count').isVisible(), false);
-  await game.locator('#settings-next').click();
-  await game.locator('#position-next').click();
+  for (const selector of [
+    '#algorithm-file',
+    '#character-step',
+    '#black-matter',
+    '#destroy-walls',
+    '#rank-panel',
+    '.legend',
+  ])
+    assert.equal(await game.locator(selector).isVisible(), false);
+  await game.locator('input[name="start-slot"][value="3"]').check();
   const created = page.waitForResponse(
     (r) => r.url().endsWith('/api/matches') && r.request().method() === 'POST',
   );
   await game.locator('#start-button').click();
   const response = await created;
   assert.equal(response.status(), 201);
+  const input = response.request().postDataJSON();
+  assert.equal(input.startSlot, 3);
+  assert.equal(input.dummyCount, 0);
+  assert.equal(input.mode, 'practice');
+  assert.equal(input.blackMatter, false);
+  assert.equal(input.destroyWalls, false);
+  assert.ok(['pengko', 'nyangtami', 'dino', 'lumi'].includes(input.characterId));
   const { id } = await response.json();
   await page.request.delete(`${base}/api/matches/${id}`);
-  await game.locator('#analysis-toggle').waitFor({ state: 'visible' });
-  await game.locator('#analysis-toggle').click();
-  assert.equal(await game.locator('#result-analysis').isVisible(), true);
-  assert.match(await game.locator('#result-analysis').textContent(), /이전 ·/);
+  await game.locator('#arena-message strong').filter({ hasText: '테스트 종료' }).waitFor();
+  assert.equal(await game.locator('#result-podium').isVisible(), false);
+  assert.equal(await game.locator('#map-select').isVisible(), true);
   await mkdir('artifacts', { recursive: true });
   await page.screenshot({ path: 'artifacts/editor-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 900 });
@@ -80,12 +109,26 @@ try {
   await page.screenshot({ path: 'artifacts/editor-mobile.png', fullPage: true });
   const second = await browser.newPage();
   await second.goto(base + '/editor');
-  await second.getByRole('button', { name: '목업 로그인', exact: true }).click();
+  await second.waitForURL(/\/signin\?next=%2Feditor/);
+  await second.locator('#authenticate:enabled').waitFor();
+  await second.click('#authenticate');
   await second.waitForSelector('#library option[value]:not([value=""])', { state: 'attached' });
   assert.ok((await second.locator('#library').textContent()).includes('브라우저 저장 테스트'));
+  const guest = await browser.newPage({ viewport: { width: 390, height: 850 } });
+  await guest.goto(base + '/signin?next=https%3A%2F%2Fevil.example');
+  await guest.locator('#authenticate:enabled').waitFor();
+  assert.ok((await guest.locator('#destination').textContent()).includes('시작 화면'));
+  assert.equal(
+    await guest.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+  );
+  await guest.click('#authenticate');
+  await guest.waitForURL(base + '/');
+  await guest.locator('#go-editor[href="/editor"]').waitFor();
+  await guest.screenshot({ path: 'artifacts/entry-mobile.png', fullPage: true });
   assert.deepEqual(errors, []);
   console.log(
-    'Authoring smoke passed: login, save, AI mock undo, game, analysis, mobile, second session.',
+    'Authoring smoke passed: login, save, AI mock undo, simplified solo test, mobile, second session.',
   );
 } finally {
   await browser.close();
