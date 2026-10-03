@@ -13,6 +13,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run build:editor
       - run: npm run format:check
       - run: npm test
       - run: npm run verify:runtime

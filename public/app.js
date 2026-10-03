@@ -2,6 +2,7 @@ import { CHARACTERS, DEFAULT_CHARACTER, characterFor, isPlayableCharacter } from
 import { rivalCharacterFor } from './characters.js';
 import { loadCharacters, drawCharacter, drawDirectionalCharacter } from './character-renderer.js';
 import { renderPodium } from './podium.js';
+import { api, accountBar } from './account.js';
 import { renderResultAnalysis } from './result-analysis.js';
 import { renderLeaderboard } from './leaderboard.js';
 import { loadCoins, drawCoin, drawCoinPickup, drawCoinSample } from './coin-renderer.js';
@@ -71,6 +72,11 @@ function active() {
 const isDuel = () => $('match-mode').value === 'duel';
 const filesReady = () => Boolean(source && (!isDuel() || opponentSource));
 function controls() {
+  if (window.parent !== window)
+    window.parent.postMessage(
+      { type: 'editor-state', active: Boolean(busy || active()) },
+      location.origin,
+    );
   $('start-button').disabled =
     !filesReady() || !charactersReady || setupStep !== 'position' || busy || active();
   $('start-button').textContent = busy ? '게임 준비 중…' : '게임 시작 →';
@@ -648,3 +654,80 @@ try {
 }
 controls();
 draw();
+
+try {
+  const session = await accountBar();
+  if (session.user) {
+    $('saved-algorithms').hidden = false;
+    const updateLibrary = async () => {
+      const data = await api('/api/algorithms');
+      for (const id of ['saved-current', 'saved-opponent']) {
+        $(id).replaceChildren(
+          new Option(id === 'saved-current' ? '현재 코드 불러오기' : '이전 코드 불러오기', ''),
+        );
+        for (const item of data.algorithms) $(id).add(new Option(item.name, item.id));
+      }
+    };
+    await updateLibrary();
+    $('refresh-library').addEventListener('click', () => {
+      if (!busy && !active()) updateLibrary().catch((error) => setError(error.message));
+    });
+    for (const id of ['saved-current', 'saved-opponent']) {
+      $(id).addEventListener('change', async () => {
+        if (!$(id).value || busy || active()) return;
+        try {
+          const item = await api(`/api/algorithms/${$(id).value}`);
+          if (busy || active()) return;
+          if (id === 'saved-current') await loadFile(new File([item.source], item.name + '.js'));
+          else {
+            opponentSource = item.source;
+            $('match-mode').value = 'duel';
+            $('match-mode').dispatchEvent(new Event('change'));
+            setError(`이전 코드 선택: ${item.name}`);
+          }
+          controls();
+        } catch (error) {
+          setError(error.message);
+        }
+      });
+    }
+  }
+} catch (error) {
+  setError(error.message);
+}
+window.addEventListener('message', async (event) => {
+  if (
+    event.origin !== location.origin ||
+    event.source !== window.parent ||
+    window.parent === window ||
+    event.data?.type !== 'editor-prepare'
+  )
+    return;
+  const feedback = (message) =>
+    window.parent.postMessage({ type: 'editor-feedback', message }, location.origin);
+  try {
+    if (busy || active()) throw new Error('진행 중인 경기를 먼저 종료하세요.');
+    if (!(await api('/api/session')).user) throw new Error('로그인이 필요합니다.');
+    if (
+      typeof event.data.source !== 'string' ||
+      new TextEncoder().encode(event.data.source).length > 65536
+    )
+      throw new Error('코드는 64 KiB 이하로 작성하세요.');
+    events?.close();
+    matchId = null;
+    sessionStorage.removeItem('coinhunter-match');
+    setupStep = 'file';
+    preview();
+    await loadFile(new File([event.data.source], '편집 중 코드.js'));
+    showSetupStep('settings');
+    feedback(
+      '실행할 코드 사본을 전달했습니다. 게임 패널에서 설정을 선택한 뒤 시작하세요. 이전 코드 대결은 알고리즘 단계에서 선택할 수 있습니다.',
+    );
+  } catch (error) {
+    feedback(error.message);
+  }
+});
+if (window.parent !== window) {
+  document.body.classList.add('embedded-game');
+  window.parent.postMessage({ type: 'editor-ready' }, location.origin);
+}

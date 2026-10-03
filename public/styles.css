@@ -1147,6 +1147,45 @@ footer > span:last-child {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
+#account-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+.embedded-game .topbar,
+.embedded-game footer {
+  display: none;
+}
+.embedded-game main {
+  padding: 8px;
+}
+.embedded-game .rank-panel {
+  min-height: 0;
+}
+.embedded-game .upload-zone {
+  padding: 8px;
+  gap: 4px;
+}
+.embedded-game .upload-icon {
+  display: none;
+}
+#saved-algorithms button {
+  font-size: 11px;
+  padding: 3px;
+}
+#account-bar select,
+#account-bar button {
+  width: auto;
+  padding: 5px;
+  font-size: 11px;
+}
+#saved-algorithms select {
+  width: 45%;
+  padding: 4px;
+  font-size: 12px;
+}
 .duel-files .upload-zone {
   padding: 8px;
   gap: 3px;

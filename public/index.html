@@ -11,8 +11,8 @@
     <header class="topbar">
       <a class="brand" href="/"
         ><span class="brand-icon">C<span>H</span></span> COIN HUNTER</a
-      ><span class="top-label">ALGORITHM ARENA</span
-      ><span class="guest"><i></i> 게스트 플레이</span>
+      ><span class="top-label">ALGORITHM ARENA</span><a href="/editor">알고리즘 작업실</a>
+      <div id="account-bar"></div>
     </header>
     <main>
       <div class="workspace">
@@ -91,6 +91,15 @@
                 <p id="replay-hint" hidden>알고리즘을 바꾸고 새로운 전략에 도전하세요.</p>
                 <form id="setup-form" class="setup-wizard">
                   <section id="file-step" class="wizard-step">
+                    <div id="saved-algorithms" hidden>
+                      <button id="refresh-library" type="button">목록 새로고침</button>
+                      <label for="saved-current">내 저장 코드</label
+                      ><select id="saved-current">
+                        <option value="">현재 코드 불러오기</option></select
+                      ><select id="saved-opponent" aria-label="이전 저장 코드">
+                        <option value="">이전 코드 불러오기</option>
+                      </select>
+                    </div>
                     <label class="field-label" for="match-mode">플레이 방식</label>
                     <select id="match-mode">
                       <option value="practice">더미 / 혼자 연습</option>

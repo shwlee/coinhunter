@@ -7,6 +7,7 @@ import { mapRepository } from './game/map-repository.js';
 import { Match } from './game/match.js';
 import { DEFAULT_CHARACTER, isPlayableCharacter } from '../public/characters.js';
 import { MAX_SOURCE_BYTES, validateSource } from './runtime/policy.js';
+import { createAuthoring } from './authoring-api.js';
 
 const sampleSource = await readFile(
   new URL('../examples/nearest-coin.js', import.meta.url),
@@ -14,6 +15,11 @@ const sampleSource = await readFile(
 );
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
+  ['/editor', ['editor.html', 'text/html; charset=utf-8']],
+  ['/editor.js', ['editor.js', 'text/javascript; charset=utf-8']],
+  ['/code-editor.js', ['generated/code-editor.js', 'text/javascript; charset=utf-8']],
+  ['/editor.css', ['editor.css', 'text/css; charset=utf-8']],
+  ['/account.js', ['account.js', 'text/javascript; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/coin-renderer.js', ['coin-renderer.js', 'text/javascript; charset=utf-8']],
   ['/podium.js', ['podium.js', 'text/javascript; charset=utf-8']],
@@ -61,7 +67,7 @@ async function readJson(request) {
   }
 }
 
-export function createGameServer({ maps = mapRepository } = {}) {
+export function createGameServer({ maps = mapRepository, authoring = createAuthoring() } = {}) {
   const matches = new Map();
   const streams = new Set();
   let closing = false;
@@ -70,11 +76,12 @@ export function createGameServer({ maps = mapRepository } = {}) {
     response.end(JSON.stringify(data));
   };
   const server = http.createServer(async (request, response) => {
+    const styleNonce = randomUUID();
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+      `default-src 'self'; script-src 'self'; style-src 'self' 'nonce-${styleNonce}'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'self'`,
     );
     response.setHeader('Referrer-Policy', 'no-referrer');
     const address = server.address();
@@ -102,6 +109,16 @@ export function createGameServer({ maps = mapRepository } = {}) {
     }
     try {
       const url = new URL(request.url, 'http://localhost');
+      const user = await authoring.current(request);
+      if (user) owner = `user:${user.id}`;
+      const revoke = async (id) => {
+        for (const record of matches.values())
+          if (record.owner === `user:${id}`) {
+            await record.match.stop('account-ended');
+            for (const stream of record.streams || []) stream.end();
+          }
+      };
+      if (await authoring.route(request, response, url, user, readJson, json, revoke)) return;
       if (request.method === 'GET' && url.pathname === '/favicon.ico') {
         response.writeHead(204);
         response.end();
@@ -110,7 +127,12 @@ export function createGameServer({ maps = mapRepository } = {}) {
       if (request.method === 'GET' && assets.has(url.pathname)) {
         const [file, type] = assets.get(url.pathname);
         response.writeHead(200, { 'Content-Type': type });
-        response.end(await readFile(new URL('../public/' + file, import.meta.url)));
+        const content = await readFile(new URL('../public/' + file, import.meta.url));
+        response.end(
+          file === 'editor.html'
+            ? content.toString('utf8').replace('__STYLE_NONCE__', styleNonce)
+            : content,
+        );
         return;
       }
       if (request.method === 'GET' && url.pathname === '/api/maps') {
@@ -131,6 +153,17 @@ export function createGameServer({ maps = mapRepository } = {}) {
           return;
         }
         const input = await readJson(request);
+        for (const [idKey, sourceKey] of [
+          ['algorithmId', 'source'],
+          ['opponentAlgorithmId', 'opponentSource'],
+        ]) {
+          if (input[idKey] !== undefined) {
+            authoring.requireUser(user);
+            if (input[sourceKey] !== undefined)
+              throw new Error('파일과 저장 알고리즘 중 하나만 선택하세요.');
+            input[sourceKey] = (await authoring.accounts.get(user.id, input[idKey])).source;
+          }
+        }
         const mode = input.mode ?? 'practice';
         if (
           !['practice', 'duel'].includes(mode) ||
@@ -189,7 +222,13 @@ export function createGameServer({ maps = mapRepository } = {}) {
             startSlot,
           },
         );
-        const record = { owner, match, initializing: true, createdAt: Date.now() };
+        const record = {
+          owner,
+          match,
+          initializing: true,
+          createdAt: Date.now(),
+          streams: new Set(),
+        };
         matches.set(id, record);
         match.once('closed', () => {
           record.finishedAt = Date.now();
@@ -222,6 +261,7 @@ export function createGameServer({ maps = mapRepository } = {}) {
             Connection: 'keep-alive',
           });
           streams.add(response);
+          record.streams.add(response);
           const send = (snapshot) => {
             if (response.writableLength > 256 * 1024) {
               response.destroy();
@@ -237,11 +277,22 @@ export function createGameServer({ maps = mapRepository } = {}) {
           };
           if (record.match.latest) send(record.match.latest);
           record.match.on('snapshot', send);
-          const heartbeat = setInterval(() => response.write(': heartbeat\n\n'), 15000);
+          const heartbeat = setInterval(async () => {
+            try {
+              if (user && !(await authoring.current(request))) {
+                response.end();
+                return;
+              }
+              response.write(': heartbeat\n\n');
+            } catch {
+              response.end();
+            }
+          }, 15000);
           response.on('close', () => {
             clearInterval(heartbeat);
             record.match.off('snapshot', send);
             streams.delete(response);
+            record.streams.delete(response);
           });
           return;
         }
