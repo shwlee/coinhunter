@@ -12,7 +12,6 @@ body {
 }
 header,
 .toolbar,
-.tabs,
 #account-bar {
   display: flex;
   align-items: center;
@@ -93,6 +92,100 @@ section {
   border-radius: 12px;
   padding: 18px;
 }
+.document-toolbar {
+  padding: 12px 14px;
+  border: 1px solid #34445a;
+  border-radius: 10px;
+  background: #192331;
+}
+#document-title {
+  flex: 1 1 220px;
+  overflow-wrap: anywhere;
+}
+#load-panel {
+  width: min(680px, calc(100vw - 32px));
+}
+#load-panel h2 {
+  margin-top: 0;
+}
+.load-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.load-options > div {
+  padding: 18px;
+  border: 1px solid #46536a;
+  border-radius: 10px;
+}
+.load-options h3 {
+  margin-top: 0;
+}
+.load-options select {
+  margin-right: 8px;
+}
+.editing-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 12px;
+  transition: grid-template-columns 180ms ease;
+}
+.editing-layout.ai-open {
+  grid-template-columns: minmax(0, 1fr) 364px;
+}
+.ai-sidebar {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+.ai-rail {
+  flex: 0 0 44px;
+  min-width: 44px;
+  padding: 12px 6px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  writing-mode: vertical-rl;
+  font-weight: 700;
+  color: #b6f36e;
+  border-radius: 8px 0 0 8px;
+}
+.ai-rail:hover,
+.ai-rail:focus-visible {
+  background: #34445a;
+}
+#ai-panel {
+  flex: 1 0 320px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #46536a;
+  border-radius: 0 10px 10px 0;
+}
+#ai-panel h2 {
+  margin-top: 0;
+}
+#ai-panel p {
+  color: #b3c0d0;
+}
+#ai-panel button {
+  margin: 4px 6px 4px 0;
+}
+#candidate {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #46536a;
+}
+#candidate-code {
+  max-height: 150px;
+  font-size: 12px;
+}
+#code-panel {
+  min-width: 0;
+}
+#code-panel label {
+  display: block;
+  margin-bottom: 8px;
+}
 textarea {
   width: 100%;
   resize: vertical;
@@ -113,6 +206,70 @@ textarea {
 #save-state {
   font-size: 13px;
   color: #b3c0d0;
+}
+.editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+#save {
+  min-width: 116px;
+}
+dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  border: 1px solid #60718a;
+  border-radius: 14px;
+  padding: 24px;
+  background: #192331;
+  color: #e4eaf2;
+  box-shadow: 0 24px 60px #0009;
+}
+dialog::backdrop {
+  background: #050b13b8;
+}
+dialog h2 {
+  margin-top: 0;
+}
+dialog #name {
+  width: 100%;
+  margin-top: 8px;
+}
+dialog fieldset {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+  padding: 14px;
+  border: 1px solid #46536a;
+  border-radius: 8px;
+}
+dialog fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+dialog #save-error,
+dialog #load-error {
+  color: #ffbf99;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#confirm-save {
+  background: #b6f36e;
+  color: #162217;
+}
+#export {
+  margin-right: auto;
+}
+#save-feedback {
+  color: #b6f36e;
 }
 p {
   line-height: 1.6;
@@ -136,6 +293,13 @@ details {
 }
 #admin {
   margin-top: 20px;
+}
+#admin summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+#admin[open] summary {
+  margin-bottom: 16px;
 }
 .user-row {
   display: flex;
@@ -164,5 +328,39 @@ body[data-panel='testing'] .writing {
     margin-left: 0;
     margin-right: 0;
     padding: 12px;
+  }
+}
+@media (max-width: 760px) {
+  .load-options {
+    display: block;
+  }
+  .load-options > div {
+    margin-bottom: 14px;
+  }
+  .editing-layout,
+  .editing-layout.ai-open {
+    display: flex;
+    flex-direction: column;
+  }
+  .ai-sidebar {
+    order: -1;
+    flex-direction: column;
+  }
+  .ai-rail {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    writing-mode: horizontal-tb;
+    justify-content: center;
+    border-radius: 8px;
+  }
+  #ai-panel {
+    flex: 0 0 auto;
+    border-radius: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .editing-layout {
+    transition: none;
   }
 }

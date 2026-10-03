@@ -2,8 +2,19 @@ import { api, accountBar } from './account.js';
 import { createCodeEditor } from '/code-editor.js';
 const $ = (id) => document.getElementById(id);
 const editor = createCodeEditor($('code'), $('code-editor'), $('cursor'));
+const emptyAlgorithm = `module.exports = class Player {
+  initialize(myNumber, column, row) {
+  }
+
+  getName() {
+  }
+
+  moveNext(map, myPosition, items) {
+  }
+};`;
 let documentId = null,
   revision = null,
+  documentName = '새 알고리즘',
   saved = '',
   saving = false,
   candidate = null,
@@ -20,7 +31,7 @@ function validationStatus(state, message) {
   $('validation-status').dataset.state = state;
   $('validation-status').textContent = message;
 }
-const contents = () => JSON.stringify({ name: $('name').value, source: $('code').value });
+const contents = () => JSON.stringify({ name: documentName, source: $('code').value });
 const dirty = () => contents() !== saved;
 const notice = (text) => {
   $('notice').textContent = text;
@@ -50,28 +61,60 @@ function showPanel(panel) {
   if (panel === 'writing') editor.refresh();
 }
 $('writing-view').onclick = () => showPanel('writing');
-function codeTab() {
-  $('ai-panel').hidden = true;
-  $('code-panel').hidden = false;
-  $('ai-tab').setAttribute('aria-pressed', 'false');
-  $('code-tab').setAttribute('aria-pressed', 'true');
+function loadError(message) {
+  $('load-error').textContent = message;
+  $('load-error').hidden = false;
+}
+$('load-mode').onclick = async () => {
+  $('load-error').hidden = true;
+  $('load-panel').showModal();
+  try {
+    await library();
+  } catch (error) {
+    loadError(error.message);
+  }
+};
+$('cancel-load').onclick = () => $('load-panel').close();
+$('load-panel').addEventListener('close', () => {
+  $('import').value = '';
+});
+$('library').onchange = () => {
+  $('load-error').hidden = true;
+};
+function setAiOpen(open) {
+  $('ai-panel').hidden = !open;
+  document.querySelector('.editing-layout').classList.toggle('ai-open', open);
+  $('toggle-ai').setAttribute('aria-expanded', String(open));
+  const label = `AI 스크립팅 사이드바 ${open ? '접기' : '펼치기'}`;
+  $('toggle-ai').setAttribute('aria-label', label);
+  $('toggle-ai').title = label;
+  $('ai-arrow').textContent = open ? '›' : '‹';
   editor.refresh();
 }
+$('toggle-ai').onclick = () => setAiOpen($('ai-panel').hidden);
 function replaceCode(text) {
-  codeTab();
   editor.replace(text);
   refreshState();
 }
 function reset(item) {
+  validationRequestId++;
   documentId = item?.id || null;
   revision = item?.revision || null;
-  $('name').value = item?.name || '새 알고리즘';
+  documentName = item?.name || '새 알고리즘';
+  $('document-title').textContent = documentName;
   $('code').value = item?.source || '';
   $('code-error').hidden = true;
   $('validation-status').hidden = true;
+  $('validate').disabled = false;
+  $('validate').textContent = '코드 검사';
   saved = item?.id ? contents() : '';
   candidate = null;
   $('candidate').hidden = true;
+  if (!testing) {
+    testSource = null;
+    preparedRequest = null;
+    pendingTest = null;
+  }
   refreshState();
 }
 async function mayDiscard() {
@@ -81,8 +124,7 @@ async function mayDiscard() {
   );
   if (choice === '버리기') return true;
   if (choice === '저장') {
-    await save(false);
-    return !dirty();
+    return (await requestSave()) && !dirty();
   }
   return false;
 }
@@ -93,17 +135,11 @@ async function library() {
   for (const item of algorithms) $('library').add(new Option(item.name, item.id));
   $('library').value = previous;
 }
-async function save(copy) {
-  if (saving) return;
-  let name = $('name').value;
-  if (copy) {
-    name = prompt('새 알고리즘 이름', name + ' 복사본');
-    if (name === null) return;
-  }
+async function save(copy, name) {
+  if (saving) return false;
   const source = $('code').value;
-  const before = contents();
   saving = true;
-  $('save').disabled = $('save-as').disabled = true;
+  $('confirm-save').disabled = $('cancel-save').disabled = true;
   try {
     const item = await api(
       documentId && !copy ? `/api/algorithms/${documentId}` : '/api/algorithms',
@@ -114,17 +150,64 @@ async function save(copy) {
     );
     documentId = item.id;
     revision = item.revision;
-    if (contents() === before) $('name').value = item.name;
+    documentName = item.name;
+    $('document-title').textContent = item.name;
     saved = JSON.stringify({ name: item.name, source: item.source });
     refreshState();
-    await library();
+    try {
+      await library();
+    } catch {
+      notice('저장했습니다. 목록 갱신은 불러오기 화면에서 다시 시도하세요.');
+      return true;
+    }
     notice('저장했습니다. 다른 창이나 같은 계정에서도 열 수 있습니다.');
+    return true;
   } finally {
     saving = false;
-    $('save').disabled = $('save-as').disabled = false;
+    $('confirm-save').disabled = $('cancel-save').disabled = false;
   }
 }
-$('name').oninput = refreshState;
+let saveOutcome = false;
+function requestSave() {
+  const dialog = $('save-dialog');
+  if (saving || dialog.open) return Promise.resolve(false);
+  saveOutcome = false;
+  $('name').value = documentName;
+  $('save-error').hidden = true;
+  $('save-feedback').hidden = true;
+  $('overwrite-option').hidden = !documentId;
+  dialog.querySelector('input[value="overwrite"]').checked = Boolean(documentId);
+  dialog.querySelector('input[value="copy"]').checked = !documentId;
+  dialog.showModal();
+  $('name').focus();
+  $('name').select();
+  return new Promise((resolve) => {
+    dialog.addEventListener('close', () => resolve(saveOutcome), { once: true });
+  });
+}
+$('save-form').onsubmit = async (event) => {
+  event.preventDefault();
+  const name = $('name').value.trim();
+  if (!name) {
+    $('save-error').textContent = '알고리즘 이름을 입력하세요.';
+    $('save-error').hidden = false;
+    return;
+  }
+  try {
+    const copy = $('save-form').elements['save-kind'].value === 'copy';
+    if (await save(copy, name)) {
+      saveOutcome = true;
+      $('save-dialog').close();
+    }
+  } catch (error) {
+    $('save-error').textContent = error.message;
+    $('save-error').hidden = false;
+  }
+};
+$('cancel-save').onclick = () => $('save-dialog').close();
+$('save-dialog').oncancel = (event) => {
+  if (saving) event.preventDefault();
+};
 $('code').oninput = () => {
   $('code-error').hidden = true;
   if (!$('validation-status').hidden)
@@ -162,39 +245,61 @@ $('find').onclick = () => {
   $('code').focus();
   $('code').setSelectionRange(at, at + query.length);
 };
-$('code-tab').onclick = codeTab;
-$('ai-tab').onclick = () => {
-  $('ai-panel').hidden = false;
-  $('code-panel').hidden = true;
-  $('ai-tab').setAttribute('aria-pressed', 'true');
-  $('code-tab').setAttribute('aria-pressed', 'false');
-};
-$('save').onclick = run(() => save(false));
-$('save-as').onclick = run(() => save(true));
+$('save').onclick = () => requestSave();
 $('new').onclick = run(async () => {
   if (saving || !(await mayDiscard())) return;
-  reset({ source: await (await fetch('/api/example')).text() });
+  generation++;
+  $('generate').disabled = false;
+  $('cancel-ai').disabled = true;
+  $('prompt').value = '';
+  $('search').value = '';
+  reset({ source: emptyAlgorithm });
+  showPanel('writing');
   notice('새 문서를 만들었습니다.');
 });
-$('open').onclick = run(async () => {
-  if (saving || !$('library').value || !(await mayDiscard())) return;
-  reset(await api(`/api/algorithms/${$('library').value}`));
-  notice('저장 코드를 열었습니다.');
-});
-$('import').onchange = run(async () => {
+$('open').onclick = async () => {
+  if (saving) return;
+  if (!$('library').value) {
+    loadError('불러올 알고리즘을 선택하세요.');
+    return;
+  }
+  try {
+    if (!(await mayDiscard())) return;
+    reset(await api(`/api/algorithms/${$('library').value}`));
+    $('load-panel').close();
+    showPanel('writing');
+    notice('저장 코드를 열었습니다.');
+  } catch (error) {
+    loadError(error.message);
+  }
+};
+$('import').onchange = async () => {
   const file = $('import').files[0];
-  if (!file || saving || !(await mayDiscard())) return;
-  if (!file.name.endsWith('.js')) throw new Error('.js 파일을 선택하세요.');
-  reset({ name: file.name.replace(/\.js$/, ''), source: await file.text() });
-  codeTab();
-});
+  if (!file || saving) return;
+  $('load-error').hidden = true;
+  try {
+    if (!(await mayDiscard())) return;
+    if (!file.name.endsWith('.js')) throw new Error('.js 파일을 선택하세요.');
+    reset({ name: file.name.replace(/\.js$/, ''), source: await file.text() });
+    $('load-panel').close();
+    showPanel('writing');
+  } catch (error) {
+    loadError(error.message);
+  } finally {
+    $('import').value = '';
+  }
+};
 $('export').onclick = () => {
   const url = URL.createObjectURL(new Blob([$('code').value], { type: 'text/javascript' }));
   const link = document.createElement('a');
   link.href = url;
-  link.download = ($('name').value || 'algorithm').replace(/[^\p{L}\p{N}_-]/gu, '_') + '.js';
+  link.download =
+    ($('name').value.trim() || documentName || 'algorithm').replace(/[^\p{L}\p{N}_-]/gu, '_') +
+    '.js';
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+  $('save-feedback').textContent = '현재 편집 코드를 파일로 내보냈습니다.';
+  $('save-feedback').hidden = false;
 };
 async function validateEditorSource() {
   const source = $('code').value;
@@ -225,7 +330,6 @@ async function validateEditorSource() {
     );
     if (source === $('code').value && error.diagnostic) {
       showPanel('writing');
-      codeTab();
       editor.showError(error.diagnostic.offset);
       $('code-error').textContent =
         `${error.diagnostic.line}줄 ${error.diagnostic.column}열 · ${error.message}`;
@@ -292,7 +396,7 @@ async function prepareTest() {
   const payload = {
     type: 'editor-prepare',
     source,
-    name: $('name').value,
+    name: documentName,
     requestId: ++testRequestId,
   };
   preparedRequest = payload;

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
@@ -42,13 +42,61 @@ try {
   await page.screenshot({ path: 'artifacts/signup-desktop.png', fullPage: true });
   await page.click('#authenticate');
   await page.waitForSelector('#workbench', { state: 'visible' });
+  assert.equal(
+    await page
+      .locator('#save')
+      .evaluate(
+        (button) =>
+          button.compareDocumentPosition(document.querySelector('#code-editor')) &
+          Node.DOCUMENT_POSITION_PRECEDING,
+      ),
+    2,
+  );
+  await page.click('#save');
+  await page.locator('#save-dialog').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#overwrite-option').isVisible(), false);
+  await page.click('#cancel-save');
+  await page.locator('#save-dialog').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('#save-state').textContent(), '미저장 변경 있음');
+  await page.click('#save');
   await page.locator('#name').fill('브라우저 저장 테스트');
-  await page.getByRole('button', { name: '저장', exact: true }).click();
+  const initialSource = await page.locator('#code').inputValue();
+  const exported = page.waitForEvent('download');
+  await page.click('#export');
+  const download = await exported;
+  assert.equal(download.suggestedFilename(), '브라우저_저장_테스트.js');
+  assert.equal(await readFile(await download.path(), 'utf8'), initialSource);
+  assert.equal(await page.locator('#save-dialog').isVisible(), true);
+  await page.click('#confirm-save');
+  await page.locator('#save-dialog').waitFor({ state: 'hidden' });
   await page
     .locator('#save-state')
     .filter({ hasText: /^저장됨$/ })
     .waitFor();
-  await page.click('#code-tab');
+  assert.equal(await page.locator('#ai-panel').isVisible(), true);
+  assert.equal(await page.locator('#toggle-ai').getAttribute('aria-expanded'), 'true');
+  assert.match(await page.locator('#toggle-ai').getAttribute('aria-label'), /AI 스크립팅/);
+  const openEditorWidth = await page
+    .locator('#code-panel')
+    .evaluate((panel) => panel.getBoundingClientRect().width);
+  assert.equal(await page.locator('#ai-panel').isVisible(), true);
+  assert.equal(await page.locator('#code-editor').isVisible(), true);
+  assert.equal(
+    await page.locator('#ai-panel').evaluate((panel) => {
+      const code = document.querySelector('#code-panel').getBoundingClientRect();
+      return panel.getBoundingClientRect().left > code.right;
+    }),
+    true,
+  );
+  await page.click('#toggle-ai');
+  assert.equal(await page.locator('#ai-panel').isVisible(), false);
+  assert.equal(await page.locator('#toggle-ai').getAttribute('aria-expanded'), 'false');
+  await page.waitForTimeout(220);
+  assert.ok(
+    await page
+      .locator('#code-panel')
+      .evaluate((panel, width) => panel.getBoundingClientRect().width > width, openEditorWidth),
+  );
   const original = await page.locator('#code').inputValue();
   await page.locator('.cm-content').fill('const broken = ;');
   await page.click('#validate');
@@ -74,7 +122,7 @@ try {
   await page.locator('#validation-status[data-state="success"]').waitFor();
   assert.match(await page.locator('#validation-status').textContent(), /검사 통과/);
   assert.equal(await page.locator('#validate').isEnabled(), true);
-  await page.click('#ai-tab');
+  await page.click('#toggle-ai');
   await page.click('#generate');
   await page.waitForSelector('#candidate', { state: 'visible' });
   await page.click('#apply');
@@ -82,10 +130,45 @@ try {
   await page.click('#undo');
   assert.equal(await page.locator('#code').inputValue(), original + '\n// edit');
   await page.click('#save');
+  await page.locator('#save-dialog').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('input[name="save-kind"]:checked').inputValue(), 'overwrite');
+  await page.click('#confirm-save');
+  await page.locator('#save-dialog').waitFor({ state: 'hidden' });
   await page
     .locator('#save-state')
     .filter({ hasText: /^저장됨$/ })
     .waitFor();
+  await page.click('#save');
+  await page.locator('input[name="save-kind"][value="copy"]').check();
+  await page.locator('#name').fill('브라우저 저장 테스트 복사본');
+  await page.click('#confirm-save');
+  await page.locator('#save-dialog').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('#document-title').textContent(), '브라우저 저장 테스트 복사본');
+  await page.click('#load-mode');
+  await page.locator('#load-panel').waitFor({ state: 'visible' });
+  await page.screenshot({ path: 'artifacts/editor-load-modal-desktop.png', fullPage: true });
+  assert.equal(await page.locator('#create-workspace').isVisible(), true);
+  await page.click('#cancel-load');
+  await page.locator('#load-panel').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('#document-title').textContent(), '브라우저 저장 테스트 복사본');
+  await page.click('#load-mode');
+  await page.locator('#load-panel').waitFor({ state: 'visible' });
+  await page.click('#open');
+  await page.locator('#load-error').filter({ hasText: '선택하세요' }).waitFor({ state: 'visible' });
+  await page.locator('#import').setInputFiles({
+    name: 'local-test.js',
+    mimeType: 'text/javascript',
+    buffer: Buffer.from(original),
+  });
+  await page.locator('#load-panel').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('#document-title').textContent(), 'local-test');
+  await page.click('#load-mode');
+  await page.locator('#load-panel').waitFor({ state: 'visible' });
+  await page.locator('#library').selectOption({ label: '브라우저 저장 테스트' });
+  page.once('dialog', (dialog) => dialog.accept('버리기'));
+  await page.click('#open');
+  await page.locator('#load-panel').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('#code-editor').isVisible(), true);
   assert.equal(await page.locator('.testing').isVisible(), false);
   assert.equal(await page.locator('#game').getAttribute('src'), null);
   const game = page.frameLocator('#game');
@@ -176,8 +259,38 @@ try {
   await mkdir('artifacts', { recursive: true });
   await page.screenshot({ path: 'artifacts/editor-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 900 });
+  if ((await page.locator('#toggle-ai').getAttribute('aria-expanded')) === 'false')
+    await page.click('#toggle-ai');
+  assert.equal(await page.locator('#ai-panel').isVisible(), true);
+  assert.equal(await page.locator('#code-editor').isVisible(), true);
+  assert.equal(
+    await page.locator('#ai-panel').evaluate((panel) => {
+      const code = document.querySelector('#code-panel').getBoundingClientRect();
+      return panel.getBoundingClientRect().bottom <= code.top;
+    }),
+    true,
+  );
+  await page.click('#load-mode');
+  await page.locator('#load-panel').waitFor({ state: 'visible' });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await page.screenshot({ path: 'artifacts/editor-load-modal-mobile.png', fullPage: true });
+  await page.click('#cancel-load');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.screenshot({ path: 'artifacts/editor-mobile.png', fullPage: true });
+  await page.locator('#prompt').fill('이전 요청 내용');
+  await page.click('#new');
+  assert.equal(await page.locator('#document-title').textContent(), '새 알고리즘');
+  const blank = await page.locator('#code').inputValue();
+  assert.match(blank, /initialize\(myNumber, column, row\) \{\s*\}/);
+  assert.match(blank, /getName\(\) \{\s*\}/);
+  assert.match(blank, /moveNext\(map, myPosition, items\) \{\s*\}/);
+  assert.equal(await page.locator('#prompt').inputValue(), '');
+  assert.equal(await page.locator('#test-code-state').isVisible(), false);
+  await page.click('#undo');
+  assert.equal(await page.locator('#code').inputValue(), blank);
+  await page.click('#save');
+  assert.equal(await page.locator('#overwrite-option').isVisible(), false);
+  await page.click('#cancel-save');
   const second = await browser.newPage();
   await second.goto(base + '/editor');
   await second.waitForURL(/\/signin\?next=%2Feditor/);
