@@ -28,7 +28,8 @@
         ><label>파일 가져오기 <input id="import" type="file" accept=".js" /></label>
       </div>
       <div class="workspace-tabs">
-        <button id="writing-view">작성 화면</button><button id="testing-view">테스트 화면</button>
+        <button id="writing-view" aria-pressed="true">작성 화면</button
+        ><button id="testing-view" aria-pressed="false">현재 코드로 테스트</button>
       </div>
       <div class="columns">
         <section class="writing">
@@ -66,7 +67,7 @@
                 다음 찾기
               </button>
             </div>
-            <label for="code">JavaScript · 단일 파일 · 최대 64 KiB</label>
+            <label for="code">JavaScript · 단일 파일</label>
             <textarea id="code" spellcheck="false" aria-label="JavaScript 알고리즘 코드"></textarea>
             <div id="code-editor"></div>
             <span id="cursor">줄 1</span>
@@ -93,8 +94,8 @@
           <p id="test-info">
             맵과 시작 위치만 선택해 혼자 테스트합니다. 캐릭터는 실행할 때마다 무작위로 배정됩니다.
           </p>
-          <button id="test" disabled>현재 코드로 테스트 준비</button
-          ><iframe id="game" title="알고리즘 테스트 게임" src="/game?editor=1"></iframe>
+          <button id="test" disabled>현재 코드 다시 준비</button
+          ><iframe id="game" title="알고리즘 테스트 게임"></iframe>
         </section>
       </div>
       <section id="admin" hidden>

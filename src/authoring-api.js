@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { Accounts, fail } from './accounts.js';
+import { createAccountRepository } from './persistence/account-repository.js';
+import { fail } from './persistence/errors.js';
 import { validateSource } from './runtime/policy.js';
 
 export function createAuthoring({
-  accounts = new Accounts(),
+  accounts = createAccountRepository(),
   mock = process.env.AUTH_MODE
     ? process.env.AUTH_MODE === 'mock'
     : process.env.NODE_ENV !== 'production',
@@ -74,7 +75,7 @@ export function createAuthoring({
         requireUser(user);
         if (user.role !== 'admin') throw fail(403, '관리자 권한이 필요합니다.');
         if (path === '/api/admin/users' && request.method === 'GET') {
-          json(response, 200, { users: (await accounts.read()).users });
+          json(response, 200, { users: await accounts.listUsers() });
           return true;
         }
         const id = path.match(/^\/api\/admin\/users\/([a-f0-9-]+)$/)?.[1];
@@ -115,6 +116,11 @@ export function createAuthoring({
           json(response, 200, await accounts.save(user.id, id, await readJson(request)));
           return true;
         }
+      }
+      if (path === '/api/history' && request.method === 'GET') {
+        requireUser(user);
+        json(response, 200, { history: await accounts.history(user.id) });
+        return true;
       }
       return false;
     },

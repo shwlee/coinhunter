@@ -3,13 +3,15 @@ import { mkdtemp, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
-import { Accounts } from '../src/accounts.js';
+import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
 import { createAuthoring } from '../src/authoring-api.js';
 import { createGameServer } from '../src/server.js';
 
 const dir = await mkdtemp(join(tmpdir(), 'coinhunter-editor-'));
 const { server, close } = createGameServer({
-  authoring: createAuthoring({ accounts: new Accounts(join(dir, 'store.json')) }),
+  authoring: createAuthoring({
+    accounts: new FileAccountRepository(join(dir, 'store.json')),
+  }),
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
@@ -61,9 +63,12 @@ try {
     .locator('#save-state')
     .filter({ hasText: /^저장됨$/ })
     .waitFor();
-  await page.locator('#test:enabled').waitFor();
+  assert.equal(await page.locator('.testing').isVisible(), false);
+  assert.equal(await page.locator('#game').getAttribute('src'), null);
   const game = page.frameLocator('#game');
-  await page.click('#test');
+  await page.click('#testing-view');
+  await page.locator('#test:enabled').waitFor();
+  assert.equal(await page.locator('.writing').isVisible(), false);
   await game.locator('#settings-step').waitFor({ state: 'visible' });
   assert.equal(
     await game.locator('#start-button').evaluate((button) => {
@@ -84,10 +89,24 @@ try {
   ])
     assert.equal(await game.locator(selector).isVisible(), false);
   await game.locator('input[name="start-slot"][value="3"]').check();
+  await page.route('**/api/matches', async (route) => {
+    if (route.request().method() === 'POST')
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
   const created = page.waitForResponse(
     (r) => r.url().endsWith('/api/matches') && r.request().method() === 'POST',
   );
   await game.locator('#start-button').click();
+  assert.deepEqual(
+    await game.locator('#arena-overlay').evaluate((overlay) => ({
+      hidden: overlay.hidden,
+      background: getComputedStyle(overlay).backgroundColor,
+      countingDown: overlay.classList.contains('counting-down'),
+    })),
+    { hidden: false, background: 'rgb(12, 20, 32)', countingDown: false },
+    'The test board stays covered while the match starts',
+  );
   const response = await created;
   assert.equal(response.status(), 201);
   const input = response.request().postDataJSON();
@@ -102,6 +121,9 @@ try {
   await game.locator('#arena-message strong').filter({ hasText: '테스트 종료' }).waitFor();
   assert.equal(await game.locator('#result-podium').isVisible(), false);
   assert.equal(await game.locator('#map-select').isVisible(), true);
+  await page.click('#writing-view');
+  assert.equal(await page.locator('.testing').isVisible(), false);
+  assert.equal(await page.locator('.writing').isVisible(), true);
   await mkdir('artifacts', { recursive: true });
   await page.screenshot({ path: 'artifacts/editor-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 900 });

@@ -2,20 +2,15 @@ import { api, accountBar } from './account.js';
 import { createCodeEditor } from '/code-editor.js';
 const $ = (id) => document.getElementById(id);
 const editor = createCodeEditor($('code'), $('code-editor'), $('cursor'));
-$('writing-view').onclick = () => {
-  document.body.dataset.panel = 'writing';
-  editor.refresh();
-};
-$('testing-view').onclick = () => {
-  document.body.dataset.panel = 'testing';
-};
 let documentId = null,
   revision = null,
   saved = '',
   saving = false,
   candidate = null,
   generation = 0,
-  testing = false;
+  testing = false,
+  testReady = false,
+  pendingTest = null;
 const contents = () => JSON.stringify({ name: $('name').value, source: $('code').value });
 const dirty = () => contents() !== saved;
 const notice = (text) => {
@@ -31,6 +26,13 @@ const run = (operation) => async () => {
     notice(error.message);
   }
 };
+function showPanel(panel) {
+  document.body.dataset.panel = panel;
+  $('writing-view').setAttribute('aria-pressed', String(panel === 'writing'));
+  $('testing-view').setAttribute('aria-pressed', String(panel === 'testing'));
+  if (panel === 'writing') editor.refresh();
+}
+$('writing-view').onclick = () => showPanel('writing');
 function codeTab() {
   $('ai-panel').hidden = true;
   $('code-panel').hidden = false;
@@ -157,8 +159,7 @@ $('open').onclick = run(async () => {
 $('import').onchange = run(async () => {
   const file = $('import').files[0];
   if (!file || saving || !(await mayDiscard())) return;
-  if (!file.name.endsWith('.js') || file.size > 65536)
-    throw new Error('64 KiB 이하의 .js 파일을 선택하세요.');
+  if (!file.name.endsWith('.js')) throw new Error('.js 파일을 선택하세요.');
   reset({ name: file.name.replace(/\.js$/, ''), source: await file.text() });
   codeTab();
 });
@@ -221,21 +222,33 @@ $('apply').onclick = () => {
   replaceCode(candidate.source);
   notice('목업 코드를 적용했습니다. 실행 취소로 되돌릴 수 있습니다.');
 };
-$('test').onclick = run(async () => {
+async function prepareTest() {
   if (testing) throw new Error('게임 패널에서 진행 중 경기를 종료한 뒤 다시 준비하세요.');
   await api('/api/algorithms/validate', {
     method: 'POST',
     body: JSON.stringify({ source: $('code').value }),
   });
-  $('game').contentWindow.postMessage(
-    { type: 'editor-prepare', source: $('code').value, name: $('name').value },
-    location.origin,
-  );
-});
+  const payload = { type: 'editor-prepare', source: $('code').value, name: $('name').value };
+  showPanel('testing');
+  if (testReady) $('game').contentWindow.postMessage(payload, location.origin);
+  else {
+    pendingTest = payload;
+    if (!$('game').hasAttribute('src')) $('game').src = '/game?editor=1';
+  }
+}
+$('testing-view').onclick = run(prepareTest);
+$('test').onclick = run(prepareTest);
 window.addEventListener('message', (event) => {
   if (event.origin !== location.origin || event.source !== $('game').contentWindow) return;
   if (event.data.type === 'editor-state') testing = event.data.active;
-  if (event.data.type === 'editor-ready') $('test').disabled = false;
+  if (event.data.type === 'editor-ready') {
+    testReady = true;
+    $('test').disabled = false;
+    if (pendingTest) {
+      $('game').contentWindow.postMessage(pendingTest, location.origin);
+      pendingTest = null;
+    }
+  }
   if (event.data.type === 'editor-feedback') notice(event.data.message);
 });
 window.addEventListener('beforeunload', (event) => {

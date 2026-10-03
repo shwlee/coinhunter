@@ -61,7 +61,10 @@ const canvas = $('board');
 const ctx = canvas.getContext('2d');
 let maps = [],
   source = '',
-  opponentSource = '',
+  historyId = '',
+  history = [],
+  loggedIn = false,
+  refreshHistory = async () => {},
   game = null,
   matchId = null,
   events = null,
@@ -77,7 +80,7 @@ function active() {
   return game && (game.status === 'playing' || game.status === 'hurryup');
 }
 const isDuel = () => $('match-mode').value === 'duel';
-const filesReady = () => Boolean(source && (!isDuel() || opponentSource));
+const filesReady = () => Boolean(source && (!isDuel() || (loggedIn && historyId)));
 function controls() {
   if (window.parent !== window)
     window.parent.postMessage(
@@ -90,7 +93,8 @@ function controls() {
   $('stop-button').hidden = !active();
   for (const id of [
     'match-mode',
-    'opponent-file',
+    'history-select',
+    'history-refresh',
     'algorithm-file',
     'map-select',
     'dummy-count',
@@ -103,6 +107,15 @@ function controls() {
   $('position-next').disabled = !charactersReady || busy || active();
   $('character-back').disabled = busy || active();
   $('file-next').disabled = !filesReady() || busy || active();
+  const missingSelection = !testMode && isDuel() && !filesReady() && !busy && !active();
+  $('file-next-reason').hidden = !missingSelection;
+  $('file-next-reason').textContent = missingSelection
+    ? !history.length
+      ? '완료한 경기 기록이 없습니다. 로그인 상태에서 게임을 한 번 진행한 뒤 다시 선택하세요.'
+      : !source
+        ? '현재 알고리즘 파일이나 저장 코드를 먼저 선택하세요.'
+        : '대결할 이전 경기 기록을 선택하면 다음으로 진행할 수 있습니다.'
+    : '';
   $('settings-next').disabled =
     !filesReady() || !maps.length || !charactersReady || busy || active();
   for (const id of ['file-back', 'settings-back']) $(id).disabled = busy || active();
@@ -154,6 +167,7 @@ $('play-again').addEventListener('click', () => {
   renderLogs([]);
   setupStep = 'file';
   preview();
+  if (loggedIn) refreshHistory().catch((error) => setError(error.message));
   $('algorithm-file').focus();
 });
 $('analysis-toggle').addEventListener('click', () => {
@@ -191,8 +205,8 @@ async function loadFile(file) {
   if (busy || active() || !file) return;
   source = '';
   controls();
-  if (!file.name.toLowerCase().endsWith('.js') || file.size > 65536) {
-    setError('64 KiB 이하의 .js 파일을 선택하세요.');
+  if (!file.name.toLowerCase().endsWith('.js')) {
+    setError('.js 파일을 선택하세요.');
     controls();
     return;
   }
@@ -202,24 +216,13 @@ async function loadFile(file) {
   controls();
 }
 $('algorithm-file').addEventListener('change', (event) => loadFile(event.target.files[0]));
-$('opponent-file').addEventListener('change', async (event) => {
-  opponentSource = '';
-  controls();
-  const file = event.target.files[0];
-  if (!file) return;
-  if (!file.name.toLowerCase().endsWith('.js') || file.size > 65536) {
-    setError('이전 알고리즘도 64 KiB 이하의 .js 파일이어야 합니다.');
-    return;
-  }
-  const content = await file.text();
-  if (event.target.files[0] !== file) return;
-  opponentSource = content;
-  setError('');
+$('history-select').addEventListener('change', () => {
+  historyId = $('history-select').value;
   controls();
 });
 $('match-mode').addEventListener('change', () => {
   const duel = isDuel();
-  $('opponent-upload').hidden = !duel;
+  $('opponent-history').hidden = !duel;
   $('file-step').classList.toggle('duel-files', duel);
   $('dummy-count').parentElement.hidden = duel;
   document.querySelector('.dummy-note').hidden = duel;
@@ -282,8 +285,10 @@ $('setup-form').addEventListener('submit', async (event) => {
   setError('');
   events?.close();
   try {
-    $('arena-overlay').classList.add('counting-down');
-    drawBoard();
+    if (!testMode) {
+      $('arena-overlay').classList.add('counting-down');
+      drawBoard();
+    }
     $('start-countdown').hidden = testMode;
     for (const number of testMode ? [] : [3, 2, 1]) {
       $('countdown-number').textContent = String(number);
@@ -300,7 +305,7 @@ $('setup-form').addEventListener('submit', async (event) => {
         startSlot: selectedStartSlot,
         mapId: $('map-select').value,
         mode: !testMode && isDuel() ? 'duel' : 'practice',
-        opponentSource: !testMode && isDuel() ? opponentSource : undefined,
+        opponentHistoryId: !testMode && isDuel() ? historyId : undefined,
         dummyCount: testMode || isDuel() ? 0 : Number($('dummy-count').value),
         blackMatter: !testMode && $('black-matter').checked,
         destroyWalls: !testMode && $('destroy-walls').checked,
@@ -344,6 +349,7 @@ function connect() {
     if (game.status === 'finished') {
       events.close();
       sessionStorage.removeItem(matchStorageKey);
+      if (loggedIn) refreshHistory().catch((error) => setError(error.message));
     }
   });
   events.onopen = () => setError('');
@@ -688,33 +694,52 @@ draw();
 try {
   const session = testMode ? null : await accountBar();
   if (session?.user) {
+    loggedIn = true;
+    const duelOption = $('match-mode').querySelector('option[value="duel"]');
+    duelOption.hidden = false;
+    duelOption.disabled = false;
     $('saved-algorithms').hidden = false;
+    const updateHistory = async () => {
+      history = (await api('/api/history')).history;
+      const selected = historyId;
+      $('history-select').replaceChildren(new Option('경기 기록을 선택하세요', ''));
+      for (const entry of history) {
+        const playedAt = new Date(entry.playedAt).toLocaleString('ko-KR');
+        $('history-select').add(
+          new Option(
+            `${playedAt} · ${entry.mapName} · ${entry.algorithmName} · ${entry.score}점`,
+            entry.id,
+          ),
+        );
+      }
+      $('history-select').value = history.some((entry) => entry.id === selected) ? selected : '';
+      historyId = $('history-select').value;
+      controls();
+    };
+    refreshHistory = updateHistory;
+    await updateHistory();
+    $('history-refresh').addEventListener('click', () =>
+      updateHistory().catch((error) => setError(error.message)),
+    );
     const updateLibrary = async () => {
       const data = await api('/api/algorithms');
-      for (const id of ['saved-current', 'saved-opponent']) {
-        $(id).replaceChildren(
-          new Option(id === 'saved-current' ? '현재 코드 불러오기' : '이전 코드 불러오기', ''),
-        );
+      for (const id of ['saved-current']) {
+        $(id).replaceChildren(new Option('현재 코드 불러오기', ''));
         for (const item of data.algorithms) $(id).add(new Option(item.name, item.id));
       }
     };
     await updateLibrary();
+    controls();
     $('refresh-library').addEventListener('click', () => {
       if (!busy && !active()) updateLibrary().catch((error) => setError(error.message));
     });
-    for (const id of ['saved-current', 'saved-opponent']) {
+    for (const id of ['saved-current']) {
       $(id).addEventListener('change', async () => {
         if (!$(id).value || busy || active()) return;
         try {
           const item = await api(`/api/algorithms/${$(id).value}`);
           if (busy || active()) return;
-          if (id === 'saved-current') await loadFile(new File([item.source], item.name + '.js'));
-          else {
-            opponentSource = item.source;
-            $('match-mode').value = 'duel';
-            $('match-mode').dispatchEvent(new Event('change'));
-            setError(`이전 코드 선택: ${item.name}`);
-          }
+          await loadFile(new File([item.source], item.name + '.js'));
           controls();
         } catch (error) {
           setError(error.message);
@@ -738,11 +763,7 @@ window.addEventListener('message', async (event) => {
   try {
     if (busy || active()) throw new Error('진행 중인 경기를 먼저 종료하세요.');
     if (!(await api('/api/session')).user) throw new Error('로그인이 필요합니다.');
-    if (
-      typeof event.data.source !== 'string' ||
-      new TextEncoder().encode(event.data.source).length > 65536
-    )
-      throw new Error('코드는 64 KiB 이하로 작성하세요.');
+    if (typeof event.data.source !== 'string') throw new Error('코드가 필요합니다.');
     events?.close();
     matchId = null;
     sessionStorage.removeItem(matchStorageKey);

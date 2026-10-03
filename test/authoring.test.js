@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { Accounts } from '../src/accounts.js';
+import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
 import { createAuthoring } from '../src/authoring-api.js';
 import { createGameServer } from '../src/server.js';
 
@@ -20,7 +20,21 @@ test('production refuses explicit mock authentication', () => {
 
 test('local accounts persist, isolate code, reject conflicts and revoke disabled users', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'coinhunter-auth-'));
-  const accounts = new Accounts(join(dir, 'store.json'));
+  const fileAccounts = new FileAccountRepository(join(dir, 'store.json'));
+  const accounts = { adminEmail: fileAccounts.adminEmail };
+  for (const method of [
+    'login',
+    'user',
+    'listUsers',
+    'updateUser',
+    'list',
+    'get',
+    'save',
+    'history',
+    'historyEntry',
+    'recordMatch',
+  ])
+    accounts[method] = fileAccounts[method].bind(fileAccounts);
   const { server, close } = createGameServer({ authoring: createAuthoring({ accounts }) });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   t.after(async () => {
@@ -79,7 +93,10 @@ test('local accounts persist, isolate code, reject conflicts and revoke disabled
     ),
   );
   assert.deepEqual(updates.map((r) => r.status).sort(), [200, 409]);
-  assert.equal((await new Accounts(join(dir, 'store.json')).get(a.user.id, item.id)).revision, 2);
+  assert.equal(
+    (await new FileAccountRepository(join(dir, 'store.json')).get(a.user.id, item.id)).revision,
+    2,
+  );
   const secondLogin = await login(a.user.email);
   assert.equal(
     (await (await call('/api/algorithms', 'GET', undefined, secondLogin.cookie)).json()).algorithms
@@ -129,6 +146,12 @@ test('local accounts persist, isolate code, reject conflicts and revoke disabled
   await call(`/api/admin/users/${a.user.id}`, 'PUT', { active: true, role: 'user' }, admin.cookie);
   const fresh = await login(a.user.email);
   assert.equal((await call('/api/algorithms', 'GET', undefined, fresh.cookie)).status, 200);
+  const largeSource = `${source}\n/*${'x'.repeat(1_000_000)}*/`;
+  assert.equal(
+    (await call('/api/algorithms', 'POST', { name: 'large', source: largeSource }, fresh.cookie))
+      .status,
+    201,
+  );
   await call('/api/auth/logout', 'POST', {}, fresh.cookie);
   assert.equal((await call('/api/algorithms', 'GET', undefined, fresh.cookie)).status, 401);
 });

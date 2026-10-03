@@ -95,15 +95,13 @@
                       <button id="refresh-library" type="button">목록 새로고침</button>
                       <label for="saved-current">내 저장 코드</label
                       ><select id="saved-current">
-                        <option value="">현재 코드 불러오기</option></select
-                      ><select id="saved-opponent" aria-label="이전 저장 코드">
-                        <option value="">이전 코드 불러오기</option>
+                        <option value="">현재 코드 불러오기</option>
                       </select>
                     </div>
                     <label class="field-label" for="match-mode">플레이 방식</label>
                     <select id="match-mode">
                       <option value="practice">더미 / 혼자 연습</option>
-                      <option value="duel">이전 알고리즘과 1:1 대결</option>
+                      <option value="duel" hidden disabled>이전 경기 알고리즘과 1:1 대결</option>
                     </select>
                     <label class="field-label" for="algorithm-file"
                       ><span>01</span> 현재 알고리즘</label
@@ -118,18 +116,34 @@
                         accept=".js,text/javascript"
                         aria-describedby="file-help"
                     /></label>
-                    <p id="file-help" class="help">최대 64 KiB · 한 파일의 동기 알고리즘</p>
-                    <div id="opponent-upload" hidden>
-                      <label class="field-label" for="opponent-file"
-                        >이전 알고리즘 (.js · 최대 64 KiB)</label
-                      >
-                      <input id="opponent-file" type="file" accept=".js,text/javascript" />
+                    <p id="file-help" class="help">한 파일의 동기 JavaScript 알고리즘</p>
+                    <div id="opponent-history" hidden>
+                      <label class="field-label" for="history-select">대결할 이전 경기 기록</label>
+                      <select id="history-select">
+                        <option value="">경기 기록을 선택하세요</option>
+                      </select>
+                      <button id="history-refresh" type="button">기록 새로고침</button>
                     </div>
                     <a href="/api/example" class="text-link" download="nearest-coin.js"
                       >샘플 알고리즘 내려받기 <span>↗</span></a
                     >
+                    <p
+                      id="file-next-reason"
+                      class="file-next-reason"
+                      role="status"
+                      aria-live="polite"
+                      hidden
+                    ></p>
                     <div class="position-actions">
-                      <button id="file-next" type="button" class="primary" disabled>다음 →</button>
+                      <button
+                        id="file-next"
+                        type="button"
+                        class="primary"
+                        aria-describedby="file-next-reason"
+                        disabled
+                      >
+                        다음 →
+                      </button>
                     </div>
                   </section>
                   <section id="settings-step" class="wizard-step" hidden>
@@ -165,8 +179,8 @@
                       >
                     </p>
                     <p id="duel-note" class="help" hidden>
-                      현재 코드와 이전 코드가 대각선 위치에서 대결합니다. 이전 코드의 캐릭터는
-                      자동으로 배정됩니다.
+                      선택한 경기 당시의 알고리즘 코드와 대결합니다. 이전 코드의 캐릭터는 자동으로
+                      배정됩니다.
                     </p>
                     <div class="field-label"><span>04</span> 랜덤 기믹</div>
                     <label class="toggle-row"

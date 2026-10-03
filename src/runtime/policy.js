@@ -1,12 +1,9 @@
 import { parse } from 'acorn';
 
 export const TURN_LIMIT_MS = 500;
-export const MAX_SOURCE_BYTES = 64 * 1024;
 
 export function validateSource(source) {
-  if (typeof source !== 'string' || Buffer.byteLength(source) > MAX_SOURCE_BYTES) {
-    throw new Error('코드는 64 KiB 이하의 문자열이어야 합니다.');
-  }
+  if (typeof source !== 'string') throw new Error('코드는 문자열이어야 합니다.');
   const tree = parse(source, { ecmaVersion: 2022, sourceType: 'script' });
   const stack = [tree];
   while (stack.length) {

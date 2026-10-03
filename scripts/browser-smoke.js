@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import { createGameServer } from '../src/server.js';
 import { GameState } from '../src/game/state.js';
 import { MAPS } from '../src/game/map-repository.js';
+import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
+import { createAuthoring } from '../src/authoring-api.js';
 
 const candidates = [
   process.env.COINHUNTER_BROWSER,
@@ -17,7 +21,12 @@ const candidates = [
 const executablePath = candidates.find((path) => path && existsSync(path));
 if (!executablePath)
   throw new Error('COINHUNTER_BROWSER에 Chromium 계열 브라우저 실행 경로를 지정하세요.');
-const { server, close } = createGameServer();
+const accountDir = await mkdtemp(join(tmpdir(), 'coinhunter-browser-'));
+const { server, close } = createGameServer({
+  authoring: createAuthoring({
+    accounts: new FileAccountRepository(join(accountDir, 'accounts.json')),
+  }),
+});
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 let browser;
 const errors = [];
@@ -38,11 +47,62 @@ try {
   duelPage.on('pageerror', (error) => errors.push(error.message));
   await duelPage.goto(`http://127.0.0.1:${server.address().port}/game`);
   await duelPage.waitForSelector('#map-select option', { state: 'attached' });
+  assert.equal(await duelPage.locator('#match-mode option[value="duel"]').isHidden(), true);
+  const signedIn = await duelPage.request.post(
+    `http://127.0.0.1:${server.address().port}/api/auth/mock`,
+    { data: { email: 'developer@company.test' } },
+  );
+  assert.equal(signedIn.status(), 200);
+  await duelPage.reload();
+  await duelPage.locator('#match-mode option[value="duel"]:enabled').waitFor({ state: 'attached' });
   await duelPage.selectOption('#match-mode', 'duel');
   await duelPage.setInputFiles('#algorithm-file', 'examples/nearest-coin.js');
   assert.equal(await duelPage.locator('#file-next').isDisabled(), true);
-  await duelPage.setInputFiles('#opponent-file', 'examples/hammer-test.js');
-  await duelPage.waitForFunction(() => !document.getElementById('file-next').disabled);
+  await duelPage.locator('#file-next-reason').waitFor({ state: 'visible' });
+  assert.match(await duelPage.locator('#file-next-reason').textContent(), /경기 기록이 없습니다/);
+  await duelPage.setViewportSize({ width: 320, height: 850 });
+  assert.equal(
+    await duelPage.evaluate(() => {
+      const board = document.querySelector('.canvas-wrap').getBoundingClientRect();
+      const reason = document.getElementById('file-next-reason').getBoundingClientRect();
+      const button = document.getElementById('file-next').getBoundingClientRect();
+      return reason.bottom <= board.bottom && button.bottom <= board.bottom;
+    }),
+    true,
+    'Missing-opponent guidance and disabled button fit on a narrow screen',
+  );
+  await duelPage.setViewportSize({ width: 1440, height: 1100 });
+  const previousSource = await (
+    await duelPage.request.get(`http://127.0.0.1:${server.address().port}/api/example`)
+  ).text();
+  const mapId = await duelPage.locator('#map-select').inputValue();
+  const previous = await duelPage.request.post(
+    `http://127.0.0.1:${server.address().port}/api/matches`,
+    {
+      data: {
+        source: previousSource,
+        mapId,
+        dummyCount: 0,
+        blackMatter: false,
+        destroyWalls: false,
+      },
+    },
+  );
+  assert.equal(previous.status(), 201);
+  const previousId = (await previous.json()).id;
+  assert.equal(
+    (
+      await duelPage.request.delete(
+        `http://127.0.0.1:${server.address().port}/api/matches/${previousId}`,
+      )
+    ).status(),
+    200,
+  );
+  await duelPage.click('#history-refresh');
+  await duelPage.locator('#history-select option:not([value=""])').waitFor({ state: 'attached' });
+  await duelPage.selectOption('#history-select', { index: 1 });
+  await duelPage.locator('#file-next:enabled').waitFor();
+  assert.equal(await duelPage.locator('#file-next-reason').isVisible(), false);
   for (const width of [1440, 768, 390, 320]) {
     await duelPage.setViewportSize({ width, height: 1000 });
     assert.equal(
@@ -68,11 +128,13 @@ try {
   const duelResponse = await duelCreated;
   assert.equal(duelResponse.status(), 201);
   const duelId = (await duelResponse.json()).id;
-  await duelPage.waitForFunction(() =>
-    document.getElementById('scoreboard').textContent.includes('이전 ·'),
-  );
+  await duelPage.locator('#scoreboard').filter({ hasText: '이전 ·' }).waitFor();
   await duelPage.request.delete(`http://127.0.0.1:${server.address().port}/api/matches/${duelId}`);
   await duelPage.locator('#analysis-toggle').waitFor({ state: 'visible' });
+  await duelPage.locator('#history-select option:not([value=""])').nth(1).waitFor({
+    state: 'attached',
+  });
+  assert.equal(await duelPage.locator('#history-select option:not([value=""])').count(), 2);
   await duelPage.click('#analysis-toggle');
   assert.match(await duelPage.locator('#result-analysis').textContent(), /현재 ·/);
   assert.match(await duelPage.locator('#result-analysis').textContent(), /이전 ·/);
@@ -543,4 +605,5 @@ try {
 } finally {
   await browser?.close();
   await close();
+  await rm(accountDir, { recursive: true, force: true });
 }

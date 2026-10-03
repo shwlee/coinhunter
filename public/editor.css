@@ -63,10 +63,7 @@ button[aria-pressed='true'],
   margin-bottom: 12px;
 }
 .columns {
-  display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(540px, 1.3fr);
-  gap: 20px;
-  align-items: start;
+  display: block;
 }
 section {
   min-width: 0;
@@ -134,21 +131,15 @@ details {
   display: none !important;
 }
 .workspace-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+body[data-panel='writing'] .testing,
+body[data-panel='testing'] .writing {
   display: none;
 }
 @media (max-width: 1050px) {
-  .workspace-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-  body[data-panel='writing'] .testing,
-  body[data-panel='testing'] .writing {
-    display: none;
-  }
-  .columns {
-    grid-template-columns: 1fr;
-  }
   header,
   main,
   #notice {

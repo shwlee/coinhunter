@@ -1115,6 +1115,13 @@ footer > span:last-child {
   padding-top: 12px;
   justify-content: flex-end;
 }
+.setup-wizard .file-next-reason {
+  margin: 10px 0 0;
+  color: #ffcf8a;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+}
 .setup-wizard .position-actions .primary,
 .setup-wizard #position-next {
   min-width: 150px;
@@ -1225,10 +1232,15 @@ footer > span:last-child {
 .duel-files .upload-icon {
   display: none;
 }
-#opponent-file {
+#history-select {
   width: 100%;
   min-width: 0;
   font-size: 13px;
+}
+#history-refresh {
+  margin-top: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
 }
 .settings-fields > div {
   min-width: 0;

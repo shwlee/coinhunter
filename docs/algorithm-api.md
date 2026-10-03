@@ -5,7 +5,7 @@
 
 ## 파일 형식
 
-최대 64 KiB의 단일 JavaScript 파일이다. 클래스를 `module.exports`로 내보내고 세 메서드를 구현한다.
+단일 JavaScript 파일이다. 제품 차원의 파일 크기 제한은 없지만 실행 환경 메모리의 물리적 한계는 적용된다. 클래스를 `module.exports`로 내보내고 세 메서드를 구현한다.
 
 ```javascript
 module.exports = class Player {

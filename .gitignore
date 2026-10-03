@@ -6,4 +6,5 @@ coverage/
 artifacts/
 data/maps/
 data/accounts/
+data/algorithm-sources/
 public/generated/
