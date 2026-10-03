@@ -4,7 +4,10 @@ export async function api(path, options = {}) {
     headers: { 'Content-Type': 'application/json', ...options.headers },
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || '요청에 실패했습니다.');
+  if (!response.ok)
+    throw Object.assign(new Error(data.error || '요청에 실패했습니다.'), {
+      diagnostic: data.diagnostic,
+    });
   return data;
 }
 export async function accountBar(onChange = () => {}) {

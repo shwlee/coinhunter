@@ -31,6 +31,24 @@ main,
 #notice {
   margin: 20px;
 }
+#code-error,
+#test-code-state {
+  color: #ffbf99;
+  overflow-wrap: anywhere;
+}
+#validation-status {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #46536a;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+#validation-status[data-state='success'] {
+  color: #b6f36e;
+}
+#validation-status[data-state='error'] {
+  color: #ffbf99;
+}
 #notice {
   min-height: 24px;
   color: #c9e7a7;

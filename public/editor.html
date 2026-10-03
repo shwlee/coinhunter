@@ -31,6 +31,7 @@
         <button id="writing-view" aria-pressed="true">작성 화면</button
         ><button id="testing-view" aria-pressed="false">현재 코드로 테스트</button>
       </div>
+      <p id="test-code-state" role="status" hidden></p>
       <div class="columns">
         <section class="writing">
           <div class="tabs">
@@ -67,9 +68,11 @@
                 다음 찾기
               </button>
             </div>
+            <p id="validation-status" role="status" aria-live="polite" hidden></p>
             <label for="code">JavaScript · 단일 파일</label>
             <textarea id="code" spellcheck="false" aria-label="JavaScript 알고리즘 코드"></textarea>
             <div id="code-editor"></div>
+            <p id="code-error" role="alert" hidden></p>
             <span id="cursor">줄 1</span>
           </div>
           <details>

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createAccountRepository } from './persistence/account-repository.js';
 import { fail } from './persistence/errors.js';
-import { validateSource } from './runtime/policy.js';
+import { validateAlgorithm } from './runtime/preflight.js';
 
 export function createAuthoring({
   accounts = createAccountRepository(),
@@ -93,8 +93,19 @@ export function createAuthoring({
       if (path.startsWith('/api/algorithms')) {
         requireUser(user);
         if (path === '/api/algorithms/validate' && request.method === 'POST') {
-          validateSource((await readJson(request)).source);
-          json(response, 200, { ok: true });
+          const { source } = await readJson(request);
+          try {
+            const result = await validateAlgorithm(source, user.id);
+            json(response, result.ok ? 200 : 400, result);
+          } catch (error) {
+            json(response, error.status || 400, {
+              error: String(error.message).slice(0, 500),
+              diagnostic: Number.isInteger(error.pos)
+                ? { offset: error.pos, line: error.loc.line, column: error.loc.column + 1 }
+                : null,
+            });
+            return true;
+          }
           return true;
         }
         if (path === '/api/algorithms') {

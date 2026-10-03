@@ -4,7 +4,12 @@ export const TURN_LIMIT_MS = 500;
 
 export function validateSource(source) {
   if (typeof source !== 'string') throw new Error('코드는 문자열이어야 합니다.');
-  const tree = parse(source, { ecmaVersion: 2022, sourceType: 'script' });
+  const tree = parse(source, {
+    ecmaVersion: 2022,
+    sourceType: 'script',
+    ranges: true,
+    locations: true,
+  });
   const stack = [tree];
   while (stack.length) {
     const node = stack.pop();
@@ -24,4 +29,5 @@ export function validateSource(source) {
       else if (value && typeof value === 'object') stack.push(value);
     }
   }
+  return tree;
 }

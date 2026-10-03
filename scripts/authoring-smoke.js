@@ -50,7 +50,30 @@ try {
     .waitFor();
   await page.click('#code-tab');
   const original = await page.locator('#code').inputValue();
+  await page.locator('.cm-content').fill('const broken = ;');
+  await page.click('#validate');
+  await page.locator('#code-error').waitFor({ state: 'visible' });
+  assert.match(await page.locator('#code-error').textContent(), /1줄 16열/);
+  assert.equal(await page.locator('.cm-code-error').count(), 1);
+  await page
+    .locator('.cm-content')
+    .fill(original.replace('this.turn++;', '쟁.ㅁㄴㅇ; this.turn++;'));
+  await page.click('#validate');
+  await page.locator('#code-error').waitFor({ state: 'visible' });
+  assert.match(await page.locator('#code-error').textContent(), /선언되지.*쟁/);
+  await page
+    .locator('.cm-content')
+    .fill(original.replace('this.turn++;', 'map.missing.call(); this.turn++;'));
+  await page.click('#validate');
+  await page.locator('#validation-status[data-state="error"]').waitFor();
+  assert.match(await page.locator('#validation-status').textContent(), /moveNext 검사 실패.*예외/);
   await page.locator('.cm-content').fill(original + '\n// edit');
+  assert.equal(await page.locator('.cm-code-error').count(), 0);
+  assert.equal(await page.locator('#code-error').isVisible(), false);
+  await page.click('#validate');
+  await page.locator('#validation-status[data-state="success"]').waitFor();
+  assert.match(await page.locator('#validation-status').textContent(), /검사 통과/);
+  assert.equal(await page.locator('#validate').isEnabled(), true);
   await page.click('#ai-tab');
   await page.click('#generate');
   await page.waitForSelector('#candidate', { state: 'visible' });
@@ -120,6 +143,9 @@ try {
   await page.locator('#testing-view').filter({ hasText: '진행 중 테스트 보기' }).waitFor();
   await page.click('#writing-view');
   assert.equal(await page.locator('.testing').isVisible(), false);
+  await page.locator('.cm-content').fill(original + '\n// changed during test');
+  await page.locator('#test-code-state').waitFor({ state: 'visible' });
+  assert.match(await page.locator('#test-code-state').textContent(), /실행 중인 코드와 다릅니다/);
   await page.click('#testing-view');
   assert.equal(await page.locator('.testing').isVisible(), true);
   assert.equal(await page.locator('#test').isDisabled(), true);
@@ -129,6 +155,13 @@ try {
     'Returning to the test keeps the same running match',
   );
   await game.locator('#stop-button').waitFor({ state: 'visible' });
+  await game.locator('#debug-output').filter({ hasText: '목표' }).waitFor();
+  await game.locator('#log-autoscroll').uncheck();
+  assert.equal(await game.locator('#log-autoscroll').isChecked(), false);
+  await game.locator('#clear-logs').click();
+  assert.equal(await game.locator('#log-count').textContent(), '0 EVENTS');
+  await page.waitForTimeout(200);
+  assert.equal(await game.locator('#log-count').textContent(), '0 EVENTS');
   await page.request.delete(`${base}/api/matches/${id}`);
   await game.locator('#arena-message strong').filter({ hasText: '테스트 종료' }).waitFor();
   await page.locator('#test:enabled').waitFor();
@@ -138,6 +171,8 @@ try {
   await page.click('#writing-view');
   assert.equal(await page.locator('.testing').isVisible(), false);
   assert.equal(await page.locator('.writing').isVisible(), true);
+  await page.locator('.cm-content').fill(original + '\n// edit');
+  assert.equal(await page.locator('#test-code-state').isVisible(), false);
   await mkdir('artifacts', { recursive: true });
   await page.screenshot({ path: 'artifacts/editor-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 900 });

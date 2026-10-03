@@ -473,11 +473,31 @@ function renderInfo() {
     reset: game.status === 'ready',
   });
 }
+let latestLogs = [];
+let logMatchId;
+const clearedTurns = new Map();
+$('clear-logs').addEventListener('click', () => {
+  for (const log of latestLogs)
+    clearedTurns.set(log.player, Math.max(clearedTurns.get(log.player) ?? -1, log.turn));
+  lastLogKey = '';
+  renderLogs(latestLogs);
+});
+$('log-autoscroll').addEventListener('change', () => {
+  if ($('log-autoscroll').checked) $('debug-output').scrollTop = $('debug-output').scrollHeight;
+});
 function renderLogs(logs) {
+  if (logMatchId !== matchId) {
+    logMatchId = matchId;
+    clearedTurns.clear();
+    lastLogKey = '';
+  }
+  latestLogs = logs;
+  logs = logs.filter((log) => log.turn > (clearedTurns.get(log.player) ?? -1));
   const key = JSON.stringify(logs);
   if (key === lastLogKey) return;
   lastLogKey = key;
   $('log-count').textContent = `${logs.length} EVENTS`;
+  const scrollTop = $('debug-output').scrollTop;
   $('debug-output').textContent = logs.length
     ? logs
         .map((log) => {
@@ -489,8 +509,10 @@ function renderLogs(logs) {
           );
         })
         .join('\n')
-    : '알고리즘 실행 중 · debug.print로 전략을 확인하세요.';
-  $('debug-output').scrollTop = $('debug-output').scrollHeight;
+    : '표시할 출력이 없습니다. debug.print로 전략을 확인하세요.';
+  $('debug-output').scrollTop = $('log-autoscroll').checked
+    ? $('debug-output').scrollHeight
+    : scrollTop;
 }
 
 function roundRect(x, y, w, h, r, fill) {
@@ -767,10 +789,15 @@ window.addEventListener('message', async (event) => {
     events?.close();
     matchId = null;
     sessionStorage.removeItem(matchStorageKey);
+    renderLogs([]);
     setupStep = 'file';
     preview();
     await loadFile(new File([event.data.source], '편집 중 코드.js'));
     showSetupStep('settings');
+    window.parent.postMessage(
+      { type: 'editor-prepared', requestId: event.data.requestId },
+      location.origin,
+    );
     feedback('코드를 전달했습니다. 맵과 시작 위치를 선택한 뒤 테스트를 시작하세요.');
   } catch (error) {
     feedback(error.message);

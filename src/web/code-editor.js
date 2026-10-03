@@ -1,13 +1,33 @@
 import { EditorView, basicSetup } from 'codemirror';
-import { EditorState } from '@codemirror/state';
+import { Decoration } from '@codemirror/view';
+import { EditorState, StateEffect, StateField } from '@codemirror/state';
 import { javascript } from '@codemirror/lang-javascript';
 import { undo, redo, isolateHistory } from '@codemirror/commands';
 import { oneDark } from '@codemirror/theme-one-dark';
 
 export function createCodeEditor(textarea, parent, cursor) {
   const nativeValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+  const markError = StateEffect.define();
+  const errorLine = StateField.define({
+    create: () => Decoration.none,
+    update(value, transaction) {
+      if (transaction.docChanged) return Decoration.none;
+      for (const effect of transaction.effects)
+        if (effect.is(markError))
+          return effect.value === null
+            ? Decoration.none
+            : Decoration.set([
+                Decoration.line({ class: 'cm-code-error' }).range(
+                  transaction.state.doc.lineAt(effect.value).from,
+                ),
+              ]);
+      return value;
+    },
+    provide: (field) => EditorView.decorations.from(field),
+  });
   const extensions = [
     basicSetup,
+    errorLine,
     javascript(),
     oneDark,
     EditorView.cspNonce.of(document.querySelector('meta[name="style-nonce"]').content),
@@ -21,6 +41,7 @@ export function createCodeEditor(textarea, parent, cursor) {
         '.cm-scroller': { overflow: 'auto', fontFamily: 'monospace', fontSize: '14px' },
         '.cm-gutters': { backgroundColor: '#192331', color: '#a4b5c9', border: 'none' },
         '.cm-content': { caretColor: '#b6f36e' },
+        '.cm-code-error': { backgroundColor: '#652f3b', borderLeft: '3px solid #ff8b98' },
         '&.cm-focused .cm-cursor': { borderLeftColor: '#b6f36e' },
       },
       { dark: true },
@@ -52,6 +73,12 @@ export function createCodeEditor(textarea, parent, cursor) {
   };
   textarea.hidden = true;
   return {
+    showError(offset) {
+      const at = Math.max(0, Math.min(offset, view.state.doc.length));
+      view.dispatch({ effects: markError.of(at), selection: { anchor: at }, scrollIntoView: true });
+      view.focus();
+    },
+    clearError: () => view.dispatch({ effects: markError.of(null) }),
     replace(text) {
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: text },

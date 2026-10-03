@@ -10,7 +10,16 @@ let documentId = null,
   generation = 0,
   testing = false,
   testReady = false,
-  pendingTest = null;
+  pendingTest = null,
+  preparedRequest = null,
+  testSource = null,
+  testRequestId = 0;
+let validationRequestId = 0;
+function validationStatus(state, message) {
+  $('validation-status').hidden = false;
+  $('validation-status').dataset.state = state;
+  $('validation-status').textContent = message;
+}
 const contents = () => JSON.stringify({ name: $('name').value, source: $('code').value });
 const dirty = () => contents() !== saved;
 const notice = (text) => {
@@ -18,7 +27,15 @@ const notice = (text) => {
 };
 const refreshState = () => {
   $('save-state').textContent = dirty() ? '미저장 변경 있음' : '저장됨';
+  refreshTestCodeState();
 };
+function refreshTestCodeState() {
+  const changed = testSource !== null && $('code').value !== testSource;
+  $('test-code-state').hidden = !changed;
+  $('test-code-state').textContent = testing
+    ? '현재 편집 코드가 실행 중인 코드와 다릅니다. 변경 사항은 다음 테스트에 적용됩니다.'
+    : '현재 편집 코드가 테스트에 전달한 코드와 다릅니다. 현재 코드로 테스트를 다시 준비하세요.';
+}
 const run = (operation) => async () => {
   try {
     await operation();
@@ -50,6 +67,8 @@ function reset(item) {
   revision = item?.revision || null;
   $('name').value = item?.name || '새 알고리즘';
   $('code').value = item?.source || '';
+  $('code-error').hidden = true;
+  $('validation-status').hidden = true;
   saved = item?.id ? contents() : '';
   candidate = null;
   $('candidate').hidden = true;
@@ -105,7 +124,13 @@ async function save(copy) {
     $('save').disabled = $('save-as').disabled = false;
   }
 }
-$('name').oninput = $('code').oninput = refreshState;
+$('name').oninput = refreshState;
+$('code').oninput = () => {
+  $('code-error').hidden = true;
+  if (!$('validation-status').hidden)
+    validationStatus('changed', '코드가 변경되었습니다. 다시 검사하세요.');
+  refreshState();
+};
 $('code').onkeyup = $('code').onclick = () => {
   $('cursor').textContent =
     `줄 ${$('code').value.slice(0, $('code').selectionStart).split('\n').length} · ${new TextEncoder().encode($('code').value).length} bytes`;
@@ -171,14 +196,53 @@ $('export').onclick = () => {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
+async function validateEditorSource() {
+  const source = $('code').value;
+  const requestId = ++validationRequestId;
+  $('code-error').hidden = true;
+  $('validate').disabled = true;
+  $('validate').textContent = '검사 중…';
+  validationStatus('pending', '변수·사용 제한과 초기화·이름 조회·이동 실행을 검사하고 있습니다…');
+  try {
+    editor.clearError();
+    await api('/api/algorithms/validate', {
+      method: 'POST',
+      body: JSON.stringify({ source }),
+    });
+    if (requestId !== validationRequestId || source !== $('code').value)
+      throw new Error('검사 중 코드가 변경되었습니다. 다시 검사하세요.');
+    validationStatus(
+      'success',
+      '실행 전 검사 통과 · 변수·필수 메서드·샘플 이동 24회 확인. 모든 맵과 실행 분기를 보장하지는 않습니다.',
+    );
+  } catch (error) {
+    if (requestId !== validationRequestId) throw error;
+    validationStatus(
+      'error',
+      source === $('code').value
+        ? `검사 실패 · ${error.message}`
+        : '검사 중 코드가 변경되었습니다. 다시 검사하세요.',
+    );
+    if (source === $('code').value && error.diagnostic) {
+      showPanel('writing');
+      codeTab();
+      editor.showError(error.diagnostic.offset);
+      $('code-error').textContent =
+        `${error.diagnostic.line}줄 ${error.diagnostic.column}열 · ${error.message}`;
+      $('code-error').hidden = false;
+    }
+    throw error;
+  } finally {
+    if (requestId === validationRequestId) {
+      $('validate').disabled = false;
+      $('validate').textContent = '코드 검사';
+    }
+  }
+  return source;
+}
 $('validate').onclick = run(async () => {
-  await api('/api/algorithms/validate', {
-    method: 'POST',
-    body: JSON.stringify({ source: $('code').value }),
-  });
-  notice(
-    '구문과 금지 구문 검사를 통과했습니다. 메서드 형식과 동작은 테스트 플레이에서 확인하세요.',
-  );
+  await validateEditorSource();
+  notice('실행 전 검사를 통과했습니다. 실제 전략과 장시간 동작은 테스트 플레이에서 확인하세요.');
 });
 $('generate').onclick = run(async () => {
   const token = ++generation,
@@ -224,11 +288,14 @@ $('apply').onclick = () => {
 };
 async function prepareTest() {
   if (testing) throw new Error('게임 패널에서 진행 중 경기를 종료한 뒤 다시 준비하세요.');
-  await api('/api/algorithms/validate', {
-    method: 'POST',
-    body: JSON.stringify({ source: $('code').value }),
-  });
-  const payload = { type: 'editor-prepare', source: $('code').value, name: $('name').value };
+  const source = await validateEditorSource();
+  const payload = {
+    type: 'editor-prepare',
+    source,
+    name: $('name').value,
+    requestId: ++testRequestId,
+  };
+  preparedRequest = payload;
   showPanel('testing');
   if (testReady) $('game').contentWindow.postMessage(payload, location.origin);
   else {
@@ -247,6 +314,15 @@ window.addEventListener('message', (event) => {
     testing = Boolean(event.data.active);
     $('testing-view').textContent = testing ? '진행 중 테스트 보기' : '현재 코드로 테스트';
     $('test').disabled = !testReady || testing;
+    refreshTestCodeState();
+  }
+  if (
+    event.data.type === 'editor-prepared' &&
+    event.data.requestId === preparedRequest?.requestId
+  ) {
+    testSource = preparedRequest.source;
+    preparedRequest = null;
+    refreshTestCodeState();
   }
   if (event.data.type === 'editor-ready') {
     testReady = true;

@@ -671,6 +671,15 @@ canvas {
   margin-top: 14px;
   padding: 18px 20px;
 }
+.log-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
 .logs .panel-heading > span {
   font: 9px var(--mono);
   color: #6e829c;
