@@ -236,14 +236,21 @@ async function prepareTest() {
     if (!$('game').hasAttribute('src')) $('game').src = '/game?editor=1';
   }
 }
-$('testing-view').onclick = run(prepareTest);
+$('testing-view').onclick = run(async () => {
+  if (testing) showPanel('testing');
+  else await prepareTest();
+});
 $('test').onclick = run(prepareTest);
 window.addEventListener('message', (event) => {
   if (event.origin !== location.origin || event.source !== $('game').contentWindow) return;
-  if (event.data.type === 'editor-state') testing = event.data.active;
+  if (event.data.type === 'editor-state') {
+    testing = Boolean(event.data.active);
+    $('testing-view').textContent = testing ? '진행 중 테스트 보기' : '현재 코드로 테스트';
+    $('test').disabled = !testReady || testing;
+  }
   if (event.data.type === 'editor-ready') {
     testReady = true;
-    $('test').disabled = false;
+    $('test').disabled = testing;
     if (pendingTest) {
       $('game').contentWindow.postMessage(pendingTest, location.origin);
       pendingTest = null;

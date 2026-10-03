@@ -117,8 +117,22 @@ try {
   assert.equal(input.destroyWalls, false);
   assert.ok(['pengko', 'nyangtami', 'dino', 'lumi'].includes(input.characterId));
   const { id } = await response.json();
+  await page.locator('#testing-view').filter({ hasText: '진행 중 테스트 보기' }).waitFor();
+  await page.click('#writing-view');
+  assert.equal(await page.locator('.testing').isVisible(), false);
+  await page.click('#testing-view');
+  assert.equal(await page.locator('.testing').isVisible(), true);
+  assert.equal(await page.locator('#test').isDisabled(), true);
+  assert.equal(
+    await game.locator('body').evaluate(() => sessionStorage.getItem('coinhunter-test-match')),
+    id,
+    'Returning to the test keeps the same running match',
+  );
+  await game.locator('#stop-button').waitFor({ state: 'visible' });
   await page.request.delete(`${base}/api/matches/${id}`);
   await game.locator('#arena-message strong').filter({ hasText: '테스트 종료' }).waitFor();
+  await page.locator('#test:enabled').waitFor();
+  assert.equal(await page.locator('#testing-view').textContent(), '현재 코드로 테스트');
   assert.equal(await game.locator('#result-podium').isVisible(), false);
   assert.equal(await game.locator('#map-select').isVisible(), true);
   await page.click('#writing-view');
