@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { copyFile, mkdir, readFile, writeFile, rename } from 'node:fs/promises';
+import { copyFile, mkdir, open, readFile, writeFile, rename } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fail } from './errors.js';
 import { FileSourceStore } from './file-source-store.js';
@@ -19,6 +19,8 @@ export class FileAccountRepository {
     this.sources = sources;
     this.queue = Promise.resolve();
     this.migrated = false;
+    this.openSourceCounts = new Map();
+    this.retiredSources = new Set();
   }
   async read() {
     try {
@@ -127,6 +129,39 @@ export class FileAccountRepository {
       return this.sources.path(item.sourceKey);
     });
   }
+  openSource(ownerId, id) {
+    return this.inspect(async (data) => {
+      const item = data.algorithms.find((a) => a.ownerId === ownerId && a.id === id);
+      if (!item) throw fail(404, '알고리즘을 찾을 수 없습니다.');
+      const key = item.sourceKey;
+      const handle = await open(this.sources.path(key), 'r');
+      this.openSourceCounts.set(key, (this.openSourceCounts.get(key) || 0) + 1);
+      const { sourceKey, ...metadata } = item;
+      let released = false;
+      return {
+        metadata,
+        handle,
+        release: async () => {
+          if (released) return;
+          released = true;
+          try {
+            await handle.close();
+          } finally {
+            const remaining = this.openSourceCounts.get(key) - 1;
+            if (remaining) this.openSourceCounts.set(key, remaining);
+            else {
+              this.openSourceCounts.delete(key);
+              if (this.retiredSources.delete(key)) await this.sources.delete(key).catch(() => {});
+            }
+          }
+        },
+      };
+    });
+  }
+  async retireSource(key) {
+    if (this.openSourceCounts.has(key)) this.retiredSources.add(key);
+    else await this.sources.delete(key).catch(() => {});
+  }
   snapshotSource(ownerId, id, destination) {
     return this.inspect(async (data) => {
       const item = data.algorithms.find((a) => a.ownerId === ownerId && a.id === id);
@@ -227,7 +262,7 @@ export class FileAccountRepository {
         const { sourceKey, ...metadata } = item;
         return { ...metadata, ...(sourcePath ? {} : { source: input.source }) };
       });
-      if (previous) await this.sources.delete(previous).catch(() => {});
+      if (previous) await this.retireSource(previous);
       return result;
     } catch (error) {
       if (staged) await this.sources.delete(staged).catch(() => {});

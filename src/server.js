@@ -12,6 +12,7 @@ import { DEFAULT_CHARACTER, isPlayableCharacter } from '../public/characters.js'
 import { validateSource } from './runtime/policy.js';
 import { createAuthoring } from './authoring-api.js';
 import { diskSpace, hasUploadSpace } from './persistence/disk-space.js';
+import { cleanupOrphanUploads } from './persistence/upload-cleanup.js';
 
 const sampleSource = await readFile(
   new URL('../examples/nearest-coin.js', import.meta.url),
@@ -96,10 +97,16 @@ export function createGameServer({
   const streams = new Set();
   let closing = false;
   let activeUploads = 0;
+  const uploadCleanup = cleanupOrphanUploads(uploadDirectory).catch((error) => {
+    console.error('임시 코드 파일 정리 실패:', error);
+  });
+  const temporarySourcePath = (directory) =>
+    resolve(directory, `${process.pid}-${randomUUID()}.js`);
   async function snapshotStoredSource(ownerId, algorithmId) {
     const directory = resolve(uploadDirectory);
-    const path = resolve(directory, `${randomUUID()}.js`);
+    const path = temporarySourcePath(directory);
     try {
+      await uploadCleanup;
       await mkdir(directory, { recursive: true });
       return await authoring.accounts.snapshotSource(ownerId, algorithmId, path);
     } catch (error) {
@@ -114,8 +121,9 @@ export function createGameServer({
       throw Object.assign(new Error('동시 코드 업로드 한도에 도달했습니다.'), { status: 429 });
     activeUploads++;
     const directory = resolve(uploadDirectory);
-    const path = resolve(directory, `${randomUUID()}.js`);
+    const path = temporarySourcePath(directory);
     try {
+      await uploadCleanup;
       await mkdir(directory, { recursive: true });
       const initialSpace = await diskSpace(directory);
       if (!hasUploadSpace(initialSpace.free, initialSpace.device))
@@ -492,6 +500,7 @@ export function createGameServer({
   const close = async () => {
     closing = true;
     clearInterval(prune);
+    await uploadCleanup;
     await Promise.all([...matches.values()].map((record) => record.match.stop('server-shutdown')));
     await Promise.all([...matches.values()].map((record) => record.archivePromise));
     await Promise.all([...matches.values()].map((record) => record.cleanupPromise));

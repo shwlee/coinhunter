@@ -31,6 +31,7 @@ test('local accounts persist, isolate code, reject conflicts and revoke disabled
     'get',
     'metadata',
     'sourcePath',
+    'openSource',
     'snapshotSource',
     'save',
     'history',

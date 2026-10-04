@@ -79,3 +79,29 @@ test('legacy inline sources migrate to files before the first read', async (t) =
     'old match',
   );
 });
+
+test('opened source keeps its matching metadata through a concurrent overwrite', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'coinhunter-open-source-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const repository = new FileAccountRepository(join(dir, 'store.json'));
+  const user = await repository.login('developer@company.test');
+  const first = await repository.save(user.id, null, { name: 'first', source: 'old source' });
+  const oldPath = await repository.sourcePath(user.id, first.id);
+  const opened = await repository.openSource(user.id, first.id);
+  assert.equal(opened.metadata.revision, first.revision);
+  assert.equal(opened.metadata.name, 'first');
+  const second = await repository.save(user.id, first.id, {
+    name: 'second',
+    source: 'new source',
+    revision: first.revision,
+  });
+  const chunks = [];
+  for await (const chunk of opened.handle.createReadStream({ autoClose: false }))
+    chunks.push(chunk);
+  assert.equal(Buffer.concat(chunks).toString('utf8'), 'old source');
+  await opened.release();
+  await assert.rejects(readFile(oldPath), { code: 'ENOENT' });
+  const current = await repository.openSource(user.id, first.id);
+  assert.equal(current.metadata.revision, second.revision);
+  await current.release();
+});

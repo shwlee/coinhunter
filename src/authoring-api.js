@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { createReadStream } from 'node:fs';
 import { stat, unlink } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
 import { createAccountRepository } from './persistence/account-repository.js';
@@ -146,9 +145,16 @@ export function createAuthoring({
         }
         const sourceId = path.match(/^\/api\/algorithms\/([a-f0-9-]+)\/source$/)?.[1];
         if (sourceId && request.method === 'GET') {
-          const sourcePath = await accounts.sourcePath(user.id, sourceId);
-          response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-          await pipeline(createReadStream(sourcePath), response);
+          const opened = await accounts.openSource(user.id, sourceId);
+          try {
+            response.writeHead(200, {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'X-Coinhunter-Metadata': encodeURIComponent(JSON.stringify(opened.metadata)),
+            });
+            await pipeline(opened.handle.createReadStream({ autoClose: false }), response);
+          } finally {
+            await opened.release();
+          }
           return true;
         }
         const id = path.match(/^\/api\/algorithms\/([a-f0-9-]+)$/)?.[1];

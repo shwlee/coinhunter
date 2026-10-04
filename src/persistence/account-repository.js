@@ -18,6 +18,7 @@ import { FileAccountRepository } from './file-account-repository.js';
  * @property {(ownerId: string, id: string) => Promise<object>} get
  * @property {(ownerId: string, id: string) => Promise<object>} metadata
  * @property {(ownerId: string, id: string) => Promise<string>} sourcePath
+ * @property {(ownerId: string, id: string) => Promise<{metadata: object, handle: import('node:fs/promises').FileHandle, release: () => Promise<void>}>} openSource
  * @property {(ownerId: string, id: string, destination: string) => Promise<string>} snapshotSource
  * @property {(ownerId: string, id: string | null, input: object, sourcePath?: string) => Promise<object>} save
  * @property {(ownerId: string) => Promise<object[]>} history

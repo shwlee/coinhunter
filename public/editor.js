@@ -507,9 +507,11 @@ $('open').onclick = async () => {
   try {
     if (!(await mayDiscard())) return;
     const id = $('library').value;
-    const metadata = await api(`/api/algorithms/${id}?metadata=1`);
     const response = await fetch(`/api/algorithms/${id}/source`);
     if (!response.ok) throw new Error('저장된 코드를 불러오지 못했습니다.');
+    const encodedMetadata = response.headers.get('X-Coinhunter-Metadata');
+    if (!encodedMetadata) throw new Error('저장된 코드 정보를 불러오지 못했습니다.');
+    const metadata = JSON.parse(decodeURIComponent(encodedMetadata));
     reset({ ...metadata, source: await response.text() });
     $('load-panel').close();
     showPanel('writing');

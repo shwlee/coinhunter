@@ -74,6 +74,10 @@ test('large source uses file upload while JSON bodies stay bounded', async (t) =
     headers: { cookie },
   });
   assert.equal(sourceFile.status, 200);
+  assert.equal(
+    JSON.parse(decodeURIComponent(sourceFile.headers.get('x-coinhunter-metadata'))).revision,
+    item.revision,
+  );
   assert.equal(await sourceFile.text(), largeSource);
   assert.equal((await fetch(base + `/api/algorithms/${item.id}/source`)).status, 401);
   assert.equal(
