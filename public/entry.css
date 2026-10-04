@@ -72,9 +72,31 @@ h1 {
   border-color: #b6f36e;
   transform: translateY(-3px);
 }
+.choice-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.choice-title h2 {
+  margin: 0;
+}
 .symbol {
   color: #b6f36e;
   font-size: 38px;
+}
+.choice-title .symbol {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+}
+.choice-title span.symbol {
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+.workbench-symbol {
+  display: block;
 }
 .choice p {
   color: #b6c2d2;

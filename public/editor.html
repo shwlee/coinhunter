@@ -9,9 +9,85 @@
     <script type="module" src="/editor.js"></script>
   </head>
   <body data-panel="writing">
+    <svg class="icon-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <symbol id="icon-new" viewBox="0 0 24 24">
+        <path d="M6 3h8l4 4v14H6zM14 3v5h5M12 11v7M8.5 14.5h7" />
+      </symbol>
+      <symbol id="icon-open" viewBox="0 0 24 24">
+        <path d="M3 9V5h6l2 2h9v3M3 10h18l-2 10H5z" />
+      </symbol>
+      <symbol id="icon-load-saved" viewBox="0 0 24 24">
+        <path d="M5 3h8l4 4v14H5zM13 3v5h4M2 13h11m-3-3 3 3-3 3" />
+      </symbol>
+      <symbol id="icon-undo" viewBox="0 0 24 24">
+        <path d="M9 6 4 11l5 5M4 11h10a6 6 0 0 1 0 12" />
+      </symbol>
+      <symbol id="icon-redo" viewBox="0 0 24 24">
+        <path d="m15 6 5 5-5 5M20 11H10a6 6 0 0 0 0 12" />
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="m8 12 3 3 5-6" />
+      </symbol>
+      <symbol id="icon-find" viewBox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m15.5 15.5 5 5" />
+      </symbol>
+      <symbol id="icon-save" viewBox="0 0 24 24">
+        <path d="M4 3h14l3 3v15H4zM7 3v6h10V3M7 21v-8h11v8" />
+      </symbol>
+      <symbol id="icon-download" viewBox="0 0 24 24">
+        <path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4" />
+      </symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24">
+        <path d="M5 5 19 19M19 5 5 19" />
+      </symbol>
+      <symbol id="icon-play" viewBox="0 0 24 24">
+        <path d="m7 4 13 8-13 8z" />
+      </symbol>
+      <symbol id="icon-back" viewBox="0 0 24 24">
+        <path d="m10 5-7 7 7 7M3 12h18" />
+      </symbol>
+      <symbol id="icon-refresh" viewBox="0 0 24 24">
+        <path d="M20 7V3l-3 3a9 9 0 1 0 3 6M20 7h-6" />
+      </symbol>
+      <symbol id="icon-home" viewBox="0 0 24 24">
+        <path d="m3 10 9-7 9 7v11h-6v-7H9v7H3z" />
+      </symbol>
+      <symbol id="icon-game" viewBox="0 0 24 24">
+        <path
+          d="M7 7h10a5 5 0 0 1 4.8 3.6l1.1 6a2.5 2.5 0 0 1-4.1 2.3L16 16H8l-2.8 2.9a2.5 2.5 0 0 1-4.1-2.3l1.1-6A5 5 0 0 1 7 7zM6 12h5M8.5 9.5v5M16.5 11h.01M19 13h.01"
+        />
+      </symbol>
+      <symbol id="icon-ai" viewBox="0 0 24 24">
+        <path
+          d="m12 2 1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8zM19 17l.7 2.3L22 20l-2.3.7L19 23l-.7-2.3L16 20l2.3-.7z"
+        />
+      </symbol>
+    </svg>
     <header>
-      <a href="/">← 시작 화면</a><a href="/game">게임 플레이</a><strong>알고리즘 작업실</strong>
-      <div id="account-bar"></div>
+      <div class="header-top">
+        <nav class="header-nav" aria-label="주요 화면">
+          <a
+            href="/"
+            class="icon-button header-link"
+            aria-label="시작 화면"
+            data-tooltip="시작 화면"
+          >
+            <svg aria-hidden="true"><use href="#icon-home" /></svg>
+          </a>
+          <a
+            href="/game"
+            class="icon-button header-link"
+            aria-label="게임 플레이"
+            data-tooltip="게임 플레이"
+          >
+            <svg aria-hidden="true"><use href="#icon-game" /></svg>
+          </a>
+        </nav>
+        <div id="account-bar"></div>
+      </div>
+      <h1><img src="/algorithm-braces.svg" alt="" />알고리즘 작업실</h1>
     </header>
     <p id="notice" role="status">로그인 상태를 확인하고 있습니다.</p>
     <main id="workbench" hidden>
@@ -22,7 +98,15 @@
             <h3>저장된 알고리즘</h3>
             <select id="library" aria-label="저장된 알고리즘">
               <option value="">저장 코드 선택</option></select
-            ><button id="open">열기</button>
+            ><button
+              id="open"
+              class="icon-button"
+              type="button"
+              aria-label="선택한 알고리즘 열기"
+              data-tooltip="선택한 알고리즘 열기"
+            >
+              <svg aria-hidden="true"><use href="#icon-load-saved" /></svg>
+            </button>
           </div>
           <div>
             <h3>내 PC에서 가져오기</h3>
@@ -31,18 +115,41 @@
         </div>
         <p id="load-error" role="alert" hidden></p>
         <div class="dialog-actions">
-          <button id="cancel-load" type="button">닫기</button>
+          <button
+            id="cancel-load"
+            class="icon-button"
+            type="button"
+            aria-label="불러오기 닫기"
+            data-tooltip="불러오기 닫기"
+          >
+            <svg aria-hidden="true"><use href="#icon-close" /></svg>
+          </button>
         </div>
       </dialog>
       <div id="create-workspace">
         <div class="toolbar document-toolbar">
-          <strong id="document-title">새 알고리즘</strong>
+          <div class="document-identity">
+            <strong id="document-title">새 알고리즘</strong>
+            <span id="document-origin">시작 샘플 · 아직 저장하지 않음</span>
+          </div>
           <span id="save-state">미저장</span>
-          <button id="new">새로 만들기</button><button id="load-mode">알고리즘 불러오기</button>
-        </div>
-        <div class="workspace-tabs">
-          <button id="writing-view" aria-pressed="true">작성 화면</button
-          ><button id="testing-view" aria-pressed="false">현재 코드로 테스트</button>
+          <button
+            id="new"
+            class="icon-button"
+            type="button"
+            aria-label="새 알고리즘 만들기"
+            data-tooltip="새 알고리즘 만들기"
+          >
+            <svg aria-hidden="true"><use href="#icon-new" /></svg></button
+          ><button
+            id="load-mode"
+            class="icon-button"
+            type="button"
+            aria-label="알고리즘 불러오기"
+            data-tooltip="알고리즘 불러오기"
+          >
+            <svg aria-hidden="true"><use href="#icon-open" /></svg>
+          </button>
         </div>
         <p id="test-code-state" role="status" hidden></p>
         <div class="columns">
@@ -50,12 +157,38 @@
             <div class="editing-layout ai-open">
               <div id="code-panel">
                 <div class="toolbar">
-                  <button id="undo">실행 취소</button><button id="redo">다시 실행</button
-                  ><button id="validate">코드 검사</button
+                  <button
+                    id="undo"
+                    class="icon-button"
+                    type="button"
+                    aria-label="실행 취소"
+                    data-tooltip="실행 취소"
+                  >
+                    <svg aria-hidden="true"><use href="#icon-undo" /></svg></button
+                  ><button
+                    id="redo"
+                    class="icon-button"
+                    type="button"
+                    aria-label="다시 실행"
+                    data-tooltip="다시 실행"
+                  >
+                    <svg aria-hidden="true"><use href="#icon-redo" /></svg></button
+                  ><button
+                    id="validate"
+                    class="icon-button"
+                    type="button"
+                    aria-label="코드 검사"
+                    data-tooltip="코드 검사"
+                  >
+                    <svg aria-hidden="true"><use href="#icon-check" /></svg></button
                   ><input id="search" placeholder="코드 검색" aria-label="코드 검색" /><button
                     id="find"
+                    class="icon-button"
+                    type="button"
+                    aria-label="다음 찾기"
+                    data-tooltip="다음 찾기"
                   >
-                    다음 찾기
+                    <svg aria-hidden="true"><use href="#icon-find" /></svg>
                   </button>
                 </div>
                 <p id="validation-status" role="status" aria-live="polite" hidden></p>
@@ -68,8 +201,25 @@
                 <div id="code-editor"></div>
                 <p id="code-error" role="alert" hidden></p>
                 <div class="editor-footer">
+                  <button
+                    id="testing-view"
+                    class="icon-button"
+                    type="button"
+                    aria-label="현재 코드로 테스트"
+                    data-tooltip="현재 코드로 테스트"
+                  >
+                    <svg aria-hidden="true"><use href="#icon-play" /></svg>
+                  </button>
                   <span id="cursor">줄 1</span>
-                  <button id="save" type="button">저장</button>
+                  <button
+                    id="save"
+                    class="icon-button"
+                    type="button"
+                    aria-label="알고리즘 저장"
+                    data-tooltip="알고리즘 저장"
+                  >
+                    <svg aria-hidden="true"><use href="#icon-save" /></svg>
+                  </button>
                 </div>
               </div>
               <div class="ai-sidebar">
@@ -80,10 +230,10 @@
                   aria-controls="ai-panel"
                   aria-expanded="true"
                   aria-label="AI 스크립팅 사이드바 접기"
-                  title="AI 스크립팅 사이드바 접기"
+                  data-tooltip="AI 스크립팅 사이드바 접기"
                 >
-                  <span aria-hidden="true">✦</span><span>AI 스크립팅</span
-                  ><span id="ai-arrow" aria-hidden="true">›</span>
+                  <svg aria-hidden="true"><use href="#icon-ai" /></svg>
+                  <span id="ai-arrow" aria-hidden="true">›</span>
                 </button>
                 <aside id="ai-panel" aria-label="AI 스크립팅">
                   <h2>어떤 전략으로 움직일까요?</h2>
@@ -125,11 +275,30 @@
             </details>
           </section>
           <section class="testing">
-            <h2>테스트 플레이</h2>
+            <div class="testing-header">
+              <button
+                id="back-to-editor"
+                class="icon-button"
+                type="button"
+                aria-label="코드 편집기로 돌아가기"
+                data-tooltip="코드 편집기로 돌아가기"
+              >
+                <svg aria-hidden="true"><use href="#icon-back" /></svg>
+              </button>
+              <h2>테스트 플레이</h2>
+            </div>
             <p id="test-info">
               맵과 시작 위치만 선택해 혼자 테스트합니다. 캐릭터는 실행할 때마다 무작위로 배정됩니다.
             </p>
-            <button id="test" disabled>현재 코드 다시 준비</button
+            <button
+              id="test"
+              class="icon-button"
+              type="button"
+              aria-label="현재 코드 다시 준비"
+              data-tooltip="현재 코드 다시 준비"
+              disabled
+            >
+              <svg aria-hidden="true"><use href="#icon-refresh" /></svg></button
             ><iframe id="game" title="알고리즘 테스트 게임"></iframe>
           </section>
         </div>
@@ -142,24 +311,42 @@
       <dialog id="save-dialog" aria-labelledby="save-dialog-title">
         <form id="save-form">
           <h2 id="save-dialog-title">알고리즘 저장</h2>
+          <p id="save-source">현재 코드의 출처: 시작 샘플</p>
           <label for="name">알고리즘 이름</label>
           <input id="name" name="name" maxlength="80" required value="새 알고리즘" />
           <fieldset id="save-options">
             <legend>저장 방식</legend>
             <label id="overwrite-option"
-              ><input type="radio" name="save-kind" value="overwrite" />현재 알고리즘
-              덮어쓰기</label
+              ><input type="radio" name="save-kind" value="overwrite" /><span id="overwrite-label"
+                >원본에 덮어쓰기</span
+              ></label
             >
             <label
-              ><input type="radio" name="save-kind" value="copy" checked />새 알고리즘으로
-              저장</label
+              ><input type="radio" name="save-kind" value="copy" checked />새 알고리즘으로 저장
+              (원본 유지)</label
             >
           </fieldset>
           <p id="save-error" role="alert" hidden></p>
           <p id="save-feedback" role="status" hidden></p>
           <div class="dialog-actions">
-            <button id="export" type="button">파일 내보내기</button>
-            <button id="cancel-save" type="button">취소</button>
+            <button
+              id="export"
+              class="icon-button"
+              type="button"
+              aria-label="파일 내보내기"
+              data-tooltip="파일 내보내기"
+            >
+              <svg aria-hidden="true"><use href="#icon-download" /></svg>
+            </button>
+            <button
+              id="cancel-save"
+              class="icon-button"
+              type="button"
+              aria-label="저장 취소"
+              data-tooltip="저장 취소"
+            >
+              <svg aria-hidden="true"><use href="#icon-close" /></svg>
+            </button>
             <button id="confirm-save" type="submit">저장하기</button>
           </div>
         </form>

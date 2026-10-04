@@ -19,6 +19,7 @@ const assets = new Map([
   ['/signin', ['auth.html', 'text/html; charset=utf-8']],
   ['/signup', ['auth.html', 'text/html; charset=utf-8']],
   ['/entry.css', ['entry.css', 'text/css; charset=utf-8']],
+  ['/algorithm-braces.svg', ['algorithm-braces.svg', 'image/svg+xml']],
   ['/entry.js', ['entry.js', 'text/javascript; charset=utf-8']],
   ['/editor', ['editor.html', 'text/html; charset=utf-8']],
   ['/editor.js', ['editor.js', 'text/javascript; charset=utf-8']],

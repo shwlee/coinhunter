@@ -15,6 +15,7 @@ const emptyAlgorithm = `module.exports = class Player {
 let documentId = null,
   revision = null,
   documentName = '새 알고리즘',
+  documentOrigin = '시작 샘플 · 아직 저장하지 않음',
   saved = '',
   saving = false,
   candidate = null,
@@ -31,15 +32,36 @@ function validationStatus(state, message) {
   $('validation-status').dataset.state = state;
   $('validation-status').textContent = message;
 }
+function setValidationBusy(busy) {
+  const button = $('validate');
+  const label = busy ? '코드 검사 중…' : '코드 검사';
+  button.disabled = busy;
+  button.setAttribute('aria-label', label);
+  button.setAttribute('aria-busy', String(busy));
+  button.dataset.tooltip = label;
+}
 const contents = () => JSON.stringify({ name: documentName, source: $('code').value });
 const dirty = () => contents() !== saved;
 const notice = (text) => {
   $('notice').textContent = text;
 };
 const refreshState = () => {
-  $('save-state').textContent = dirty() ? '미저장 변경 있음' : '저장됨';
+  $('save-state').textContent = !documentId ? '미저장' : dirty() ? '미저장 변경 있음' : '저장됨';
   refreshTestCodeState();
 };
+function setDocumentOrigin(kind, detail = '') {
+  documentOrigin =
+    kind === 'library'
+      ? `내 저장 코드에서 불러옴 · ${detail}`
+      : kind === 'file'
+        ? `내 PC 파일에서 가져옴 · ${detail}`
+        : kind === 'saved'
+          ? `내 계정에 저장됨 · ${detail}`
+          : kind === 'sample'
+            ? '시작 샘플 · 아직 저장하지 않음'
+            : '새 문서 · 아직 저장하지 않음';
+  $('document-origin').textContent = documentOrigin;
+}
 function refreshTestCodeState() {
   const changed = testSource !== null && $('code').value !== testSource;
   $('test-code-state').hidden = !changed;
@@ -56,11 +78,9 @@ const run = (operation) => async () => {
 };
 function showPanel(panel) {
   document.body.dataset.panel = panel;
-  $('writing-view').setAttribute('aria-pressed', String(panel === 'writing'));
-  $('testing-view').setAttribute('aria-pressed', String(panel === 'testing'));
   if (panel === 'writing') editor.refresh();
 }
-$('writing-view').onclick = () => showPanel('writing');
+$('back-to-editor').onclick = () => showPanel('writing');
 function loadError(message) {
   $('load-error').textContent = message;
   $('load-error').hidden = false;
@@ -87,7 +107,7 @@ function setAiOpen(open) {
   $('toggle-ai').setAttribute('aria-expanded', String(open));
   const label = `AI 스크립팅 사이드바 ${open ? '접기' : '펼치기'}`;
   $('toggle-ai').setAttribute('aria-label', label);
-  $('toggle-ai').title = label;
+  $('toggle-ai').dataset.tooltip = label;
   $('ai-arrow').textContent = open ? '›' : '‹';
   editor.refresh();
 }
@@ -96,18 +116,18 @@ function replaceCode(text) {
   editor.replace(text);
   refreshState();
 }
-function reset(item) {
+function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name || '') {
   validationRequestId++;
   documentId = item?.id || null;
   revision = item?.revision || null;
   documentName = item?.name || '새 알고리즘';
   $('document-title').textContent = documentName;
+  setDocumentOrigin(origin, detail);
   $('code').value = item?.source || '';
   $('code-error').hidden = true;
   $('validation-status').hidden = true;
-  $('validate').disabled = false;
-  $('validate').textContent = '코드 검사';
-  saved = item?.id ? contents() : '';
+  setValidationBusy(false);
+  saved = contents();
   candidate = null;
   $('candidate').hidden = true;
   if (!testing) {
@@ -152,6 +172,7 @@ async function save(copy, name) {
     revision = item.revision;
     documentName = item.name;
     $('document-title').textContent = item.name;
+    setDocumentOrigin('saved', item.name);
     saved = JSON.stringify({ name: item.name, source: item.source });
     refreshState();
     try {
@@ -173,6 +194,8 @@ function requestSave() {
   if (saving || dialog.open) return Promise.resolve(false);
   saveOutcome = false;
   $('name').value = documentName;
+  $('save-source').textContent = `현재 코드의 출처: ${documentOrigin}`;
+  $('overwrite-label').textContent = `원본 “${documentName}”에 덮어쓰기`;
   $('save-error').hidden = true;
   $('save-feedback').hidden = true;
   $('overwrite-option').hidden = !documentId;
@@ -280,7 +303,7 @@ $('import').onchange = async () => {
   try {
     if (!(await mayDiscard())) return;
     if (!file.name.endsWith('.js')) throw new Error('.js 파일을 선택하세요.');
-    reset({ name: file.name.replace(/\.js$/, ''), source: await file.text() });
+    reset({ name: file.name.replace(/\.js$/, ''), source: await file.text() }, 'file', file.name);
     $('load-panel').close();
     showPanel('writing');
   } catch (error) {
@@ -305,8 +328,7 @@ async function validateEditorSource() {
   const source = $('code').value;
   const requestId = ++validationRequestId;
   $('code-error').hidden = true;
-  $('validate').disabled = true;
-  $('validate').textContent = '검사 중…';
+  setValidationBusy(true);
   validationStatus('pending', '변수·사용 제한과 초기화·이름 조회·이동 실행을 검사하고 있습니다…');
   try {
     editor.clearError();
@@ -338,8 +360,7 @@ async function validateEditorSource() {
     throw error;
   } finally {
     if (requestId === validationRequestId) {
-      $('validate').disabled = false;
-      $('validate').textContent = '코드 검사';
+      setValidationBusy(false);
     }
   }
   return source;
@@ -416,7 +437,9 @@ window.addEventListener('message', (event) => {
   if (event.origin !== location.origin || event.source !== $('game').contentWindow) return;
   if (event.data.type === 'editor-state') {
     testing = Boolean(event.data.active);
-    $('testing-view').textContent = testing ? '진행 중 테스트 보기' : '현재 코드로 테스트';
+    const label = testing ? '진행 중 테스트 보기' : '현재 코드로 테스트';
+    $('testing-view').setAttribute('aria-label', label);
+    $('testing-view').dataset.tooltip = label;
     $('test').disabled = !testReady || testing;
     refreshTestCodeState();
   }
@@ -439,7 +462,7 @@ window.addEventListener('message', (event) => {
   if (event.data.type === 'editor-feedback') notice(event.data.message);
 });
 window.addEventListener('beforeunload', (event) => {
-  if (dirty() || testing) {
+  if (documentId && dirty()) {
     event.preventDefault();
     event.returnValue = '';
   }
@@ -482,7 +505,7 @@ try {
   if (!session.user) {
     notice('로그인 후 알고리즘을 작성할 수 있습니다. 목업 로그인은 로컬 개발 전용입니다.');
   } else {
-    reset({ source: await (await fetch('/api/example')).text() });
+    reset({ source: await (await fetch('/api/example')).text() }, 'sample');
     await library();
     if (session.user.role === 'admin') {
       $('admin').hidden = false;

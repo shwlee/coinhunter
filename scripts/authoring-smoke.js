@@ -25,6 +25,26 @@ try {
   const page = await browser.newPage({ viewport: { width: 1550, height: 1100 } });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  const warnsOnExit = () =>
+    page.evaluate(() => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+  const expectNoDialog = async (action) => {
+    const dialogs = [];
+    const onDialog = (dialog) => {
+      dialogs.push(dialog.message());
+      void dialog.dismiss();
+    };
+    page.on('dialog', onDialog);
+    try {
+      await action();
+    } finally {
+      page.off('dialog', onDialog);
+    }
+    assert.deepEqual(dialogs, []);
+  };
   await page.goto(base + '/');
   await page.click('#go-game');
   await page.locator('#guest-link').waitFor({ state: 'visible' });
@@ -32,6 +52,21 @@ try {
   await page.waitForURL(base + '/game');
   await page.goto(base + '/');
   await mkdir('artifacts', { recursive: true });
+  assert.equal(await page.locator('#go-editor img').getAttribute('src'), '/algorithm-braces.svg');
+  assert.equal(
+    await page.locator('#go-editor img').evaluate((image) => image.naturalWidth > 0),
+    true,
+  );
+  for (const choice of ['#go-editor', '#go-game'])
+    assert.equal(
+      await page.locator(`${choice} .symbol`).evaluate((icon) => {
+        const symbol = icon.getBoundingClientRect();
+        const title = icon.closest('.choice-title').querySelector('h2').getBoundingClientRect();
+        return Math.abs((symbol.top + symbol.bottom - title.top - title.bottom) / 2) < 1;
+      }),
+      true,
+      `${choice} icon and title share a row`,
+    );
   await page.screenshot({ path: 'artifacts/entry-desktop.png', fullPage: true });
   await page.click('#go-editor');
   await page.waitForURL(/\/signin\?next=%2Feditor/);
@@ -42,6 +77,58 @@ try {
   await page.screenshot({ path: 'artifacts/signup-desktop.png', fullPage: true });
   await page.click('#authenticate');
   await page.waitForSelector('#workbench', { state: 'visible' });
+  assert.equal(await warnsOnExit(), false, 'The unchanged starter code does not warn on exit');
+  assert.equal(
+    await page.locator('#document-origin').textContent(),
+    '시작 샘플 · 아직 저장하지 않음',
+  );
+  assert.equal(await page.locator('#save-state').textContent(), '미저장');
+  for (const [href, label] of [
+    ['/', '시작 화면'],
+    ['/game', '게임 플레이'],
+  ]) {
+    const link = page.locator(`.header-nav a[href="${href}"]`);
+    assert.equal(await link.getAttribute('aria-label'), label);
+    assert.equal(await link.getAttribute('data-tooltip'), label);
+    assert.equal(await link.locator('svg use').count(), 1);
+    assert.equal((await link.textContent()).trim(), '');
+  }
+  assert.equal(
+    await page.locator('header h1').evaluate((title) => {
+      const box = title.getBoundingClientRect();
+      return Math.abs((box.left + box.right) / 2 - innerWidth / 2) < 1;
+    }),
+    true,
+    'Workbench title is centered in its own header row',
+  );
+  assert.equal(await page.locator('header h1 img').getAttribute('src'), '/algorithm-braces.svg');
+  assert.equal(
+    await page.locator('header h1 img').evaluate((image) => image.naturalWidth > 0),
+    true,
+  );
+  for (const id of [
+    'new',
+    'load-mode',
+    'undo',
+    'redo',
+    'validate',
+    'find',
+    'save',
+    'open',
+    'export',
+  ]) {
+    const button = page.locator(`#${id}`);
+    assert.ok(await button.getAttribute('aria-label'));
+    assert.ok(await button.getAttribute('data-tooltip'));
+    assert.equal(await button.locator('svg use').count(), 1);
+  }
+  await page.locator('#undo').hover();
+  assert.equal(
+    await page
+      .locator('#undo')
+      .evaluate((button) => getComputedStyle(button, '::after').visibility),
+    'visible',
+  );
   assert.equal(
     await page
       .locator('#save')
@@ -55,9 +142,10 @@ try {
   await page.click('#save');
   await page.locator('#save-dialog').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#overwrite-option').isVisible(), false);
+  assert.match(await page.locator('#save-source').textContent(), /시작 샘플/);
   await page.click('#cancel-save');
   await page.locator('#save-dialog').waitFor({ state: 'hidden' });
-  assert.equal(await page.locator('#save-state').textContent(), '미저장 변경 있음');
+  assert.equal(await page.locator('#save-state').textContent(), '미저장');
   await page.click('#save');
   await page.locator('#name').fill('브라우저 저장 테스트');
   const initialSource = await page.locator('#code').inputValue();
@@ -73,9 +161,30 @@ try {
     .locator('#save-state')
     .filter({ hasText: /^저장됨$/ })
     .waitFor();
+  assert.equal(
+    await page.locator('#document-origin').textContent(),
+    '내 계정에 저장됨 · 브라우저 저장 테스트',
+  );
+  assert.equal(await warnsOnExit(), false, 'Saving the current code clears the exit warning');
   assert.equal(await page.locator('#ai-panel').isVisible(), true);
   assert.equal(await page.locator('#toggle-ai').getAttribute('aria-expanded'), 'true');
-  assert.match(await page.locator('#toggle-ai').getAttribute('aria-label'), /AI 스크립팅/);
+  assert.equal(
+    await page.locator('#toggle-ai').getAttribute('aria-label'),
+    'AI 스크립팅 사이드바 접기',
+  );
+  assert.equal(
+    await page.locator('#toggle-ai').getAttribute('data-tooltip'),
+    'AI 스크립팅 사이드바 접기',
+  );
+  assert.equal(await page.locator('#toggle-ai svg use').getAttribute('href'), '#icon-ai');
+  assert.equal((await page.locator('#toggle-ai').textContent()).trim(), '›');
+  await page.locator('#toggle-ai').hover();
+  assert.equal(
+    await page
+      .locator('#toggle-ai')
+      .evaluate((button) => getComputedStyle(button, '::after').visibility),
+    'visible',
+  );
   const openEditorWidth = await page
     .locator('#code-panel')
     .evaluate((panel) => panel.getBoundingClientRect().width);
@@ -91,6 +200,11 @@ try {
   await page.click('#toggle-ai');
   assert.equal(await page.locator('#ai-panel').isVisible(), false);
   assert.equal(await page.locator('#toggle-ai').getAttribute('aria-expanded'), 'false');
+  assert.equal(
+    await page.locator('#toggle-ai').getAttribute('data-tooltip'),
+    'AI 스크립팅 사이드바 펼치기',
+  );
+  assert.equal((await page.locator('#toggle-ai').textContent()).trim(), '‹');
   await page.waitForTimeout(220);
   assert.ok(
     await page
@@ -99,6 +213,7 @@ try {
   );
   const original = await page.locator('#code').inputValue();
   await page.locator('.cm-content').fill('const broken = ;');
+  assert.equal(await warnsOnExit(), true, 'Editing saved code warns on exit');
   await page.click('#validate');
   await page.locator('#code-error').waitFor({ state: 'visible' });
   assert.match(await page.locator('#code-error').textContent(), /1줄 16열/);
@@ -116,6 +231,7 @@ try {
   await page.locator('#validation-status[data-state="error"]').waitFor();
   assert.match(await page.locator('#validation-status').textContent(), /moveNext 검사 실패.*예외/);
   await page.locator('.cm-content').fill(original + '\n// edit');
+  assert.equal(await warnsOnExit(), true);
   assert.equal(await page.locator('.cm-code-error').count(), 0);
   assert.equal(await page.locator('#code-error').isVisible(), false);
   await page.click('#validate');
@@ -127,6 +243,7 @@ try {
   await page.waitForSelector('#candidate', { state: 'visible' });
   await page.click('#apply');
   assert.equal(await page.locator('#code').inputValue(), original);
+  assert.equal(await warnsOnExit(), false, 'Restoring saved code clears the exit warning');
   await page.click('#undo');
   assert.equal(await page.locator('#code').inputValue(), original + '\n// edit');
   await page.click('#save');
@@ -138,12 +255,17 @@ try {
     .locator('#save-state')
     .filter({ hasText: /^저장됨$/ })
     .waitFor();
+  assert.equal(await warnsOnExit(), false, 'Saving edited code clears the exit warning');
   await page.click('#save');
   await page.locator('input[name="save-kind"][value="copy"]').check();
   await page.locator('#name').fill('브라우저 저장 테스트 복사본');
   await page.click('#confirm-save');
   await page.locator('#save-dialog').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('#document-title').textContent(), '브라우저 저장 테스트 복사본');
+  assert.equal(
+    await page.locator('#document-origin').textContent(),
+    '내 계정에 저장됨 · 브라우저 저장 테스트 복사본',
+  );
   await page.click('#load-mode');
   await page.locator('#load-panel').waitFor({ state: 'visible' });
   await page.screenshot({ path: 'artifacts/editor-load-modal-desktop.png', fullPage: true });
@@ -162,15 +284,56 @@ try {
   });
   await page.locator('#load-panel').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('#document-title').textContent(), 'local-test');
+  assert.equal(
+    await page.locator('#document-origin').textContent(),
+    '내 PC 파일에서 가져옴 · local-test.js',
+  );
+  await page.click('#save');
+  assert.equal(await page.locator('#overwrite-option').isVisible(), false);
+  await page.click('#cancel-save');
   await page.click('#load-mode');
   await page.locator('#load-panel').waitFor({ state: 'visible' });
   await page.locator('#library').selectOption({ label: '브라우저 저장 테스트' });
-  page.once('dialog', (dialog) => dialog.accept('버리기'));
-  await page.click('#open');
+  await expectNoDialog(() => page.click('#open'));
   await page.locator('#load-panel').waitFor({ state: 'hidden' });
+  assert.equal(
+    await page.locator('#document-origin').textContent(),
+    '내 저장 코드에서 불러옴 · 브라우저 저장 테스트',
+  );
+  assert.equal(await page.locator('#code').inputValue(), original + '\n// edit');
+  await page.click('#save');
+  assert.equal(await page.locator('#overwrite-option').isVisible(), true);
+  assert.match(
+    await page.locator('#save-source').textContent(),
+    /내 저장 코드에서 불러옴 · 브라우저 저장 테스트/,
+  );
+  assert.equal(
+    await page.locator('#overwrite-label').textContent(),
+    '원본 “브라우저 저장 테스트”에 덮어쓰기',
+  );
+  assert.equal(await page.locator('input[name="save-kind"]:checked').inputValue(), 'overwrite');
+  assert.equal(await page.locator('input[name="save-kind"][value="copy"]').isVisible(), true);
+  await page.click('#cancel-save');
   assert.equal(await page.locator('#code-editor').isVisible(), true);
   assert.equal(await page.locator('.testing').isVisible(), false);
   assert.equal(await page.locator('#game').getAttribute('src'), null);
+  assert.equal(await page.locator('#writing-view').count(), 0);
+  assert.equal(
+    await page.locator('#testing-view').getAttribute('aria-label'),
+    '현재 코드로 테스트',
+  );
+  assert.equal(
+    await page.locator('#testing-view').getAttribute('data-tooltip'),
+    '현재 코드로 테스트',
+  );
+  assert.equal(
+    await page.locator('#testing-view').evaluate((button) => {
+      const save = document.querySelector('#save').getBoundingClientRect();
+      return button.getBoundingClientRect().right < save.left;
+    }),
+    true,
+    'Play and save buttons sit at opposite ends of the editor footer',
+  );
   const game = page.frameLocator('#game');
   await page.click('#testing-view');
   await page.locator('#test:enabled').waitFor();
@@ -223,8 +386,10 @@ try {
   assert.equal(input.destroyWalls, false);
   assert.ok(['pengko', 'nyangtami', 'dino', 'lumi'].includes(input.characterId));
   const { id } = await response.json();
-  await page.locator('#testing-view').filter({ hasText: '진행 중 테스트 보기' }).waitFor();
-  await page.click('#writing-view');
+  await page
+    .locator('#testing-view[aria-label="진행 중 테스트 보기"]')
+    .waitFor({ state: 'attached' });
+  await page.click('#back-to-editor');
   assert.equal(await page.locator('.testing').isVisible(), false);
   await page.locator('.cm-content').fill(original + '\n// changed during test');
   await page.locator('#test-code-state').waitFor({ state: 'visible' });
@@ -248,21 +413,51 @@ try {
   await page.request.delete(`${base}/api/matches/${id}`);
   await game.locator('#arena-message strong').filter({ hasText: '테스트 종료' }).waitFor();
   await page.locator('#test:enabled').waitFor();
-  assert.equal(await page.locator('#testing-view').textContent(), '현재 코드로 테스트');
+  assert.equal(
+    await page.locator('#testing-view').getAttribute('aria-label'),
+    '현재 코드로 테스트',
+  );
   assert.equal(await game.locator('#result-podium').isVisible(), false);
   assert.equal(await game.locator('#map-select').isVisible(), true);
-  await page.click('#writing-view');
+  await page.click('#back-to-editor');
   assert.equal(await page.locator('.testing').isVisible(), false);
   assert.equal(await page.locator('.writing').isVisible(), true);
   await page.locator('.cm-content').fill(original + '\n// edit');
-  assert.equal(await page.locator('#test-code-state').isVisible(), false);
+  await page.locator('#test-code-state').waitFor({ state: 'hidden' });
   await mkdir('artifacts', { recursive: true });
   await page.screenshot({ path: 'artifacts/editor-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 900 });
+  assert.equal(
+    await page.locator('header h1').evaluate((title) => {
+      const box = title.getBoundingClientRect();
+      const nav = document.querySelector('.header-nav').getBoundingClientRect();
+      return Math.abs((box.left + box.right) / 2 - innerWidth / 2) < 1 && box.top > nav.bottom;
+    }),
+    true,
+    'Mobile workbench title remains centered below navigation',
+  );
+  assert.equal(
+    await page
+      .locator('#new')
+      .evaluate(
+        (button) =>
+          Math.round(button.getBoundingClientRect().top) ===
+          Math.round(document.querySelector('#load-mode').getBoundingClientRect().top),
+      ),
+    true,
+  );
   if ((await page.locator('#toggle-ai').getAttribute('aria-expanded')) === 'false')
     await page.click('#toggle-ai');
   assert.equal(await page.locator('#ai-panel').isVisible(), true);
   assert.equal(await page.locator('#code-editor').isVisible(), true);
+  assert.equal(
+    await page.locator('#testing-view').evaluate((button) => {
+      const save = document.querySelector('#save').getBoundingClientRect();
+      return button.getBoundingClientRect().right < save.left;
+    }),
+    true,
+    'Play and save buttons remain separated on mobile',
+  );
   assert.equal(
     await page.locator('#ai-panel').evaluate((panel) => {
       const code = document.querySelector('#code-panel').getBoundingClientRect();
@@ -280,12 +475,22 @@ try {
   await page.locator('#prompt').fill('이전 요청 내용');
   await page.click('#new');
   assert.equal(await page.locator('#document-title').textContent(), '새 알고리즘');
+  assert.equal(await warnsOnExit(), false, 'An unsaved new document does not warn on exit');
   const blank = await page.locator('#code').inputValue();
   assert.match(blank, /initialize\(myNumber, column, row\) \{\s*\}/);
   assert.match(blank, /getName\(\) \{\s*\}/);
   assert.match(blank, /moveNext\(map, myPosition, items\) \{\s*\}/);
   assert.equal(await page.locator('#prompt').inputValue(), '');
   assert.equal(await page.locator('#test-code-state').isVisible(), false);
+  await expectNoDialog(() => page.click('#new'));
+  assert.equal(await page.locator('#code').inputValue(), blank);
+  await page.locator('.cm-content').fill(blank + '\n// modified');
+  page.once('dialog', (dialog) => {
+    assert.match(dialog.message(), /미저장 변경/);
+    void dialog.accept('버리기');
+  });
+  await page.click('#new');
+  assert.equal(await page.locator('#code').inputValue(), blank);
   await page.click('#undo');
   assert.equal(await page.locator('#code').inputValue(), blank);
   await page.click('#save');
