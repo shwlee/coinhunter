@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
-import { mkdir, readFile, statfs, unlink } from 'node:fs/promises';
+import { mkdir, readFile, unlink } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
@@ -11,6 +11,7 @@ import { Match } from './game/match.js';
 import { DEFAULT_CHARACTER, isPlayableCharacter } from '../public/characters.js';
 import { validateSource } from './runtime/policy.js';
 import { createAuthoring } from './authoring-api.js';
+import { diskSpace, hasUploadSpace } from './persistence/disk-space.js';
 
 const sampleSource = await readFile(
   new URL('../examples/nearest-coin.js', import.meta.url),
@@ -91,6 +92,7 @@ export function createGameServer({
   uploadDirectory = resolve(process.env.SOURCE_UPLOAD_DIR || 'data/uploads'),
 } = {}) {
   const matches = new Map();
+  const pendingOwners = new Set();
   const streams = new Set();
   let closing = false;
   let activeUploads = 0;
@@ -115,13 +117,8 @@ export function createGameServer({
     const path = resolve(directory, `${randomUUID()}.js`);
     try {
       await mkdir(directory, { recursive: true });
-      const filesystem = await statfs(directory);
-      const reserve = Math.min(
-        512 * 1024 * 1024,
-        Math.max(64 * 1024 * 1024, Math.floor((filesystem.bavail * filesystem.bsize) / 10)),
-      );
-      const safety = 32 * 1024 * 1024;
-      if (filesystem.bavail * filesystem.bsize < reserve + safety)
+      const initialSpace = await diskSpace(directory);
+      if (!hasUploadSpace(initialSpace.free, initialSpace.device))
         throw Object.assign(new Error('코드 저장 공간이 부족합니다.'), { status: 507 });
       let bytesSinceCheck = 0;
       const diskGuard = new Transform({
@@ -132,8 +129,8 @@ export function createGameServer({
             return;
           }
           bytesSinceCheck = 0;
-          statfs(directory).then((current) => {
-            if (current.bavail * current.bsize < reserve + safety)
+          diskSpace(directory).then(({ free, device }) => {
+            if (!hasUploadSpace(free, device))
               callback(Object.assign(new Error('코드 저장 공간이 부족합니다.'), { status: 507 }));
             else callback(null, chunk);
           }, callback);
@@ -327,86 +324,96 @@ export function createGameServer({
         const active = [...matches.values()].filter(
           (record) => record.initializing || !record.match.stopping,
         );
-        if (active.some((record) => record.owner === owner)) {
+        if (pendingOwners.has(owner) || active.some((record) => record.owner === owner)) {
           json(response, 409, { error: '진행 중인 경기를 먼저 종료하세요.' });
           return;
         }
-        if (active.length >= 4) {
+        if (active.length + pendingOwners.size >= 4) {
           json(response, 429, { error: '동시 경기 한도에 도달했습니다.' });
           return;
         }
-        const uploadPath = raw ? await readSourceFile(request) : null;
-        const snapshotPath =
-          input.algorithmId !== undefined
-            ? await snapshotStoredSource(user.id, input.algorithmId)
-            : null;
-        const sourcePath = uploadPath || snapshotPath;
-        const primarySource = sourcePath ? { path: sourcePath } : input.source;
-        const id = randomUUID();
-        const match = new Match(
-          map,
-          mode === 'duel'
-            ? [primarySource, { path: opponentSourcePath }]
-            : [primarySource, ...Array(input.dummyCount).fill(sampleSource)],
-          {
-            mode,
-            blackMatter: input.blackMatter,
-            destroyWalls: input.destroyWalls,
-            characterId,
-            startSlot,
-          },
-        );
-        const record = {
-          owner,
-          match,
-          initializing: true,
-          createdAt: Date.now(),
-          streams: new Set(),
-        };
-        matches.set(id, record);
-        match.once('closed', () => {
-          record.finishedAt = Date.now();
-          if (
-            user &&
-            match.state &&
-            !['server-shutdown', 'account-ended', 'runtime-failure'].includes(match.state.reason)
-          ) {
-            const player = match.state.players[0];
-            record.archivePromise = authoring.accounts
-              .recordMatch(user.id, {
-                matchId: id,
-                mapId: map.id,
-                mapName: map.name,
-                algorithmName: player.name,
-                characterId: player.characterId,
-                score: player.score,
-                reason: match.state.reason,
-                mode,
-                ...(sourcePath ? { sourcePath } : { source: input.source }),
-              })
-              .catch((error) => {
-                console.error('경기 기록 저장 실패:', error);
-              })
-              .finally(() => (sourcePath ? unlink(sourcePath).catch(() => {}) : undefined));
-          } else if (sourcePath) {
-            record.cleanupPromise = unlink(sourcePath).catch(() => {});
-          }
-        });
+        pendingOwners.add(owner);
+        let sourcePath;
+        let sourceOwnedByMatch = false;
         try {
-          await match.start();
-        } catch (error) {
-          matches.delete(id);
-          if (sourcePath) await unlink(sourcePath).catch(() => {});
-          throw error;
-        }
-        record.initializing = false;
-        if (closing) {
-          await match.stop('server-shutdown');
-          json(response, 503, { error: '서버 종료 중입니다.' });
+          const uploadPath = raw ? await readSourceFile(request) : null;
+          const snapshotPath =
+            input.algorithmId !== undefined
+              ? await snapshotStoredSource(user.id, input.algorithmId)
+              : null;
+          sourcePath = uploadPath || snapshotPath;
+          const primarySource = sourcePath ? { path: sourcePath } : input.source;
+          const id = randomUUID();
+          const match = new Match(
+            map,
+            mode === 'duel'
+              ? [primarySource, { path: opponentSourcePath }]
+              : [primarySource, ...Array(input.dummyCount).fill(sampleSource)],
+            {
+              mode,
+              blackMatter: input.blackMatter,
+              destroyWalls: input.destroyWalls,
+              characterId,
+              startSlot,
+            },
+          );
+          const record = {
+            owner,
+            match,
+            initializing: true,
+            createdAt: Date.now(),
+            streams: new Set(),
+          };
+          matches.set(id, record);
+          pendingOwners.delete(owner);
+          sourceOwnedByMatch = true;
+          match.once('closed', () => {
+            record.finishedAt = Date.now();
+            if (
+              user &&
+              match.state &&
+              !['server-shutdown', 'account-ended', 'runtime-failure'].includes(match.state.reason)
+            ) {
+              const player = match.state.players[0];
+              record.archivePromise = authoring.accounts
+                .recordMatch(user.id, {
+                  matchId: id,
+                  mapId: map.id,
+                  mapName: map.name,
+                  algorithmName: player.name,
+                  characterId: player.characterId,
+                  score: player.score,
+                  reason: match.state.reason,
+                  mode,
+                  ...(sourcePath ? { sourcePath } : { source: input.source }),
+                })
+                .catch((error) => {
+                  console.error('경기 기록 저장 실패:', error);
+                })
+                .finally(() => (sourcePath ? unlink(sourcePath).catch(() => {}) : undefined));
+            } else if (sourcePath) {
+              record.cleanupPromise = unlink(sourcePath).catch(() => {});
+            }
+          });
+          try {
+            await match.start();
+          } catch (error) {
+            matches.delete(id);
+            if (sourcePath) await unlink(sourcePath).catch(() => {});
+            throw error;
+          }
+          record.initializing = false;
+          if (closing) {
+            await match.stop('server-shutdown');
+            json(response, 503, { error: '서버 종료 중입니다.' });
+            return;
+          }
+          json(response, 201, { id });
           return;
+        } finally {
+          pendingOwners.delete(owner);
+          if (sourcePath && !sourceOwnedByMatch) await unlink(sourcePath).catch(() => {});
         }
-        json(response, 201, { id });
-        return;
       }
       const route = url.pathname.match(/^\/api\/matches\/([a-f0-9-]+)(?:\/(events))?$/);
       if (route) {

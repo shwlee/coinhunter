@@ -3,6 +3,7 @@ import { copyFile, mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fail } from './errors.js';
 import { FileSourceStore } from './file-source-store.js';
+import { withCopySpace } from './disk-space.js';
 
 // Single local server: serialize read/modify/write and replace the file atomically.
 export class FileAccountRepository {
@@ -130,7 +131,9 @@ export class FileAccountRepository {
     return this.inspect(async (data) => {
       const item = data.algorithms.find((a) => a.ownerId === ownerId && a.id === id);
       if (!item) throw fail(404, '알고리즘을 찾을 수 없습니다.');
-      await copyFile(this.sources.path(item.sourceKey), destination);
+      await withCopySpace(this.sources.path(item.sourceKey), dirname(destination), () =>
+        copyFile(this.sources.path(item.sourceKey), destination),
+      );
       return destination;
     });
   }

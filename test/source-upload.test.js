@@ -133,3 +133,48 @@ test('large source uses file upload while JSON bodies stay bounded', async (t) =
     await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(await readdir(uploads), []);
 });
+
+test('concurrent starts from one account reserve a single match slot', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'coinhunter-start-slot-'));
+  const accounts = new FileAccountRepository(join(directory, 'accounts.json'));
+  const { server, close } = createGameServer({
+    authoring: createAuthoring({ accounts }),
+    uploadDirectory: join(directory, 'uploads'),
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(async () => {
+    await close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const login = await fetch(base + '/api/auth/mock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'concurrent@company.test' }),
+  });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const maps = (await (await fetch(base + '/api/maps')).json()).maps;
+  const options = JSON.stringify({
+    mapId: maps[0].id,
+    dummyCount: 0,
+    blackMatter: false,
+    destroyWalls: false,
+  });
+  const source =
+    'module.exports = class { initialize() {} getName() { return "race"; } moveNext() { return -1; } };';
+  const start = () =>
+    fetch(base + '/api/matches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain', 'X-Coinhunter-Options': options, cookie },
+      body: source,
+    });
+  const results = await Promise.all([start(), start()]);
+  assert.deepEqual(results.map((response) => response.status).sort(), [201, 409]);
+  const created = results.find((response) => response.status === 201);
+  const { id } = await created.json();
+  const stopped = await fetch(base + `/api/matches/${id}`, {
+    method: 'DELETE',
+    headers: { cookie },
+  });
+  assert.equal(stopped.status, 200);
+});

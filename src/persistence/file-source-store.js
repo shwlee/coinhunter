@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { copyFile, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { withCopySpace } from './disk-space.js';
 
 const validKey = /^[a-f0-9-]{36}$/;
 
@@ -23,7 +24,7 @@ export class FileSourceStore {
     const key = randomUUID();
     await mkdir(this.directory, { recursive: true });
     try {
-      await copyFile(file, this.path(key));
+      await withCopySpace(file, this.directory, () => copyFile(file, this.path(key)));
       return key;
     } catch (error) {
       await unlink(this.path(key)).catch(() => {});
