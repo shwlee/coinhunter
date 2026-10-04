@@ -48,10 +48,43 @@ try {
   await page.goto(base + '/');
   await page.waitForURL(base + '/signin');
   await page.locator('#guest-link').waitFor({ state: 'visible' });
+  await page.locator('#guest-help').waitFor({ state: 'visible' });
+  assert.match(await page.locator('#guest-help').textContent(), /알고리즘 파일/);
+  assert.equal(await page.getByText('다시 만나서 반갑습니다').count(), 0);
   assert.match(await page.locator('#destination').textContent(), /홈 화면/);
   assert.equal(await page.locator('.choices').count(), 0);
+  const videoResponse = await page.request.get(base + '/assets/login-gameplay.mp4');
+  assert.equal(videoResponse.status(), 200);
+  assert.match(videoResponse.headers()['content-type'], /^video\/mp4/);
+  assert.ok((await videoResponse.body()).length <= 1_000_000, 'Login video stays within 1 MB');
+  await page.locator('.landing-video').evaluate(async (video) => {
+    if (video.readyState < 2)
+      await new Promise((resolve, reject) => {
+        video.addEventListener('loadeddata', resolve, { once: true });
+        video.addEventListener('error', reject, { once: true });
+      });
+  });
+  assert.equal(await page.locator('.landing-video').evaluate((video) => video.videoWidth), 960);
+  assert.ok(
+    (await page.locator('.landing-video').evaluate((video) => video.duration)) >= 19,
+    'The landing video includes both map recordings',
+  );
   await mkdir('artifacts', { recursive: true });
   await page.screenshot({ path: 'artifacts/signin-desktop.png', fullPage: true });
+  const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await mobile.goto(base + '/signin');
+  await mobile.locator('#authenticate:enabled').waitFor();
+  assert.equal(
+    await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+    'Login page fits a mobile viewport',
+  );
+  await mobile.screenshot({ path: 'artifacts/signin-mobile.png', fullPage: true });
+  await mobile.close();
+  await page.goto(base + '/signin?next=%2Feditor');
+  await page.locator('#guest-link').waitFor({ state: 'visible' });
+  await page.goto(base + '/signin');
+  await page.locator('#guest-link').waitFor({ state: 'visible' });
   await page.click('#guest-link');
   await page.waitForURL(base + '/game');
   await page.goto(base + '/');

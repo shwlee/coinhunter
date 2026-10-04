@@ -197,3 +197,241 @@ select:focus-visible {
     padding: 24px;
   }
 }
+
+body[data-page='auth'] {
+  background: #0b111b;
+}
+.landing {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(430px, 0.85fr);
+  max-width: none;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+.landing-preview {
+  position: relative;
+  min-width: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #182d28 url('/assets/login-gameplay.jpg') center / cover;
+  isolation: isolate;
+}
+.landing-preview::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  content: '';
+  background: linear-gradient(180deg, #071019a8 0%, #07101900 31%, #0710194d 55%, #071019ed 100%);
+}
+.landing-video {
+  position: absolute;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.landing-preview-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+  min-height: 100vh;
+  padding: clamp(28px, 4vw, 62px);
+}
+.landing-kicker,
+.auth-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+.landing-kicker {
+  color: #c8fa77;
+}
+.landing-preview h1 {
+  margin: 18px 0 14px;
+  font-size: clamp(38px, 4.3vw, 70px);
+  line-height: 1.16;
+  letter-spacing: -0.055em;
+  text-wrap: balance;
+  text-shadow: 0 3px 18px #061016bd;
+}
+.landing-lead {
+  margin: 0;
+  color: #e5ebe8;
+  font-size: clamp(14px, 1.2vw, 18px);
+  line-height: 1.7;
+  text-shadow: 0 2px 10px #061016e0;
+}
+.landing-account {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  background: radial-gradient(circle at 100% 0%, #1c2b31 0%, #101824 45%, #0b111b 100%);
+}
+.landing-account-inner {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 560px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: clamp(28px, 4vw, 58px);
+}
+.landing .auth-card {
+  margin: auto 0;
+  padding: 48px 0 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.auth-eyebrow {
+  margin: 0 0 15px;
+  color: #b6f36e !important;
+}
+.landing #auth-description {
+  margin: 0 0 30px;
+  color: #aebdca;
+  font-size: 14px;
+}
+.landing .auth-tabs {
+  gap: 0;
+  margin: 0 0 28px;
+  border-bottom: 1px solid #354254;
+}
+.landing .auth-tabs a {
+  min-width: 120px;
+  padding: 0 2px 13px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.landing #mock-identity label {
+  color: #e0e7ee;
+  font-size: 13px;
+  font-weight: 700;
+}
+.landing select {
+  min-height: 50px;
+  margin-top: 10px;
+  padding: 12px 16px;
+  border-color: #47556a;
+  border-radius: 10px;
+  background: #182332;
+}
+.landing .mock-note {
+  margin: 9px 0 0;
+  color: #8494a5;
+  font-size: 12px;
+}
+.landing #authenticate {
+  min-height: 52px;
+  margin-top: 25px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 800;
+}
+.landing #authenticate:not(:disabled):hover {
+  background: #c7ff82;
+}
+.landing #entry-status {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+.landing #entry-status:empty {
+  min-height: 0;
+}
+.landing .auth-destination {
+  margin: 13px 0 0;
+  color: #8b9cad;
+  font-size: 12px;
+}
+.guest-access {
+  margin-top: 32px;
+  padding-top: 26px;
+  border-top: 1px solid #354254;
+}
+.landing .guest-access-label {
+  margin: 0;
+  color: #e8eef7;
+  font-size: 16px;
+  font-weight: 800;
+}
+.landing #guest-help {
+  margin: 9px 0 18px;
+  color: #aebdca;
+  font-size: 13px;
+}
+.landing #guest-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 50px;
+  padding: 12px 16px;
+  border: 1px solid #849b6e;
+  border-radius: 10px;
+  color: #c8fa77;
+  font-size: 14px;
+  font-weight: 800;
+}
+.landing #guest-link:hover {
+  border-color: #b6f36e;
+  background: #b6f36e14;
+}
+@media (max-width: 960px) {
+  .landing {
+    grid-template-columns: 1fr;
+  }
+  .landing-preview,
+  .landing-preview-content {
+    min-height: 340px;
+    height: 340px;
+  }
+  .landing-preview-content {
+    padding: 25px 32px;
+  }
+  .landing-preview h1 {
+    font-size: clamp(30px, 5vw, 42px);
+  }
+  .landing-account-inner {
+    min-height: 0;
+    padding: 32px;
+  }
+  .landing .auth-card {
+    padding: 40px 0 24px;
+  }
+}
+@media (max-width: 520px) {
+  .landing-preview,
+  .landing-preview-content {
+    height: 280px;
+    min-height: 280px;
+  }
+  .landing-preview-content {
+    padding: 20px 22px;
+  }
+  .landing-preview h1 {
+    margin: 7px 0;
+    font-size: 28px;
+  }
+  .landing-kicker {
+    margin: 0;
+    font-size: 9px;
+  }
+  .landing-lead {
+    font-size: 12px;
+  }
+  .landing-account-inner {
+    padding: 28px 22px 32px;
+  }
+  .landing .auth-card {
+    padding-top: 35px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-video {
+    display: none;
+  }
+}

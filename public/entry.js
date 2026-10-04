@@ -15,7 +15,6 @@ try {
     for (const name of ['signin', 'signup'])
       $(name + '-tab').href = `/${name}?next=${encodeURIComponent(next)}`;
     $(signup ? 'signup-tab' : 'signin-tab').setAttribute('aria-current', 'page');
-    $('auth-title').textContent = signup ? '회사 계정으로 시작하기' : '다시 만나서 반갑습니다';
     document.title = `${signup ? '가입' : '로그인'} · Coin Hunter`;
     $('destination').textContent =
       next === '/'
@@ -28,10 +27,8 @@ try {
     if (session.user) {
       location.replace(next);
     } else {
-      if (next !== '/editor') {
-        $('guest-link').hidden = false;
-        $('guest-help').hidden = false;
-      }
+      $('guest-link').hidden = false;
+      $('guest-help').hidden = false;
       if (session.mock) {
         $('mock-identity').hidden = false;
         for (const email of session.identities) $('identity').add(new Option(email, email));

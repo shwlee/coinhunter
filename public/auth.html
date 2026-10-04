@@ -8,33 +8,62 @@
     <script type="module" src="/entry.js"></script>
   </head>
   <body data-page="auth">
-    <header><span class="brand">COIN HUNTER</span></header>
-    <main class="auth-main">
-      <section class="auth-card">
-        <nav class="auth-tabs" aria-label="로그인 및 가입">
-          <a id="signin-tab" href="/signin">Sign in · 로그인</a
-          ><a id="signup-tab" href="/signup">Sign up · 가입</a>
-        </nav>
-        <h1 id="auth-title">로그인</h1>
-        <p id="destination"></p>
-        <p id="auth-description">
-          회사 계정으로 로그인하세요. 처음 로그인하면 게임 계정이 자동으로 만들어집니다.
-        </p>
-        <form id="auth-form">
-          <div id="mock-identity" hidden>
-            <label for="identity">개발용 계정</label
-            ><select id="identity" required></select>
-            <p class="mock-note">
-              로컬 목업 로그인입니다. 실제 Google 계정 인증은 수행하지 않습니다.
-            </p>
+    <main class="landing">
+      <section class="landing-preview" aria-labelledby="landing-title">
+        <video
+          class="landing-video"
+          autoplay
+          muted
+          loop
+          playsinline
+          disablepictureinpicture
+          preload="metadata"
+          poster="/assets/login-gameplay.jpg"
+          aria-hidden="true"
+        >
+          <source src="/assets/login-gameplay.mp4" type="video/mp4" />
+        </video>
+        <div class="landing-preview-content">
+          <div>
+            <p class="landing-kicker">YOUR CODE. YOUR STRATEGY.</p>
+            <h1 id="landing-title">코인 헌터 :<br />알고리즘 아레나</h1>
+            <p class="landing-lead">나만의 알고리즘으로 길을 찾고, 더미와 경쟁하세요.</p>
           </div>
-          <button id="authenticate" type="submit" disabled>로그인 준비 중…</button>
-        </form>
-        <p id="entry-status" role="status" aria-live="polite"></p>
-        <a id="guest-link" href="/game" hidden>게스트로 게임 플레이 →</a>
-        <p id="guest-help" hidden>
-          게스트는 로컬 파일로 플레이할 수 있으며 코드 작성·계정 저장은 사용할 수 없습니다.
-        </p>
+        </div>
+      </section>
+      <section class="landing-account" aria-label="계정으로 시작하기">
+        <div class="landing-account-inner">
+          <div class="auth-card">
+            <p class="auth-eyebrow">ENTER THE ARENA</p>
+            <p id="auth-description">
+              회사 계정으로 로그인하세요. 처음 로그인하면 게임 계정이 자동으로 만들어집니다.
+            </p>
+            <nav class="auth-tabs" aria-label="로그인 및 가입">
+              <a id="signin-tab" href="/signin">로그인</a>
+              <a id="signup-tab" href="/signup">처음 시작하기</a>
+            </nav>
+            <form id="auth-form">
+              <div id="mock-identity" hidden>
+                <label for="identity">계정 선택</label>
+                <select id="identity" required></select>
+                <p class="mock-note">로컬 개발용 계정으로 접속합니다.</p>
+              </div>
+              <button id="authenticate" type="submit" disabled>로그인 준비 중…</button>
+            </form>
+            <p id="entry-status" role="status" aria-live="polite"></p>
+            <p id="destination" class="auth-destination"></p>
+            <div class="guest-access">
+              <p class="guest-access-label">계정 없이 플레이</p>
+              <p id="guest-help" hidden>
+                내 PC의 알고리즘 파일로 바로 플레이할 수 있습니다. 코드 작성과 저장은 로그인 후
+                사용할 수 있습니다.
+              </p>
+              <a id="guest-link" href="/game" hidden>
+                게스트로 게임 시작 <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   </body>
