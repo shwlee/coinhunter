@@ -237,6 +237,24 @@ try {
   );
   assert.equal(await page.locator('#toggle-ai svg use').getAttribute('href'), '#icon-ai');
   assert.equal((await page.locator('#toggle-ai').textContent()).trim(), '›');
+  const maximizeCode = page.locator('#maximize-code');
+  const codeBeforeMaximize = await page.locator('#code').inputValue();
+  await maximizeCode.click();
+  assert.equal(await maximizeCode.getAttribute('aria-pressed'), 'true');
+  assert.equal(await maximizeCode.getAttribute('aria-label'), '코드 영역 원래 크기로');
+  assert.ok(
+    await page.locator('#code-editor').evaluate((container) => {
+      const rect = container.getBoundingClientRect();
+      return rect.width > innerWidth - 80 && rect.height > innerHeight - 180;
+    }),
+    'Maximized code editor fills the viewport',
+  );
+  assert.equal(await page.locator('#code').inputValue(), codeBeforeMaximize);
+  await page.keyboard.press('Escape');
+  assert.equal(await maximizeCode.getAttribute('aria-pressed'), 'false');
+  await maximizeCode.click();
+  await maximizeCode.click();
+  assert.equal(await maximizeCode.getAttribute('aria-pressed'), 'false');
   await page.locator('#toggle-ai').hover();
   assert.equal(
     await page
@@ -256,6 +274,55 @@ try {
     }),
     true,
   );
+  const gripper = page.locator('#resize-ai');
+  const initialSidebarWidth = await page
+    .locator('.ai-sidebar')
+    .evaluate((sidebar) => sidebar.getBoundingClientRect().width);
+  const grip = await gripper.boundingBox();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 - 120, grip.y + grip.height / 2, { steps: 6 });
+  await page.mouse.up();
+  const draggedWidth = await page
+    .locator('.ai-sidebar')
+    .evaluate((sidebar) => sidebar.getBoundingClientRect().width);
+  assert.ok(draggedWidth > initialSidebarWidth + 90, 'Dragging the grip widens the AI panel');
+  assert.ok(
+    (await page.locator('#code-panel').evaluate((panel) => panel.getBoundingClientRect().width)) <
+      openEditorWidth - 90,
+    'The code editor gives space to the AI panel',
+  );
+  await gripper.focus();
+  await gripper.press('ArrowRight');
+  const adjustedWidth = Number(await gripper.getAttribute('aria-valuenow'));
+  assert.ok(adjustedWidth < draggedWidth, 'The keyboard can narrow the AI panel');
+  assert.equal(
+    await page.evaluate(() => Number(localStorage.getItem('coinhunter.aiSidebarWidth'))),
+    adjustedWidth,
+  );
+  await page.setViewportSize({ width: 800, height: 1100 });
+  await page.waitForTimeout(250);
+  assert.equal(
+    await page.evaluate(() => {
+      const layout = document.querySelector('.editing-layout');
+      return (
+        document.querySelector('.ai-sidebar').getBoundingClientRect().width <=
+        layout.clientWidth - 12 - 340
+      );
+    }),
+    true,
+  );
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await page.setViewportSize({ width: 1550, height: 1100 });
+  await page.waitForTimeout(250);
+  assert.equal(
+    await page.evaluate(
+      (width) =>
+        Math.abs(document.querySelector('.ai-sidebar').getBoundingClientRect().width - width) < 1,
+      adjustedWidth,
+    ),
+    true,
+  );
   await page.click('#toggle-ai');
   assert.equal(await page.locator('#ai-panel').isVisible(), false);
   assert.equal(await page.locator('#toggle-ai').getAttribute('aria-expanded'), 'false');
@@ -270,6 +337,9 @@ try {
       .locator('#code-panel')
       .evaluate((panel, width) => panel.getBoundingClientRect().width > width, openEditorWidth),
   );
+  await page.click('#toggle-ai');
+  assert.equal(Number(await gripper.getAttribute('aria-valuenow')), adjustedWidth);
+  await page.click('#toggle-ai');
   const original = await page.locator('#code').inputValue();
   await page.locator('.cm-content').fill('const broken = ;');
   assert.equal(await warnsOnExit(), true, 'Editing saved code warns on exit');
@@ -298,11 +368,41 @@ try {
   assert.match(await page.locator('#validation-status').textContent(), /검사 통과/);
   assert.equal(await page.locator('#validate').isEnabled(), true);
   await page.click('#toggle-ai');
+  const templates = page.locator('input[name="strategy-template"]');
+  assert.equal(await templates.count(), 11);
+  assert.equal(await page.locator('.template-pick small').count(), 0);
+  assert.match(await page.locator('.template-pick').first().getAttribute('title'), /코인/);
+  assert.equal(await page.locator('#generate').isDisabled(), true);
+  await templates.nth(0).check();
+  await templates.nth(1).check();
+  await templates.nth(2).check();
+  assert.equal(await page.locator('#template-count').textContent(), '3 / 3');
+  assert.equal(await templates.nth(3).isDisabled(), true);
+  assert.equal(await page.locator('#strategy-templates input[type="range"]').count(), 0);
+  await page.getByRole('button', { name: '고액 코인 우선순위 올리기' }).click();
+  assert.match(
+    await page.locator('#template-priorities li').first().textContent(),
+    /1순위 · 고액 코인.*가중치 5/,
+  );
+  await page
+    .locator('#template-priorities li')
+    .nth(2)
+    .dragTo(page.locator('#template-priorities li').nth(1));
+  assert.deepEqual(
+    await page
+      .locator('#template-priorities li')
+      .evaluateAll((rows) => rows.map((row) => row.dataset.templateId)),
+    ['valuableCoin', 'coinCluster', 'nearestCoin'],
+  );
   await page.click('#generate');
   await page.waitForSelector('#candidate', { state: 'visible' });
+  const generated = await page.locator('#candidate-code').textContent();
+  assert.match(generated, /"nearestCoin":1/);
+  assert.match(generated, /"valuableCoin":5/);
+  assert.match(generated, /"coinCluster":3/);
   await page.click('#apply');
-  assert.equal(await page.locator('#code').inputValue(), original);
-  assert.equal(await warnsOnExit(), false, 'Restoring saved code clears the exit warning');
+  assert.equal(await page.locator('#code').inputValue(), generated);
+  assert.equal(await warnsOnExit(), true, 'Applying generated code leaves unsaved changes');
   await page.click('#undo');
   assert.equal(await page.locator('#code').inputValue(), original + '\n// edit');
   await page.click('#save');
@@ -548,6 +648,7 @@ try {
   if ((await page.locator('#toggle-ai').getAttribute('aria-expanded')) === 'false')
     await page.click('#toggle-ai');
   assert.equal(await page.locator('#ai-panel').isVisible(), true);
+  assert.equal(await page.locator('#resize-ai').isVisible(), false);
   assert.equal(await page.locator('#code-editor').isVisible(), true);
   assert.equal(
     await page.locator('#testing-view').evaluate((button) => {
@@ -564,6 +665,22 @@ try {
     }),
     true,
   );
+  await maximizeCode.click();
+  assert.ok(
+    await page.locator('#code-panel').evaluate((panel) => {
+      const rect = panel.getBoundingClientRect();
+      return rect.top <= 8 && rect.bottom >= innerHeight - 8;
+    }),
+    'Mobile code panel fills the viewport when maximized',
+  );
+  assert.ok(
+    await page
+      .locator('#code-editor')
+      .evaluate((container) => container.getBoundingClientRect().height > innerHeight / 2),
+    'The mobile code editor gets most of the usable screen',
+  );
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await maximizeCode.click();
   await page.click('#load-mode');
   await page.locator('#load-panel').waitFor({ state: 'visible' });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
@@ -580,6 +697,8 @@ try {
   assert.match(blank, /getName\(\) \{\s*\}/);
   assert.match(blank, /moveNext\(map, myPosition, items\) \{\s*\}/);
   assert.equal(await page.locator('#prompt').inputValue(), '');
+  assert.equal(await page.locator('#template-count').textContent(), '0 / 3');
+  assert.equal(await page.locator('#generate').isDisabled(), true);
   assert.equal(await page.locator('#test-code-state').isVisible(), false);
   await expectNoDialog(() => page.click('#new'));
   assert.equal(await page.locator('#code').inputValue(), blank);
@@ -619,7 +738,7 @@ try {
   await guest.waitForURL(base + '/signin');
   assert.deepEqual(errors, []);
   console.log(
-    'Authoring smoke passed: login, save, AI mock undo, simplified solo test, mobile, second session.',
+    'Authoring smoke passed: login, save, weighted template generation, simplified solo test, mobile, second session.',
   );
 } finally {
   await browser.close();

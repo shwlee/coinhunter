@@ -1,5 +1,6 @@
 import { api, accountBar } from './account.js';
 import { createCodeEditor } from '/code-editor.js';
+import { PRIORITY_WEIGHTS, STRATEGY_TEMPLATES, buildTemplateSource } from './strategy-templates.js';
 const $ = (id) => document.getElementById(id);
 const editor = createCodeEditor($('code'), $('code-editor'), $('cursor'));
 const emptyAlgorithm = `module.exports = class Player {
@@ -27,6 +28,125 @@ let documentId = null,
   testSource = null,
   testRequestId = 0;
 let validationRequestId = 0;
+let generating = false;
+const templateControls = new Map();
+const priorityIds = [];
+function refreshTemplates() {
+  const count = priorityIds.length;
+  $('template-count').textContent = `${count} / 3`;
+  for (const [id, { option, checkbox, rank }] of templateControls) {
+    const position = priorityIds.indexOf(id);
+    const unavailable = count === 3 && !checkbox.checked;
+    checkbox.disabled = unavailable;
+    option.classList.toggle('selected', checkbox.checked);
+    option.classList.toggle('unavailable', unavailable);
+    rank.hidden = position < 0;
+    rank.textContent = position < 0 ? '' : `${position + 1}순위`;
+  }
+  const list = $('template-priorities');
+  list.replaceChildren();
+  list.hidden = count === 0;
+  priorityIds.forEach((id, index) => {
+    const template = STRATEGY_TEMPLATES.find((item) => item.id === id);
+    const label = template.label;
+    const row = document.createElement('li');
+    row.draggable = true;
+    row.dataset.templateId = id;
+    row.title = `${template.description} 드래그하여 순서를 바꿀 수 있습니다.`;
+    row.setAttribute('aria-label', `${index + 1}순위 ${label}, 드래그 또는 버튼으로 순서 변경`);
+    row.addEventListener('dragstart', (event) => {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', id);
+      row.classList.add('dragging');
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('dragging');
+      for (const item of list.children) item.classList.remove('drag-over');
+    });
+    row.addEventListener('dragover', (event) => {
+      if (!event.dataTransfer.types.includes('text/plain')) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    row.addEventListener('drop', (event) => {
+      event.preventDefault();
+      const sourceId = event.dataTransfer.getData('text/plain');
+      const from = priorityIds.indexOf(sourceId);
+      const to = priorityIds.indexOf(id);
+      if (from < 0 || to < 0 || from === to) return;
+      priorityIds.splice(from, 1);
+      priorityIds.splice(to, 0, sourceId);
+      invalidateTemplateCandidate();
+    });
+    const text = document.createElement('span');
+    text.textContent = `${index + 1}순위 · ${label}`;
+    const weight = document.createElement('small');
+    weight.textContent = `자동 가중치 ${PRIORITY_WEIGHTS[index]}`;
+    const controls = document.createElement('span');
+    controls.className = 'priority-controls';
+    for (const [direction, arrow, action] of [
+      [-1, '↑', '올리기'],
+      [1, '↓', '내리기'],
+    ]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = arrow;
+      button.setAttribute('aria-label', `${label} 우선순위 ${action}`);
+      button.disabled = index + direction < 0 || index + direction >= count;
+      button.onclick = () => {
+        const next = index + direction;
+        [priorityIds[index], priorityIds[next]] = [priorityIds[next], priorityIds[index]];
+        invalidateTemplateCandidate();
+        const moved = list.children[next].querySelectorAll('button');
+        (moved[direction < 0 && next === 0 ? 1 : 0] || moved[0]).focus();
+      };
+      controls.append(button);
+    }
+    row.append(text, weight, controls);
+    list.append(row);
+  });
+  $('generate').disabled = generating || count === 0;
+}
+function invalidateTemplateCandidate() {
+  generation++;
+  generating = false;
+  $('cancel-ai').disabled = true;
+  candidate = null;
+  $('candidate').hidden = true;
+  refreshTemplates();
+}
+function clearTemplates() {
+  priorityIds.length = 0;
+  for (const { checkbox } of templateControls.values()) checkbox.checked = false;
+  invalidateTemplateCandidate();
+}
+for (const template of STRATEGY_TEMPLATES) {
+  const option = document.createElement('div');
+  option.className = 'template-option';
+  const pick = document.createElement('label');
+  pick.className = 'template-pick';
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.value = template.id;
+  checkbox.name = 'strategy-template';
+  const name = document.createElement('strong');
+  name.textContent = template.label;
+  pick.title = template.description;
+  pick.append(checkbox, name);
+  const rank = document.createElement('span');
+  rank.className = 'template-rank';
+  option.append(pick, rank);
+  $('template-options').append(option);
+  templateControls.set(template.id, { option, checkbox, rank });
+  checkbox.addEventListener('change', () => {
+    if (checkbox.checked) priorityIds.push(template.id);
+    else priorityIds.splice(priorityIds.indexOf(template.id), 1);
+    invalidateTemplateCandidate();
+  });
+}
+refreshTemplates();
 function validationStatus(state, message) {
   $('validation-status').hidden = false;
   $('validation-status').dataset.state = state;
@@ -75,6 +195,7 @@ const run = (operation) => async () => {
   }
 };
 function showPanel(panel) {
+  if (panel !== 'writing') setCodeMaximized(false);
   document.body.dataset.panel = panel;
   if (panel === 'writing') editor.refresh();
 }
@@ -99,17 +220,116 @@ $('load-panel').addEventListener('close', () => {
 $('library').onchange = () => {
   $('load-error').hidden = true;
 };
+const aiLayout = document.querySelector('.editing-layout');
+const aiGripper = $('resize-ai');
+const aiWidthStorageKey = 'coinhunter.aiSidebarWidth';
+let preferredAiWidth = 376;
+try {
+  const stored = Number(localStorage.getItem(aiWidthStorageKey));
+  if (stored >= 300 && stored <= 720) preferredAiWidth = stored;
+} catch {
+  // Resizing still works when storage is unavailable.
+}
+function aiWidthBounds() {
+  const max = Math.max(240, Math.min(720, aiLayout.clientWidth - 12 - 340));
+  return { min: Math.min(300, max), max };
+}
+let editorRefreshQueued = false;
+function queueEditorRefresh() {
+  if (editorRefreshQueued) return;
+  editorRefreshQueued = true;
+  requestAnimationFrame(() => {
+    editorRefreshQueued = false;
+    editor.refresh();
+  });
+}
+function applyAiWidth() {
+  if (!aiLayout.clientWidth) return;
+  const { min, max } = aiWidthBounds();
+  const width = Math.round(Math.max(min, Math.min(max, preferredAiWidth)));
+  aiLayout.style.setProperty('--ai-sidebar-width', `${width}px`);
+  aiGripper.setAttribute('aria-valuemin', String(Math.round(min)));
+  aiGripper.setAttribute('aria-valuemax', String(Math.round(max)));
+  aiGripper.setAttribute('aria-valuenow', String(width));
+  aiGripper.setAttribute('aria-valuetext', `${width}픽셀`);
+  queueEditorRefresh();
+}
+function rememberAiWidth() {
+  preferredAiWidth = Number(aiGripper.getAttribute('aria-valuenow'));
+  try {
+    localStorage.setItem(aiWidthStorageKey, String(Math.round(preferredAiWidth)));
+  } catch {
+    // Keep the selected width for this page.
+  }
+}
+let resizePointer = null;
+aiGripper.addEventListener('pointerdown', (event) => {
+  if (event.button !== 0 || matchMedia('(max-width: 760px)').matches || $('ai-panel').hidden)
+    return;
+  event.preventDefault();
+  resizePointer = {
+    id: event.pointerId,
+    x: event.clientX,
+    width: $('ai-panel').parentElement.getBoundingClientRect().width,
+  };
+  aiGripper.setPointerCapture(event.pointerId);
+  aiLayout.classList.add('resizing');
+});
+aiGripper.addEventListener('pointermove', (event) => {
+  if (resizePointer?.id !== event.pointerId) return;
+  preferredAiWidth = resizePointer.width + resizePointer.x - event.clientX;
+  applyAiWidth();
+});
+function finishAiResize(event) {
+  if (resizePointer?.id !== event.pointerId) return;
+  resizePointer = null;
+  aiLayout.classList.remove('resizing');
+  rememberAiWidth();
+}
+aiGripper.addEventListener('pointerup', finishAiResize);
+aiGripper.addEventListener('pointercancel', finishAiResize);
+aiGripper.addEventListener('keydown', (event) => {
+  if (matchMedia('(max-width: 760px)').matches) return;
+  const { min, max } = aiWidthBounds();
+  const current = Number(aiGripper.getAttribute('aria-valuenow'));
+  if (event.key === 'ArrowLeft') preferredAiWidth = current + 20;
+  else if (event.key === 'ArrowRight') preferredAiWidth = current - 20;
+  else if (event.key === 'Home') preferredAiWidth = min;
+  else if (event.key === 'End') preferredAiWidth = max;
+  else return;
+  event.preventDefault();
+  applyAiWidth();
+  rememberAiWidth();
+});
 function setAiOpen(open) {
   $('ai-panel').hidden = !open;
-  document.querySelector('.editing-layout').classList.toggle('ai-open', open);
+  aiLayout.classList.toggle('ai-open', open);
   $('toggle-ai').setAttribute('aria-expanded', String(open));
   const label = `AI 스크립팅 사이드바 ${open ? '접기' : '펼치기'}`;
   $('toggle-ai').setAttribute('aria-label', label);
   $('toggle-ai').dataset.tooltip = label;
   $('ai-arrow').textContent = open ? '›' : '‹';
+  if (open) applyAiWidth();
   editor.refresh();
 }
 $('toggle-ai').onclick = () => setAiOpen($('ai-panel').hidden);
+function setCodeMaximized(maximized) {
+  document.body.classList.toggle('code-maximized', maximized);
+  const button = $('maximize-code');
+  const label = maximized ? '코드 영역 원래 크기로' : '코드 영역 최대화';
+  button.setAttribute('aria-pressed', String(maximized));
+  button.setAttribute('aria-label', label);
+  button.dataset.tooltip = label;
+  button.querySelector('use').setAttribute('href', maximized ? '#icon-collapse' : '#icon-expand');
+  queueEditorRefresh();
+}
+$('maximize-code').onclick = () =>
+  setCodeMaximized(!document.body.classList.contains('code-maximized'));
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || !document.body.classList.contains('code-maximized')) return;
+  if (document.querySelector('dialog[open]')) return;
+  setCodeMaximized(false);
+});
 function replaceCode(text) {
   editor.replace(text);
   refreshState();
@@ -269,9 +489,7 @@ $('find').onclick = () => {
 $('save').onclick = () => requestSave();
 $('new').onclick = run(async () => {
   if (saving || !(await mayDiscard())) return;
-  generation++;
-  $('generate').disabled = false;
-  $('cancel-ai').disabled = true;
+  clearTemplates();
   $('prompt').value = '';
   $('search').value = '';
   reset({ source: emptyAlgorithm });
@@ -368,15 +586,18 @@ $('validate').onclick = run(async () => {
   notice('실행 전 검사를 통과했습니다. 실제 전략과 장시간 동작은 테스트 플레이에서 확인하세요.');
 });
 $('generate').onclick = run(async () => {
+  const priorities = [...priorityIds];
+  if (!priorities.length) return;
   const token = ++generation,
     baseline = contents();
-  $('generate').disabled = true;
+  generating = true;
+  refreshTemplates();
   $('cancel-ai').disabled = false;
   candidate = null;
   $('candidate').hidden = true;
   try {
     await api('/api/algorithms');
-    const source = await (await fetch('/api/example')).text();
+    const source = buildTemplateSource(priorities);
     await new Promise((resolve) => setTimeout(resolve, 600));
     if (generation !== token) return;
     await api('/api/algorithms/validate', { method: 'POST', body: JSON.stringify({ source }) });
@@ -385,17 +606,19 @@ $('generate').onclick = run(async () => {
     $('candidate-code').textContent = source;
     $('candidate').hidden = false;
     $('candidate-info').textContent =
-      '목업 결과: 가까운 코인 탐색 샘플입니다. 입력한 전략은 아직 AI에 전송되지 않습니다.';
+      `템플릿 코드: ${priorities.map((id, index) => `${index + 1}순위 ${STRATEGY_TEMPLATES.find((item) => item.id === id).label}`).join(' · ')}. 자유 입력은 아직 반영되지 않습니다.`;
   } finally {
     if (generation === token) {
-      $('generate').disabled = false;
+      generating = false;
+      refreshTemplates();
       $('cancel-ai').disabled = true;
     }
   }
 });
 $('cancel-ai').onclick = () => {
   generation++;
-  $('generate').disabled = false;
+  generating = false;
+  refreshTemplates();
   $('cancel-ai').disabled = true;
   notice('생성을 취소했습니다. 편집 코드는 유지됩니다.');
 };
@@ -407,7 +630,7 @@ $('apply').onclick = () => {
   )
     return;
   replaceCode(candidate.source);
-  notice('목업 코드를 적용했습니다. 실행 취소로 되돌릴 수 있습니다.');
+  notice('템플릿 코드를 적용했습니다. 실행 취소로 되돌릴 수 있습니다.');
 };
 async function prepareTest() {
   if (testing) throw new Error('진행 중인 경기를 종료한 뒤 다시 테스트하세요.');
@@ -507,8 +730,10 @@ try {
       await users();
     }
     $('workbench').hidden = false;
+    applyAiWidth();
+    new ResizeObserver(applyAiWidth).observe(aiLayout);
     notice(
-      '로컬 작업실 · 로그인은 목업이며 AI는 샘플 응답입니다. 저장 및 테스트 플레이는 실제로 동작합니다.',
+      '로컬 작업실 · 로그인은 목업이며 AI 자유 입력은 아직 연결되지 않았습니다. 템플릿 코드 생성, 저장, 테스트 플레이는 실제로 동작합니다.',
     );
   }
 } catch (error) {
