@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { stat, unlink } from 'node:fs/promises';
+import { pipeline } from 'node:stream/promises';
 import { createAccountRepository } from './persistence/account-repository.js';
 import { fail } from './persistence/errors.js';
 import { validateAlgorithm } from './runtime/preflight.js';
@@ -34,7 +37,7 @@ export function createAuthoring({
     accounts,
     current,
     requireUser,
-    async route(request, response, url, user, readJson, json, revoke) {
+    async route(request, response, url, user, readJson, json, revoke, readSourceFile) {
       const path = url.pathname;
       if (path === '/api/session' && request.method === 'GET') {
         json(response, 200, { user, mock, identities: mock ? identities : [] });
@@ -93,9 +96,13 @@ export function createAuthoring({
       if (path.startsWith('/api/algorithms')) {
         requireUser(user);
         if (path === '/api/algorithms/validate' && request.method === 'POST') {
-          const { source } = await readJson(request);
+          const raw = request.headers['content-type']?.split(';')[0] === 'text/plain';
+          const sourcePath = raw ? await readSourceFile(request) : null;
           try {
-            const result = await validateAlgorithm(source, user.id);
+            const source = sourcePath
+              ? undefined
+              : (await readJson(request, 2 * 1024 * 1024)).source;
+            const result = await validateAlgorithm(source, user.id, sourcePath);
             json(response, result.ok ? 200 : 400, result);
           } catch (error) {
             json(response, error.status || 400, {
@@ -105,6 +112,8 @@ export function createAuthoring({
                 : null,
             });
             return true;
+          } finally {
+            if (sourcePath) await unlink(sourcePath).catch(() => {});
           }
           return true;
         }
@@ -114,17 +123,68 @@ export function createAuthoring({
             return true;
           }
           if (request.method === 'POST') {
-            json(response, 201, await accounts.save(user.id, null, await readJson(request)));
+            const raw = request.headers['content-type']?.split(';')[0] === 'text/plain';
+            const sourcePath = raw ? await readSourceFile(request) : null;
+            try {
+              json(
+                response,
+                201,
+                await accounts.save(
+                  user.id,
+                  null,
+                  sourcePath
+                    ? { name: url.searchParams.get('name') }
+                    : await readJson(request, 2 * 1024 * 1024),
+                  sourcePath,
+                ),
+              );
+            } finally {
+              if (sourcePath) await unlink(sourcePath).catch(() => {});
+            }
             return true;
           }
         }
+        const sourceId = path.match(/^\/api\/algorithms\/([a-f0-9-]+)\/source$/)?.[1];
+        if (sourceId && request.method === 'GET') {
+          const sourcePath = await accounts.sourcePath(user.id, sourceId);
+          response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+          await pipeline(createReadStream(sourcePath), response);
+          return true;
+        }
         const id = path.match(/^\/api\/algorithms\/([a-f0-9-]+)$/)?.[1];
         if (id && request.method === 'GET') {
-          json(response, 200, await accounts.get(user.id, id));
+          if (url.searchParams.get('metadata') === '1')
+            json(response, 200, await accounts.metadata(user.id, id));
+          else {
+            const sourcePath = await accounts.sourcePath(user.id, id);
+            if ((await stat(sourcePath)).size > 2 * 1024 * 1024)
+              throw fail(413, '큰 코드는 코드 파일 다운로드 경로를 사용하세요.');
+            json(response, 200, await accounts.get(user.id, id));
+          }
           return true;
         }
         if (id && request.method === 'PUT') {
-          json(response, 200, await accounts.save(user.id, id, await readJson(request)));
+          const raw = request.headers['content-type']?.split(';')[0] === 'text/plain';
+          const sourcePath = raw ? await readSourceFile(request) : null;
+          try {
+            json(
+              response,
+              200,
+              await accounts.save(
+                user.id,
+                id,
+                sourcePath
+                  ? {
+                      name: url.searchParams.get('name'),
+                      revision: Number(url.searchParams.get('revision')),
+                    }
+                  : await readJson(request, 2 * 1024 * 1024),
+                sourcePath,
+              ),
+            );
+          } finally {
+            if (sourcePath) await unlink(sourcePath).catch(() => {});
+          }
           return true;
         }
       }

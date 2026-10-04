@@ -298,18 +298,20 @@ $('setup-form').addEventListener('submit', async (event) => {
     if (!testMode) await new Promise((resolve) => setTimeout(resolve, 1000));
     const response = await fetch('/api/matches', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        source,
-        characterId: selectedCharacter,
-        startSlot: selectedStartSlot,
-        mapId: $('map-select').value,
-        mode: !testMode && isDuel() ? 'duel' : 'practice',
-        opponentHistoryId: !testMode && isDuel() ? historyId : undefined,
-        dummyCount: testMode || isDuel() ? 0 : Number($('dummy-count').value),
-        blackMatter: !testMode && $('black-matter').checked,
-        destroyWalls: !testMode && $('destroy-walls').checked,
-      }),
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-Coinhunter-Options': JSON.stringify({
+          characterId: selectedCharacter,
+          startSlot: selectedStartSlot,
+          mapId: $('map-select').value,
+          mode: !testMode && isDuel() ? 'duel' : 'practice',
+          opponentHistoryId: !testMode && isDuel() ? historyId : undefined,
+          dummyCount: testMode || isDuel() ? 0 : Number($('dummy-count').value),
+          blackMatter: !testMode && $('black-matter').checked,
+          destroyWalls: !testMode && $('destroy-walls').checked,
+        }),
+      },
+      body: source,
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);

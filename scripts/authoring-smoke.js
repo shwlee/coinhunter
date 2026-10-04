@@ -197,6 +197,7 @@ try {
   );
   await page.click('#save');
   await page.locator('#save-dialog').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#save-options').isVisible(), false);
   assert.equal(await page.locator('#overwrite-option').isVisible(), false);
   assert.match(await page.locator('#save-source').textContent(), /새 문서/);
   await page.click('#cancel-save');
@@ -462,6 +463,7 @@ try {
     '내 PC 파일에서 가져옴 · local-test.js',
   );
   await page.click('#save');
+  assert.equal(await page.locator('#save-options').isVisible(), false);
   assert.equal(await page.locator('#overwrite-option').isVisible(), false);
   await page.click('#cancel-save');
   await page.click('#load-mode');
@@ -475,6 +477,7 @@ try {
   );
   assert.equal(await page.locator('#code').inputValue(), original + '\n// edit');
   await page.click('#save');
+  assert.equal(await page.locator('#save-options').isVisible(), true);
   assert.equal(await page.locator('#overwrite-option').isVisible(), true);
   assert.match(
     await page.locator('#save-source').textContent(),
@@ -569,7 +572,7 @@ try {
   );
   const response = await created;
   assert.equal(response.status(), 201);
-  const input = response.request().postDataJSON();
+  const input = JSON.parse(response.request().headers()['x-coinhunter-options']);
   assert.equal(input.startSlot, 3);
   assert.equal(input.dummyCount, 0);
   assert.equal(input.mode, 'practice');

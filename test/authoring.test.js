@@ -29,9 +29,13 @@ test('local accounts persist, isolate code, reject conflicts and revoke disabled
     'updateUser',
     'list',
     'get',
+    'metadata',
+    'sourcePath',
+    'snapshotSource',
     'save',
     'history',
     'historyEntry',
+    'historySourcePath',
     'recordMatch',
   ])
     accounts[method] = fileAccounts[method].bind(fileAccounts);

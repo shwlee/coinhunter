@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateAlgorithm } from '../src/runtime/preflight.js';
+import { validateSource } from '../src/runtime/policy.js';
 
 const source = (move = 'return -1;', initialize = 'this.turn = 0;', name = "return '테스트';") =>
   `module.exports = class Player {
@@ -9,6 +10,13 @@ const source = (move = 'return -1;', initialize = 'this.turn = 0;', name = "retu
     moveNext(map, position, items) { ${move} }
   };`;
 const check = (code) => validateAlgorithm(code, 'preflight-test');
+
+test('source inspection and preflight handle large lists without argument overflow', async () => {
+  const longSource = ';'.repeat(130000) + source();
+  assert.doesNotThrow(() => validateSource(longSource));
+  assert.throws(() => validateSource(longSource + 'async function forbidden() {}'), /비동기/);
+  assert.equal((await check(longSource)).ok, true);
+});
 
 test('preflight executes persistent player instances, permits declared Korean identifiers and -1', async () => {
   const result = await check(

@@ -3,7 +3,7 @@ import { fork } from 'node:child_process';
 const active = new Set();
 
 // This is a disposable validation session, never a running match's player process.
-export async function validateAlgorithm(source, owner) {
+export async function validateAlgorithm(source, owner, sourcePath = null) {
   if (active.has(owner) || active.size >= 2) {
     throw Object.assign(new Error('코드 검사가 진행 중입니다. 잠시 후 다시 검사하세요.'), {
       status: 429,
@@ -35,7 +35,7 @@ export async function validateAlgorithm(source, owner) {
         else if (!result) reject(new Error('코드 검사 프로세스가 비정상 종료되었습니다.'));
         else resolve(result);
       });
-      worker.send({ source }, (error) => {
+      worker.send(sourcePath ? { sourcePath } : { source }, (error) => {
         if (error) {
           failure = error;
           worker.kill();

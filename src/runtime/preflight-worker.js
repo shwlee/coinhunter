@@ -83,10 +83,10 @@ async function inspect(source) {
   return { ok: true, calls };
 }
 
-process.once('message', async ({ source }) => {
+process.once('message', async ({ source, sourcePath }) => {
   let result;
   try {
-    result = await inspect(source);
+    result = await inspect(sourcePath ? await readFile(sourcePath, 'utf8') : source);
   } catch (error) {
     result = {
       error: String(error.message).slice(0, 500),

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 const validKey = /^[a-f0-9-]{36}$/;
@@ -18,6 +18,17 @@ export class FileSourceStore {
     await mkdir(this.directory, { recursive: true });
     await writeFile(this.path(key), source, { encoding: 'utf8', flag: 'wx' });
     return key;
+  }
+  async putFile(file) {
+    const key = randomUUID();
+    await mkdir(this.directory, { recursive: true });
+    try {
+      await copyFile(file, this.path(key));
+      return key;
+    } catch (error) {
+      await unlink(this.path(key)).catch(() => {});
+      throw error;
+    }
   }
   get(key) {
     return readFile(this.path(key), 'utf8');

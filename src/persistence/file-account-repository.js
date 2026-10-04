@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fail } from './errors.js';
 import { FileSourceStore } from './file-source-store.js';
@@ -111,6 +111,29 @@ export class FileAccountRepository {
       return { ...metadata, source: await this.sources.get(sourceKey) };
     });
   }
+  metadata(ownerId, id) {
+    return this.inspect((data) => {
+      const item = data.algorithms.find((a) => a.ownerId === ownerId && a.id === id);
+      if (!item) throw fail(404, '알고리즘을 찾을 수 없습니다.');
+      const { sourceKey, ...metadata } = item;
+      return metadata;
+    });
+  }
+  sourcePath(ownerId, id) {
+    return this.inspect((data) => {
+      const item = data.algorithms.find((a) => a.ownerId === ownerId && a.id === id);
+      if (!item) throw fail(404, '알고리즘을 찾을 수 없습니다.');
+      return this.sources.path(item.sourceKey);
+    });
+  }
+  snapshotSource(ownerId, id, destination) {
+    return this.inspect(async (data) => {
+      const item = data.algorithms.find((a) => a.ownerId === ownerId && a.id === id);
+      if (!item) throw fail(404, '알고리즘을 찾을 수 없습니다.');
+      await copyFile(this.sources.path(item.sourceKey), destination);
+      return destination;
+    });
+  }
   history(ownerId) {
     return this.inspect((data) =>
       (data.history || [])
@@ -127,14 +150,24 @@ export class FileAccountRepository {
       return { ...metadata, source: await this.sources.get(sourceKey) };
     });
   }
+  historySourcePath(ownerId, id) {
+    return this.inspect((data) => {
+      const entry = (data.history || []).find((item) => item.ownerId === ownerId && item.id === id);
+      if (!entry) throw fail(404, '경기 기록을 찾을 수 없습니다.');
+      return this.sources.path(entry.sourceKey);
+    });
+  }
   async recordMatch(ownerId, entry) {
-    if (typeof entry.source !== 'string') throw fail(400, '알고리즘 코드가 필요합니다.');
+    if (typeof entry.source !== 'string' && typeof entry.sourcePath !== 'string')
+      throw fail(400, '알고리즘 코드가 필요합니다.');
     let staged;
     try {
       return await this.change(async (data) => {
-        staged = await this.sources.put(entry.source);
+        staged = entry.sourcePath
+          ? await this.sources.putFile(entry.sourcePath)
+          : await this.sources.put(entry.source);
         data.history ||= [];
-        const { source, ...metadata } = entry;
+        const { source, sourcePath, ...metadata } = entry;
         const record = {
           id: randomUUID(),
           ownerId,
@@ -150,12 +183,12 @@ export class FileAccountRepository {
       throw error;
     }
   }
-  async save(ownerId, id, input) {
+  async save(ownerId, id, input, sourcePath = null) {
     if (
       typeof input.name !== 'string' ||
       !input.name.trim() ||
       input.name.trim().length > 80 ||
-      typeof input.source !== 'string'
+      (typeof input.source !== 'string' && typeof sourcePath !== 'string')
     )
       throw fail(400, '이름은 1~80자, 코드는 문자열로 입력하세요.');
     let staged;
@@ -179,7 +212,9 @@ export class FileAccountRepository {
           };
           data.algorithms.push(item);
         }
-        staged = await this.sources.put(input.source);
+        staged = sourcePath
+          ? await this.sources.putFile(sourcePath)
+          : await this.sources.put(input.source);
         Object.assign(item, {
           name: input.name.trim(),
           sourceKey: staged,
@@ -187,7 +222,7 @@ export class FileAccountRepository {
           updatedAt: new Date().toISOString(),
         });
         const { sourceKey, ...metadata } = item;
-        return { ...metadata, source: input.source };
+        return { ...metadata, ...(sourcePath ? {} : { source: input.source }) };
       });
       if (previous) await this.sources.delete(previous).catch(() => {});
       return result;

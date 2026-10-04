@@ -379,19 +379,20 @@ async function save(copy, name) {
   saving = true;
   $('confirm-save').disabled = $('cancel-save').disabled = true;
   try {
-    const item = await api(
-      documentId && !copy ? `/api/algorithms/${documentId}` : '/api/algorithms',
-      {
-        method: documentId && !copy ? 'PUT' : 'POST',
-        body: JSON.stringify({ name, source, revision }),
-      },
-    );
+    const target = documentId && !copy ? `/api/algorithms/${documentId}` : '/api/algorithms';
+    const query = new URLSearchParams({ name });
+    if (documentId && !copy) query.set('revision', String(revision));
+    const item = await api(`${target}?${query}`, {
+      method: documentId && !copy ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: source,
+    });
     documentId = item.id;
     revision = item.revision;
     documentName = item.name;
     $('document-title').textContent = item.name;
     setDocumentOrigin('saved', item.name);
-    saved = JSON.stringify({ name: item.name, source: item.source });
+    saved = JSON.stringify({ name: item.name, source });
     refreshState();
     try {
       await library();
@@ -416,6 +417,7 @@ function requestSave() {
   $('overwrite-label').textContent = `원본 “${documentName}”에 덮어쓰기`;
   $('save-error').hidden = true;
   $('save-feedback').hidden = true;
+  $('save-options').hidden = !documentId;
   $('overwrite-option').hidden = !documentId;
   dialog.querySelector('input[value="overwrite"]').checked = Boolean(documentId);
   dialog.querySelector('input[value="copy"]').checked = !documentId;
@@ -435,7 +437,7 @@ $('save-form').onsubmit = async (event) => {
     return;
   }
   try {
-    const copy = $('save-form').elements['save-kind'].value === 'copy';
+    const copy = !documentId || $('save-form').elements['save-kind'].value === 'copy';
     if (await save(copy, name)) {
       saveOutcome = true;
       $('save-dialog').close();
@@ -504,7 +506,11 @@ $('open').onclick = async () => {
   }
   try {
     if (!(await mayDiscard())) return;
-    reset(await api(`/api/algorithms/${$('library').value}`));
+    const id = $('library').value;
+    const metadata = await api(`/api/algorithms/${id}?metadata=1`);
+    const response = await fetch(`/api/algorithms/${id}/source`);
+    if (!response.ok) throw new Error('저장된 코드를 불러오지 못했습니다.');
+    reset({ ...metadata, source: await response.text() });
     $('load-panel').close();
     showPanel('writing');
     notice('저장 코드를 열었습니다.');
@@ -550,7 +556,8 @@ async function validateEditorSource() {
     editor.clearError();
     await api('/api/algorithms/validate', {
       method: 'POST',
-      body: JSON.stringify({ source }),
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: source,
     });
     if (requestId !== validationRequestId || source !== $('code').value)
       throw new Error('검사 중 코드가 변경되었습니다. 다시 검사하세요.');
@@ -600,7 +607,11 @@ $('generate').onclick = run(async () => {
     const source = buildTemplateSource(priorities);
     await new Promise((resolve) => setTimeout(resolve, 600));
     if (generation !== token) return;
-    await api('/api/algorithms/validate', { method: 'POST', body: JSON.stringify({ source }) });
+    await api('/api/algorithms/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: source,
+    });
     if (generation !== token) return;
     candidate = { source, baseline };
     $('candidate-code').textContent = source;

@@ -25,8 +25,9 @@ export function validateSource(source) {
       throw new Error('비동기·generator·import·static 코드는 사용할 수 없습니다.');
     }
     for (const value of Object.values(node)) {
-      if (Array.isArray(value)) stack.push(...value);
-      else if (value && typeof value === 'object') stack.push(value);
+      if (Array.isArray(value)) {
+        for (const child of value) stack.push(child);
+      } else if (value && typeof value === 'object') stack.push(value);
     }
   }
   return tree;

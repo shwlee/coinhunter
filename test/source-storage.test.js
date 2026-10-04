@@ -21,6 +21,8 @@ test('source files stay separate from account and match metadata', async (t) => 
   assert.equal(await readFile(join(dir, 'sources', `${firstKey}.js`), 'utf8'), source);
   assert.equal((await repository.list(user.id))[0].sourceKey, undefined);
   assert.equal((await repository.get(user.id, first.id)).source, source);
+  const snapshot = join(dir, 'match-snapshot.js');
+  await repository.snapshotSource(user.id, first.id, snapshot);
 
   const updated = await repository.save(user.id, first.id, {
     name: 'updated',
@@ -31,6 +33,7 @@ test('source files stay separate from account and match metadata', async (t) => 
   assert.notEqual(metadata.algorithms[0].sourceKey, firstKey);
   await assert.rejects(readFile(join(dir, 'sources', `${firstKey}.js`)), { code: 'ENOENT' });
   assert.equal((await repository.get(user.id, updated.id)).source, updated.source);
+  assert.equal(await readFile(snapshot, 'utf8'), source);
 
   await repository.recordMatch(user.id, { score: 5, source });
   metadata = JSON.parse(await readFile(file, 'utf8'));
@@ -41,6 +44,9 @@ test('source files stay separate from account and match metadata', async (t) => 
   assert.equal((await reopened.get(user.id, first.id)).source, updated.source);
   const other = await reopened.login('tester@company.test');
   await assert.rejects(reopened.get(other.id, first.id), { status: 404 });
+  await assert.rejects(reopened.snapshotSource(other.id, first.id, join(dir, 'forbidden.js')), {
+    status: 404,
+  });
   await assert.rejects(reopened.historyEntry(other.id, metadata.history[0].id), { status: 404 });
 });
 

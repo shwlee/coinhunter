@@ -1,4 +1,5 @@
 import { AlgorithmSandbox } from './sandbox.js';
+import { readFile } from 'node:fs/promises';
 
 let sandbox;
 let initialized = false;
@@ -9,7 +10,7 @@ process.on('message', async (message) => {
       if (initialized) throw new Error('이미 초기화된 프로세스입니다.');
       initialized = true;
       sandbox = await AlgorithmSandbox.create(
-        payload.source,
+        payload.sourcePath ? await readFile(payload.sourcePath, 'utf8') : payload.source,
         payload.number,
         payload.columns,
         payload.rows,

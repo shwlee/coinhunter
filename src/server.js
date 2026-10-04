@@ -1,8 +1,11 @@
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import { mkdir, readFile, statfs, unlink } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import { pipeline } from 'node:stream/promises';
+import { Transform } from 'node:stream';
 import { mapRepository } from './game/map-repository.js';
 import { Match } from './game/match.js';
 import { DEFAULT_CHARACTER, isPlayableCharacter } from '../public/characters.js';
@@ -58,11 +61,23 @@ for (const file of [
     file.endsWith('.json') ? 'application/json' : 'image/png',
   ]);
 
-async function readJson(request) {
+const SMALL_JSON_BYTES = 64 * 1024;
+const LEGACY_SOURCE_JSON_BYTES = 2 * 1024 * 1024;
+const isSourceUpload = (request) => request.headers['content-type']?.split(';')[0] === 'text/plain';
+
+async function readJson(request, limit = SMALL_JSON_BYTES) {
   if (!request.headers['content-type']?.startsWith('application/json'))
     throw Object.assign(new Error('JSON 요청이 필요합니다.'), { status: 415 });
+  if (Number(request.headers['content-length']) > limit)
+    throw Object.assign(new Error('JSON 요청 크기가 허용 범위를 넘었습니다.'), { status: 413 });
   const chunks = [];
-  for await (const chunk of request) chunks.push(chunk);
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > limit)
+      throw Object.assign(new Error('JSON 요청 크기가 허용 범위를 넘었습니다.'), { status: 413 });
+    chunks.push(chunk);
+  }
   try {
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
   } catch {
@@ -70,10 +85,71 @@ async function readJson(request) {
   }
 }
 
-export function createGameServer({ maps = mapRepository, authoring = createAuthoring() } = {}) {
+export function createGameServer({
+  maps = mapRepository,
+  authoring = createAuthoring(),
+  uploadDirectory = resolve(process.env.SOURCE_UPLOAD_DIR || 'data/uploads'),
+} = {}) {
   const matches = new Map();
   const streams = new Set();
   let closing = false;
+  let activeUploads = 0;
+  async function snapshotStoredSource(ownerId, algorithmId) {
+    const directory = resolve(uploadDirectory);
+    const path = resolve(directory, `${randomUUID()}.js`);
+    try {
+      await mkdir(directory, { recursive: true });
+      return await authoring.accounts.snapshotSource(ownerId, algorithmId, path);
+    } catch (error) {
+      await unlink(path).catch(() => {});
+      throw error;
+    }
+  }
+  async function readSourceFile(request) {
+    if (!isSourceUpload(request))
+      throw Object.assign(new Error('JavaScript 코드 요청이 필요합니다.'), { status: 415 });
+    if (activeUploads >= 4)
+      throw Object.assign(new Error('동시 코드 업로드 한도에 도달했습니다.'), { status: 429 });
+    activeUploads++;
+    const directory = resolve(uploadDirectory);
+    const path = resolve(directory, `${randomUUID()}.js`);
+    try {
+      await mkdir(directory, { recursive: true });
+      const filesystem = await statfs(directory);
+      const reserve = Math.min(
+        512 * 1024 * 1024,
+        Math.max(64 * 1024 * 1024, Math.floor((filesystem.bavail * filesystem.bsize) / 10)),
+      );
+      const safety = 32 * 1024 * 1024;
+      if (filesystem.bavail * filesystem.bsize < reserve + safety)
+        throw Object.assign(new Error('코드 저장 공간이 부족합니다.'), { status: 507 });
+      let bytesSinceCheck = 0;
+      const diskGuard = new Transform({
+        transform(chunk, encoding, callback) {
+          bytesSinceCheck += chunk.length;
+          if (bytesSinceCheck < 8 * 1024 * 1024) {
+            callback(null, chunk);
+            return;
+          }
+          bytesSinceCheck = 0;
+          statfs(directory).then((current) => {
+            if (current.bavail * current.bsize < reserve + safety)
+              callback(Object.assign(new Error('코드 저장 공간이 부족합니다.'), { status: 507 }));
+            else callback(null, chunk);
+          }, callback);
+        },
+      });
+      await pipeline(request, diskGuard, createWriteStream(path, { flags: 'wx' }));
+      return path;
+    } catch (error) {
+      await unlink(path).catch(() => {});
+      if (error.code === 'ENOSPC')
+        throw Object.assign(new Error('코드 저장 공간이 부족합니다.'), { status: 507 });
+      throw error;
+    } finally {
+      activeUploads--;
+    }
+  }
   const json = (response, status, data) => {
     response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
     response.end(JSON.stringify(data));
@@ -129,7 +205,10 @@ export function createGameServer({ maps = mapRepository, authoring = createAutho
           if (record.archivePromise) await record.archivePromise;
         }
       }
-      if (await authoring.route(request, response, url, user, readJson, json, revoke)) return;
+      if (
+        await authoring.route(request, response, url, user, readJson, json, revoke, readSourceFile)
+      )
+        return;
       if (request.method === 'GET' && url.pathname === '/' && !user) {
         response.writeHead(302, { Location: '/signin' });
         response.end();
@@ -173,25 +252,43 @@ export function createGameServer({ maps = mapRepository, authoring = createAutho
           json(response, 503, { error: '서버 종료 중입니다.' });
           return;
         }
-        const input = await readJson(request);
-        for (const [idKey, sourceKey] of [['algorithmId', 'source']]) {
-          if (input[idKey] !== undefined) {
-            authoring.requireUser(user);
-            if (input[sourceKey] !== undefined)
-              throw new Error('파일과 저장 알고리즘 중 하나만 선택하세요.');
-            input[sourceKey] = (await authoring.accounts.get(user.id, input[idKey])).source;
+        const raw = isSourceUpload(request);
+        let input;
+        if (raw) {
+          const options = request.headers['x-coinhunter-options'];
+          if (typeof options !== 'string' || options.length > 4096)
+            throw Object.assign(new Error('경기 설정을 확인하세요.'), { status: 400 });
+          try {
+            input = JSON.parse(options);
+          } catch {
+            throw Object.assign(new Error('경기 설정을 확인하세요.'), { status: 400 });
           }
+          if (
+            !input ||
+            typeof input !== 'object' ||
+            Array.isArray(input) ||
+            input.algorithmId !== undefined ||
+            input.source !== undefined
+          )
+            throw Object.assign(new Error('경기 설정을 확인하세요.'), { status: 400 });
+        } else input = await readJson(request, LEGACY_SOURCE_JSON_BYTES);
+        if (input.algorithmId !== undefined) {
+          authoring.requireUser(user);
+          if (input.source !== undefined)
+            throw new Error('파일과 저장 알고리즘 중 하나만 선택하세요.');
         }
         const mode = input.mode ?? 'practice';
+        let opponentSourcePath = null;
         if (mode === 'duel') {
           authoring.requireUser(user);
           if (input.opponentSource !== undefined || input.opponentAlgorithmId !== undefined)
             throw new Error('이전 경기 기록을 선택하세요.');
           if (typeof input.opponentHistoryId !== 'string')
             throw new Error('이전 경기 기록을 선택하세요.');
-          input.opponentSource = (
-            await authoring.accounts.historyEntry(user.id, input.opponentHistoryId)
-          ).source;
+          opponentSourcePath = await authoring.accounts.historySourcePath(
+            user.id,
+            input.opponentHistoryId,
+          );
         }
         if (
           !['practice', 'duel'].includes(mode) ||
@@ -226,8 +323,7 @@ export function createGameServer({ maps = mapRepository, authoring = createAutho
           json(response, 400, { error: '맵과 더미·기믹 설정을 확인하세요.' });
           return;
         }
-        validateSource(input.source);
-        if (mode === 'duel') validateSource(input.opponentSource);
+        if (!raw && input.algorithmId === undefined) validateSource(input.source);
         const active = [...matches.values()].filter(
           (record) => record.initializing || !record.match.stopping,
         );
@@ -239,12 +335,19 @@ export function createGameServer({ maps = mapRepository, authoring = createAutho
           json(response, 429, { error: '동시 경기 한도에 도달했습니다.' });
           return;
         }
+        const uploadPath = raw ? await readSourceFile(request) : null;
+        const snapshotPath =
+          input.algorithmId !== undefined
+            ? await snapshotStoredSource(user.id, input.algorithmId)
+            : null;
+        const sourcePath = uploadPath || snapshotPath;
+        const primarySource = sourcePath ? { path: sourcePath } : input.source;
         const id = randomUUID();
         const match = new Match(
           map,
           mode === 'duel'
-            ? [input.source, input.opponentSource]
-            : [input.source, ...Array(input.dummyCount).fill(sampleSource)],
+            ? [primarySource, { path: opponentSourcePath }]
+            : [primarySource, ...Array(input.dummyCount).fill(sampleSource)],
           {
             mode,
             blackMatter: input.blackMatter,
@@ -279,17 +382,21 @@ export function createGameServer({ maps = mapRepository, authoring = createAutho
                 score: player.score,
                 reason: match.state.reason,
                 mode,
-                source: input.source,
+                ...(sourcePath ? { sourcePath } : { source: input.source }),
               })
               .catch((error) => {
                 console.error('경기 기록 저장 실패:', error);
-              });
+              })
+              .finally(() => (sourcePath ? unlink(sourcePath).catch(() => {}) : undefined));
+          } else if (sourcePath) {
+            record.cleanupPromise = unlink(sourcePath).catch(() => {});
           }
         });
         try {
           await match.start();
         } catch (error) {
           matches.delete(id);
+          if (sourcePath) await unlink(sourcePath).catch(() => {});
           throw error;
         }
         record.initializing = false;
@@ -352,6 +459,7 @@ export function createGameServer({ maps = mapRepository, authoring = createAutho
         if (request.method === 'DELETE' && !route[2]) {
           await record.match.stop();
           if (record.archivePromise) await record.archivePromise;
+          if (record.cleanupPromise) await record.cleanupPromise;
           json(response, 200, { ok: true });
           return;
         }
@@ -379,6 +487,7 @@ export function createGameServer({ maps = mapRepository, authoring = createAutho
     clearInterval(prune);
     await Promise.all([...matches.values()].map((record) => record.match.stop('server-shutdown')));
     await Promise.all([...matches.values()].map((record) => record.archivePromise));
+    await Promise.all([...matches.values()].map((record) => record.cleanupPromise));
     for (const stream of streams) stream.end();
     await new Promise((resolve) => server.close(resolve));
   };

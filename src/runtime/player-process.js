@@ -45,7 +45,12 @@ export class PlayerProcess {
   async initialize(source, number, columns, rows) {
     if (this.initialized) throw new Error('이미 초기화되었습니다.');
     this.initialized = true;
-    const result = await this.request('initialize', { source, number, columns, rows });
+    const result = await this.request('initialize', {
+      ...(typeof source === 'string' ? { source } : { sourcePath: source.path }),
+      number,
+      columns,
+      rows,
+    });
     this.name = result.name;
     this.pid = result.pid;
     return result;
