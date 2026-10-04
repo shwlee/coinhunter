@@ -25,7 +25,7 @@ export async function accountBar(onChange = () => {}) {
       if (!confirm('로그아웃하면 실행 중인 테스트가 종료됩니다. 계속할까요?')) return;
       try {
         await api('/api/auth/logout', { method: 'POST', body: '{}' });
-        location.assign('/');
+        location.assign('/signin');
       } catch (error) {
         alert(error.message);
       }

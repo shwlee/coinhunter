@@ -15,7 +15,7 @@ const emptyAlgorithm = `module.exports = class Player {
 let documentId = null,
   revision = null,
   documentName = '새 알고리즘',
-  documentOrigin = '시작 샘플 · 아직 저장하지 않음',
+  documentOrigin = '새 문서 · 아직 저장하지 않음',
   saved = '',
   saving = false,
   candidate = null,
@@ -57,9 +57,7 @@ function setDocumentOrigin(kind, detail = '') {
         ? `내 PC 파일에서 가져옴 · ${detail}`
         : kind === 'saved'
           ? `내 계정에 저장됨 · ${detail}`
-          : kind === 'sample'
-            ? '시작 샘플 · 아직 저장하지 않음'
-            : '새 문서 · 아직 저장하지 않음';
+          : '새 문서 · 아직 저장하지 않음';
   $('document-origin').textContent = documentOrigin;
 }
 function refreshTestCodeState() {
@@ -67,7 +65,7 @@ function refreshTestCodeState() {
   $('test-code-state').hidden = !changed;
   $('test-code-state').textContent = testing
     ? '현재 편집 코드가 실행 중인 코드와 다릅니다. 변경 사항은 다음 테스트에 적용됩니다.'
-    : '현재 편집 코드가 테스트에 전달한 코드와 다릅니다. 현재 코드로 테스트를 다시 준비하세요.';
+    : '현재 편집 코드가 테스트에 전달한 코드와 다릅니다. 편집기에서 플레이 버튼을 눌러 다시 테스트하세요.';
 }
 const run = (operation) => async () => {
   try {
@@ -412,7 +410,7 @@ $('apply').onclick = () => {
   notice('목업 코드를 적용했습니다. 실행 취소로 되돌릴 수 있습니다.');
 };
 async function prepareTest() {
-  if (testing) throw new Error('게임 패널에서 진행 중 경기를 종료한 뒤 다시 준비하세요.');
+  if (testing) throw new Error('진행 중인 경기를 종료한 뒤 다시 테스트하세요.');
   const source = await validateEditorSource();
   const payload = {
     type: 'editor-prepare',
@@ -432,7 +430,6 @@ $('testing-view').onclick = run(async () => {
   if (testing) showPanel('testing');
   else await prepareTest();
 });
-$('test').onclick = run(prepareTest);
 window.addEventListener('message', (event) => {
   if (event.origin !== location.origin || event.source !== $('game').contentWindow) return;
   if (event.data.type === 'editor-state') {
@@ -440,7 +437,6 @@ window.addEventListener('message', (event) => {
     const label = testing ? '진행 중 테스트 보기' : '현재 코드로 테스트';
     $('testing-view').setAttribute('aria-label', label);
     $('testing-view').dataset.tooltip = label;
-    $('test').disabled = !testReady || testing;
     refreshTestCodeState();
   }
   if (
@@ -453,7 +449,6 @@ window.addEventListener('message', (event) => {
   }
   if (event.data.type === 'editor-ready') {
     testReady = true;
-    $('test').disabled = testing;
     if (pendingTest) {
       $('game').contentWindow.postMessage(pendingTest, location.origin);
       pendingTest = null;
@@ -505,7 +500,7 @@ try {
   if (!session.user) {
     notice('로그인 후 알고리즘을 작성할 수 있습니다. 목업 로그인은 로컬 개발 전용입니다.');
   } else {
-    reset({ source: await (await fetch('/api/example')).text() }, 'sample');
+    reset({ source: emptyAlgorithm });
     await library();
     if (session.user.role === 'admin') {
       $('admin').hidden = false;

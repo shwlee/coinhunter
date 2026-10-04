@@ -9,11 +9,7 @@ const next = ['/', '/editor', '/game'].includes(requested) ? requested : '/';
 try {
   if (document.body.dataset.page === 'home') {
     const session = await accountBar();
-    if (session.user) {
-      $('go-editor').href = '/editor';
-      $('go-game').href = '/game';
-      $('go-editor').querySelector('small').textContent = '내 알고리즘 작성 · 저장';
-    }
+    if (!session.user) location.replace('/signin');
   } else {
     const signup = location.pathname === '/signup';
     for (const name of ['signin', 'signup'])
@@ -22,7 +18,9 @@ try {
     $('auth-title').textContent = signup ? '회사 계정으로 시작하기' : '다시 만나서 반갑습니다';
     document.title = `${signup ? '가입' : '로그인'} · Coin Hunter`;
     $('destination').textContent =
-      `계속할 페이지: ${next === '/editor' ? '알고리즘 작업실' : next === '/game' ? '게임 플레이' : '시작 화면'}`;
+      next === '/'
+        ? '로그인하면 홈 화면으로 이동합니다.'
+        : `로그인 후 ${next === '/editor' ? '알고리즘 작업실' : '게임 플레이'}로 이동합니다.`;
     if (signup)
       $('auth-description').textContent =
         '별도 비밀번호 없이 회사 계정으로 가입합니다. 기존 계정이면 바로 로그인됩니다.';

@@ -185,8 +185,7 @@ button:disabled {
   }
 }
 button[aria-pressed='true'],
-#save,
-#test {
+#save {
   background: #b6f36e;
   color: #162217;
 }
@@ -245,10 +244,23 @@ section {
   border-radius: 10px;
 }
 .load-options h3 {
-  margin-top: 0;
+  margin: 0 0 16px;
 }
-.load-options select {
-  margin-right: 8px;
+.load-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+.load-control select {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 40px;
+}
+.load-control #import {
+  width: 100%;
+  height: 40px;
+  padding: 4px;
 }
 .editing-layout {
   display: grid;
@@ -463,10 +475,12 @@ details {
 .testing-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
-.testing-header h2 {
+.testing-header #test-info {
+  min-width: 0;
   margin: 0;
+  line-height: 1.5;
 }
 body[data-panel='writing'] .testing,
 body[data-panel='testing'] .writing {

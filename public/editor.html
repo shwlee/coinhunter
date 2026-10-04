@@ -48,9 +48,6 @@
       <symbol id="icon-back" viewBox="0 0 24 24">
         <path d="m10 5-7 7 7 7M3 12h18" />
       </symbol>
-      <symbol id="icon-refresh" viewBox="0 0 24 24">
-        <path d="M20 7V3l-3 3a9 9 0 1 0 3 6M20 7h-6" />
-      </symbol>
       <symbol id="icon-home" viewBox="0 0 24 24">
         <path d="m3 10 9-7 9 7v11h-6v-7H9v7H3z" />
       </symbol>
@@ -96,21 +93,30 @@
         <div class="load-options">
           <div>
             <h3>저장된 알고리즘</h3>
-            <select id="library" aria-label="저장된 알고리즘">
-              <option value="">저장 코드 선택</option></select
-            ><button
-              id="open"
-              class="icon-button"
-              type="button"
-              aria-label="선택한 알고리즘 열기"
-              data-tooltip="선택한 알고리즘 열기"
-            >
-              <svg aria-hidden="true"><use href="#icon-load-saved" /></svg>
-            </button>
+            <div class="load-control">
+              <select id="library" aria-label="저장된 알고리즘">
+                <option value="">저장 코드 선택</option></select
+              ><button
+                id="open"
+                class="icon-button"
+                type="button"
+                aria-label="선택한 알고리즘 열기"
+                data-tooltip="선택한 알고리즘 열기"
+              >
+                <svg aria-hidden="true"><use href="#icon-load-saved" /></svg>
+              </button>
+            </div>
           </div>
           <div>
             <h3>내 PC에서 가져오기</h3>
-            <label>JavaScript 파일 선택 <input id="import" type="file" accept=".js" /></label>
+            <div class="load-control">
+              <input
+                id="import"
+                type="file"
+                accept=".js"
+                aria-label="내 PC에서 JavaScript 파일 가져오기"
+              />
+            </div>
           </div>
         </div>
         <p id="load-error" role="alert" hidden></p>
@@ -130,7 +136,7 @@
         <div class="toolbar document-toolbar">
           <div class="document-identity">
             <strong id="document-title">새 알고리즘</strong>
-            <span id="document-origin">시작 샘플 · 아직 저장하지 않음</span>
+            <span id="document-origin">새 문서 · 아직 저장하지 않음</span>
           </div>
           <span id="save-state">미저장</span>
           <button
@@ -274,7 +280,7 @@
               </p>
             </details>
           </section>
-          <section class="testing">
+          <section class="testing" aria-label="알고리즘 테스트">
             <div class="testing-header">
               <button
                 id="back-to-editor"
@@ -285,21 +291,12 @@
               >
                 <svg aria-hidden="true"><use href="#icon-back" /></svg>
               </button>
-              <h2>테스트 플레이</h2>
+              <p id="test-info">
+                맵과 시작 위치만 선택해 혼자 테스트합니다. 캐릭터는 실행할 때마다 무작위로
+                배정됩니다.
+              </p>
             </div>
-            <p id="test-info">
-              맵과 시작 위치만 선택해 혼자 테스트합니다. 캐릭터는 실행할 때마다 무작위로 배정됩니다.
-            </p>
-            <button
-              id="test"
-              class="icon-button"
-              type="button"
-              aria-label="현재 코드 다시 준비"
-              data-tooltip="현재 코드 다시 준비"
-              disabled
-            >
-              <svg aria-hidden="true"><use href="#icon-refresh" /></svg></button
-            ><iframe id="game" title="알고리즘 테스트 게임"></iframe>
+            <iframe id="game" title="알고리즘 테스트 게임"></iframe>
           </section>
         </div>
       </div>
@@ -311,7 +308,7 @@
       <dialog id="save-dialog" aria-labelledby="save-dialog-title">
         <form id="save-form">
           <h2 id="save-dialog-title">알고리즘 저장</h2>
-          <p id="save-source">현재 코드의 출처: 시작 샘플</p>
+          <p id="save-source">현재 코드의 출처: 새 문서</p>
           <label for="name">알고리즘 이름</label>
           <input id="name" name="name" maxlength="80" required value="새 알고리즘" />
           <fieldset id="save-options">
