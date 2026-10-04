@@ -5,27 +5,33 @@ const status = (message) => {
 };
 const requested = new URLSearchParams(location.search).get('next');
 // Only application destinations are accepted, never URLs supplied by a caller.
-const next = ['/', '/editor', '/game'].includes(requested) ? requested : '/';
+const next = ['/', '/editor', '/game', '/admin'].includes(requested) ? requested : '/';
 try {
-  if (document.body.dataset.page === 'home') {
+  const page = document.body.dataset.page;
+  if (page === 'home' || page === 'admin') {
     const session = await accountBar();
     if (!session.user) location.replace('/signin');
+    else if (page === 'home') $('admin-entry').hidden = session.user.role !== 'admin';
+    else if (session.user.role !== 'admin') location.replace('/');
   } else {
     const signup = location.pathname === '/signup';
     for (const name of ['signin', 'signup'])
       $(name + '-tab').href = `/${name}?next=${encodeURIComponent(next)}`;
     $(signup ? 'signup-tab' : 'signin-tab').setAttribute('aria-current', 'page');
     document.title = `${signup ? '가입' : '로그인'} · Coin Hunter`;
-    $('destination').textContent =
-      next === '/'
-        ? '로그인하면 홈 화면으로 이동합니다.'
-        : `로그인 후 ${next === '/editor' ? '알고리즘 작업실' : '게임 플레이'}로 이동합니다.`;
+    const destinations = {
+      '/': '홈 화면',
+      '/editor': '알고리즘 작업실',
+      '/game': '게임 플레이',
+      '/admin': '관리자 페이지',
+    };
+    $('destination').textContent = `로그인 후 ${destinations[next]}로 이동합니다.`;
     if (signup)
       $('auth-description').textContent =
         '별도 비밀번호 없이 회사 계정으로 가입합니다. 기존 계정이면 바로 로그인됩니다.';
     const session = await api('/api/session');
     if (session.user) {
-      location.replace(next);
+      location.replace(next === '/admin' && session.user.role !== 'admin' ? '/' : next);
     } else {
       $('guest-link').hidden = false;
       $('guest-help').hidden = false;
@@ -46,11 +52,11 @@ try {
         $('authenticate').disabled = true;
         status('로그인하고 있습니다…');
         try {
-          await api('/api/auth/mock', {
+          const login = await api('/api/auth/mock', {
             method: 'POST',
             body: JSON.stringify({ email: $('identity').value }),
           });
-          location.replace(next);
+          location.replace(next === '/admin' && login.user.role !== 'admin' ? '/' : next);
         } catch (error) {
           status(error.message);
           $('authenticate').disabled = false;

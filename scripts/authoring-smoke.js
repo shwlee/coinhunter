@@ -103,6 +103,30 @@ try {
   await page.click('#authenticate');
   await page.waitForURL(base + '/');
   await page.locator('#go-editor[href="/editor"]').waitFor();
+  await page.locator('#go-admin').waitFor({ state: 'visible' });
+  await page.click('#go-admin');
+  await page.waitForURL(base + '/admin');
+  assert.equal(await page.locator('.admin-panel').count(), 3);
+  await page.screenshot({ path: 'artifacts/admin-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+    'Admin page fits a mobile viewport',
+  );
+  await page.screenshot({ path: 'artifacts/admin-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1550, height: 1100 });
+  await page.click('.back-link');
+  await page.waitForURL(base + '/');
+  const regular = await browser.newPage();
+  await regular.goto(base + '/signin');
+  await regular.locator('#authenticate:enabled').waitFor();
+  await regular.selectOption('#identity', 'developer@company.test');
+  await regular.click('#authenticate');
+  await regular.waitForURL(base + '/');
+  assert.equal(await regular.locator('#go-admin').isVisible(), false);
+  assert.equal((await regular.goto(base + '/admin')).status(), 403);
+  await regular.close();
   assert.equal(
     await page.locator('header .brand img').getAttribute('src'),
     '/coin-hunter-icon.svg',

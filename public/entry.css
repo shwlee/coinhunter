@@ -114,6 +114,59 @@ h1 {
   color: #b6f36e;
   margin: 20px 0 12px;
 }
+.admin-entry {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+.admin-entry a,
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+}
+.admin-entry a {
+  padding: 11px 16px;
+  border: 1px solid #465b50;
+  border-radius: 10px;
+}
+.admin-entry a:hover,
+.back-link:hover {
+  color: #d0ffa0;
+  border-color: #b6f36e;
+}
+.admin-main {
+  margin-top: 48px;
+}
+.admin-main .eyebrow {
+  margin-top: 38px;
+}
+.admin-sections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.admin-panel {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid #3a4b60;
+  border-radius: 16px;
+  background: #192331;
+}
+.admin-panel-symbol {
+  color: #b6f36e;
+  font-size: 30px;
+}
+.admin-panel h2 {
+  margin: 18px 0 8px;
+  font-size: 20px;
+}
+.admin-panel p {
+  margin: 0;
+  color: #b6c2d2;
+  line-height: 1.6;
+}
 small {
   color: #a2b1c4;
 }
@@ -198,6 +251,9 @@ select:focus-visible {
   .choices {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+  .admin-sections {
+    grid-template-columns: 1fr;
   }
   .choice,
   .auth-card {

@@ -20,6 +20,7 @@ const sampleSource = await readFile(
 );
 const assets = new Map([
   ['/', ['home.html', 'text/html; charset=utf-8']],
+  ['/admin', ['admin.html', 'text/html; charset=utf-8']],
   ['/game', ['index.html', 'text/html; charset=utf-8']],
   ['/signin', ['auth.html', 'text/html; charset=utf-8']],
   ['/signup', ['auth.html', 'text/html; charset=utf-8']],
@@ -223,6 +224,20 @@ export function createGameServer({
         response.writeHead(302, { Location: '/signin?next=%2Feditor' });
         response.end();
         return;
+      }
+      if (request.method === 'GET' && url.pathname === '/admin') {
+        if (!user) {
+          response.writeHead(302, { Location: '/signin?next=%2Fadmin' });
+          response.end();
+          return;
+        }
+        if (user.role !== 'admin') {
+          response.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
+          response.end(
+            '<!doctype html><html lang="ko"><meta charset="utf-8"><title>접근 불가 · Coin Hunter</title><body><h1>관리자만 접근할 수 있습니다.</h1><a href="/">홈으로 돌아가기</a></body></html>',
+          );
+          return;
+        }
       }
       if (request.method === 'GET' && url.pathname === '/favicon.ico') {
         response.writeHead(204);

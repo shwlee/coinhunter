@@ -69,12 +69,23 @@ test('local accounts persist, isolate code, reject conflicts and revoke disabled
   const protectedPage = await fetch(base + '/editor', { redirect: 'manual' });
   assert.equal(protectedPage.status, 302);
   assert.equal(protectedPage.headers.get('location'), '/signin?next=%2Feditor');
+  const adminRedirect = await fetch(base + '/admin', { redirect: 'manual' });
+  assert.equal(adminRedirect.status, 302);
+  assert.equal(adminRedirect.headers.get('location'), '/signin?next=%2Fadmin');
+  assert.equal((await call('/api/admin/users')).status, 401);
   assert.equal((await call('/api/auth/mock', 'POST', { email: 'anyone@gmail.com' })).status, 403);
   const admin = await login('vactormanbear@gmail.com');
   assert.equal((await call('/', 'GET', undefined, admin.cookie)).status, 200);
+  const adminPage = await call('/admin', 'GET', undefined, admin.cookie);
+  assert.equal(adminPage.status, 200);
+  assert.match(await adminPage.text(), /관리자 페이지/);
   const a = await login('developer@company.test');
   const b = await login('tester@company.test');
   assert.equal(admin.user.role, 'admin');
+  const deniedPage = await call('/admin', 'GET', undefined, a.cookie);
+  assert.equal(deniedPage.status, 403);
+  assert.match(await deniedPage.text(), /관리자만 접근/);
+  assert.equal((await call('/api/admin/maps', 'POST', {}, a.cookie)).status, 403);
   const source =
     'module.exports = class { initialize() {} getName() { return "saved"; } moveNext() { return -1; } }';
   const created = await call('/api/algorithms', 'POST', { name: 'first', source }, a.cookie);
