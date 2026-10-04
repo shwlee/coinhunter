@@ -43,6 +43,26 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}/game`);
   await page.waitForSelector('#map-select option', { state: 'attached' });
+  for (const [href, label] of [
+    ['/', '시작 화면'],
+    ['/editor', '알고리즘 작업실'],
+  ]) {
+    const link = page.locator(`.header-nav a[href="${href}"]`);
+    assert.equal(await link.getAttribute('aria-label'), label);
+    assert.equal(await link.getAttribute('data-tooltip'), label);
+  }
+  assert.equal(
+    await page.locator('.header-nav img').evaluate((image) => image.naturalWidth > 0),
+    true,
+  );
+  assert.equal(
+    await page.locator('.topbar h1').evaluate((title) => {
+      const box = title.getBoundingClientRect();
+      return Math.abs((box.left + box.right) / 2 - innerWidth / 2) < 1;
+    }),
+    true,
+    'Game title is centered in its own header row',
+  );
   const duelPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
   duelPage.on('pageerror', (error) => errors.push(error.message));
   await duelPage.goto(`http://127.0.0.1:${server.address().port}/game`);
