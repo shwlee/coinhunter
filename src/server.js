@@ -19,6 +19,7 @@ const assets = new Map([
   ['/signin', ['auth.html', 'text/html; charset=utf-8']],
   ['/signup', ['auth.html', 'text/html; charset=utf-8']],
   ['/entry.css', ['entry.css', 'text/css; charset=utf-8']],
+  ['/coin-hunter-icon.svg', ['coin-hunter-icon.svg', 'image/svg+xml']],
   ['/assets/login-gameplay.mp4', ['assets/login-gameplay.mp4', 'video/mp4']],
   ['/assets/login-gameplay.jpg', ['assets/login-gameplay.jpg', 'image/jpeg']],
   ['/algorithm-braces.svg', ['algorithm-braces.svg', 'image/svg+xml']],

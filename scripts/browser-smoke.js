@@ -43,6 +43,10 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}/game`);
   await page.waitForSelector('#map-select option', { state: 'attached' });
+  assert.equal(
+    await page.locator('link[rel="icon"]').getAttribute('href'),
+    '/coin-hunter-icon.svg',
+  );
   for (const [href, label] of [
     ['/', '시작 화면'],
     ['/editor', '알고리즘 작업실'],

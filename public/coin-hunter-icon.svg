@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Coin Hunter">
+  <rect width="64" height="64" rx="15" fill="#142331" />
+  <circle cx="32" cy="32" r="24" fill="#9c5b12" />
+  <circle cx="32" cy="30" r="22" fill="#ffca52" />
+  <circle cx="32" cy="30" r="16.5" fill="#e9a52c" stroke="#ffe79a" stroke-width="2" />
+  <path d="m32 18 3.2 8.8L44 30l-8.8 3.2L32 42l-3.2-8.8L20 30l8.8-3.2Z" fill="#b6f36e" stroke="#193328" stroke-width="2" stroke-linejoin="round" />
+</svg>

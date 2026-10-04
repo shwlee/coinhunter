@@ -26,9 +26,16 @@ a {
   text-decoration: none;
 }
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   color: #e8eef7;
   font-weight: 800;
   letter-spacing: 0.12em;
+}
+.brand img {
+  width: 32px;
+  height: 32px;
 }
 main {
   max-width: 1040px;

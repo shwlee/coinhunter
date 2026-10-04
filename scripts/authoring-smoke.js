@@ -47,6 +47,13 @@ try {
   };
   await page.goto(base + '/');
   await page.waitForURL(base + '/signin');
+  assert.equal(
+    await page.locator('link[rel="icon"]').getAttribute('href'),
+    '/coin-hunter-icon.svg',
+  );
+  const iconResponse = await page.request.get(base + '/coin-hunter-icon.svg');
+  assert.equal(iconResponse.status(), 200);
+  assert.match(iconResponse.headers()['content-type'], /^image\/svg\+xml/);
   await page.locator('#guest-link').waitFor({ state: 'visible' });
   await page.locator('#guest-help').waitFor({ state: 'visible' });
   assert.match(await page.locator('#guest-help').textContent(), /알고리즘 파일/);
@@ -96,6 +103,14 @@ try {
   await page.click('#authenticate');
   await page.waitForURL(base + '/');
   await page.locator('#go-editor[href="/editor"]').waitFor();
+  assert.equal(
+    await page.locator('header .brand img').getAttribute('src'),
+    '/coin-hunter-icon.svg',
+  );
+  assert.equal(
+    await page.locator('header .brand img').evaluate((image) => image.naturalWidth > 0),
+    true,
+  );
   assert.equal(await page.locator('#go-editor img').getAttribute('src'), '/algorithm-braces.svg');
   assert.equal(
     await page.locator('#go-editor img').evaluate((image) => image.naturalWidth > 0),
