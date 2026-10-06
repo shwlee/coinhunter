@@ -21,6 +21,7 @@ const sampleSource = await readFile(
 const assets = new Map([
   ['/', ['home.html', 'text/html; charset=utf-8']],
   ['/admin', ['admin.html', 'text/html; charset=utf-8']],
+  ['/admin.js', ['admin.js', 'text/javascript; charset=utf-8']],
   ['/game', ['index.html', 'text/html; charset=utf-8']],
   ['/signin', ['auth.html', 'text/html; charset=utf-8']],
   ['/signup', ['auth.html', 'text/html; charset=utf-8']],
@@ -225,7 +226,7 @@ export function createGameServer({
         response.end();
         return;
       }
-      if (request.method === 'GET' && url.pathname === '/admin') {
+      if (request.method === 'GET' && ['/admin', '/admin.js'].includes(url.pathname)) {
         if (!user) {
           response.writeHead(302, { Location: '/signin?next=%2Fadmin' });
           response.end();

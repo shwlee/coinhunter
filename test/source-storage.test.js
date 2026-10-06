@@ -15,8 +15,31 @@ test('administrator is bootstrapped once and its role persists without configura
   assert.equal(before.role, 'user');
   const admin = await repository.bootstrapAdmin('admin@company.test');
   assert.equal(admin.role, 'admin');
+  await assert.rejects(repository.updateUser(admin.id, { active: false, role: 'admin' }), {
+    status: 409,
+  });
+  await assert.rejects(repository.updateUser(admin.id, { active: true, role: 'user' }), {
+    status: 409,
+  });
   assert.equal((await repository.bootstrapAdmin('admin@company.test')).id, admin.id);
   await assert.rejects(repository.bootstrapAdmin('other@company.test'), { status: 409 });
+  const regular = await repository.login('regular@company.test');
+  await repository.updateUser(regular.id, {
+    active: true,
+    role: 'admin',
+    expectedActive: true,
+    expectedRole: 'user',
+  });
+  await assert.rejects(
+    repository.updateUser(regular.id, {
+      active: false,
+      role: 'user',
+      expectedActive: true,
+      expectedRole: 'user',
+    }),
+    { status: 409 },
+  );
+  assert.equal((await repository.user(regular.id)).role, 'admin');
   const reopened = new FileAccountRepository(file);
   assert.equal((await reopened.login('admin@company.test')).role, 'admin');
 });

@@ -110,6 +110,13 @@ try {
   await page.click('#go-admin');
   await page.waitForURL(base + '/admin');
   assert.equal(await page.locator('.admin-panel').count(), 3);
+  await page.locator('#user-management').waitFor({ state: 'visible' });
+  const ownRow = page.locator('.admin-user-row').filter({ hasText: 'admin@company.test' });
+  assert.equal(await ownRow.locator('select').isDisabled(), true);
+  assert.equal(
+    await ownRow.getByRole('button', { name: '이용 중지', exact: true }).isDisabled(),
+    true,
+  );
   await page.screenshot({ path: 'artifacts/admin-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(
@@ -139,6 +146,43 @@ try {
   assert.equal(await regular.locator('#account-bar .admin-link').count(), 0);
   assert.equal((await regular.goto(base + '/admin')).status(), 403);
   await regular.close();
+  await page.goto(base + '/admin');
+  await page.locator('#user-management').waitFor({ state: 'visible' });
+  await page.locator('#user-search').fill('developer@company.test');
+  assert.equal(await page.locator('.admin-user-row').count(), 1);
+  const developerRow = page.locator('.admin-user-row');
+  await developerRow.locator('select').selectOption('admin');
+  page.once('dialog', (dialog) => dialog.accept());
+  await developerRow.getByRole('button', { name: '이용 중지', exact: true }).click();
+  await developerRow
+    .locator('.user-state')
+    .filter({ hasText: '이용 중지 · 일반 사용자' })
+    .waitFor();
+  await page.locator('#active-filter').selectOption('active');
+  assert.equal(await page.locator('.admin-user-row').count(), 0);
+  await page.locator('#active-filter').selectOption('all');
+  page.once('dialog', (dialog) => dialog.accept());
+  await developerRow.getByRole('button', { name: '이용 허용', exact: true }).click();
+  await developerRow
+    .locator('.user-state')
+    .filter({ hasText: '이용 가능 · 일반 사용자' })
+    .waitFor();
+  await developerRow.locator('select').selectOption('admin');
+  page.once('dialog', (dialog) => dialog.accept());
+  await developerRow.getByRole('button', { name: '권한 저장', exact: true }).click();
+  await developerRow.locator('.user-state').filter({ hasText: '이용 가능 · 관리자' }).waitFor();
+  await developerRow.locator('select').selectOption('user');
+  page.once('dialog', (dialog) => dialog.accept());
+  await developerRow.getByRole('button', { name: '권한 저장', exact: true }).click();
+  await developerRow
+    .locator('.user-state')
+    .filter({ hasText: '이용 가능 · 일반 사용자' })
+    .waitFor();
+  await page.locator('#user-search').fill('');
+  await page.locator('#role-filter').selectOption('admin');
+  assert.equal(await page.locator('.admin-user-row').count(), 1);
+  await page.locator('#role-filter').selectOption('all');
+  await page.screenshot({ path: 'artifacts/admin-users-desktop.png', fullPage: true });
   await page.goto(base + '/game');
   await page.locator('#account-bar .admin-link[href="/admin"]').waitFor({ state: 'visible' });
   await page.goto(base + '/');
@@ -169,6 +213,7 @@ try {
   await page.screenshot({ path: 'artifacts/entry-desktop.png', fullPage: true });
   await page.click('#go-editor');
   await page.waitForSelector('#workbench', { state: 'visible' });
+  assert.equal(await page.locator('#admin').count(), 0);
   await page.locator('#account-bar .admin-link[href="/admin"]').waitFor({ state: 'visible' });
   assert.equal(await warnsOnExit(), false, 'The new document does not warn on exit');
   assert.equal(

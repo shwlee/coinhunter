@@ -288,6 +288,15 @@ export class FileAccountRepository {
       if (!user) throw fail(404, '사용자를 찾을 수 없습니다.');
       if (typeof input.active !== 'boolean' || !['user', 'admin'].includes(input.role))
         throw fail(400, '잘못된 사용자 설정입니다.');
+      if (input.expectedActive !== undefined || input.expectedRole !== undefined) {
+        if (
+          typeof input.expectedActive !== 'boolean' ||
+          !['user', 'admin'].includes(input.expectedRole)
+        )
+          throw fail(400, '사용자 설정의 이전 상태를 확인하세요.');
+        if (user.active !== input.expectedActive || user.role !== input.expectedRole)
+          throw fail(409, '다른 관리자가 계정 설정을 변경했습니다. 최신 목록을 확인하세요.');
+      }
       if (
         user.active &&
         user.role === 'admin' &&

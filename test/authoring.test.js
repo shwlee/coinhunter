@@ -142,6 +142,31 @@ test('local accounts persist, isolate code, reject conflicts and revoke disabled
   assert.equal(
     (
       await call(
+        `/api/admin/users/${b.user.id}`,
+        'PUT',
+        { active: true, role: 'admin' },
+        admin.cookie,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await call(
+        `/api/admin/users/${admin.user.id}`,
+        'PUT',
+        { active: true, role: 'user' },
+        admin.cookie,
+      )
+    ).status,
+    409,
+  );
+  assert.equal((await call('/api/admin/users', 'GET', undefined, b.cookie)).status, 200);
+  await call(`/api/admin/users/${b.user.id}`, 'PUT', { active: true, role: 'user' }, admin.cookie);
+  assert.equal((await call('/api/admin/users', 'GET', undefined, b.cookie)).status, 403);
+  assert.equal(
+    (
+      await call(
         `/api/admin/users/${admin.user.id}`,
         'PUT',
         { active: false, role: 'admin' },

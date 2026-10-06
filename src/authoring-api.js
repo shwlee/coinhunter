@@ -92,7 +92,10 @@ export function createAuthoring({
         }
         const id = path.match(/^\/api\/admin\/users\/([a-f0-9-]+)$/)?.[1];
         if (id && request.method === 'PUT') {
-          const updated = await accounts.updateUser(id, await readJson(request));
+          const input = await readJson(request);
+          if (id === user.id && (!input.active || input.role !== 'admin'))
+            throw fail(409, '본인 관리자 계정은 중지하거나 강등할 수 없습니다.');
+          const updated = await accounts.updateUser(id, input);
           if (!updated.active) {
             for (const [token, session] of sessions)
               if (session.userId === id) sessions.delete(token);

@@ -698,39 +698,6 @@ window.addEventListener('beforeunload', (event) => {
     event.returnValue = '';
   }
 });
-async function users() {
-  const data = await api('/api/admin/users');
-  $('users').replaceChildren();
-  for (const user of data.users) {
-    const row = document.createElement('div');
-    row.className = 'user-row';
-    const label = document.createElement('span');
-    label.textContent = user.email;
-    const role = document.createElement('select');
-    role.setAttribute('aria-label', `${user.email} 권한`);
-    role.add(new Option('사용자', 'user'));
-    role.add(new Option('관리자', 'admin'));
-    role.value = user.role;
-    const status = document.createElement('button');
-    status.textContent = user.active ? '이용 중지' : '이용 허용';
-    const saveRole = document.createElement('button');
-    saveRole.textContent = '권한 저장';
-    const update = (active) =>
-      run(async () => {
-        await api(`/api/admin/users/${user.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ active, role: role.value }),
-        });
-        await users();
-        notice('사용자 설정을 변경했습니다.');
-      });
-    status.onclick = update(!user.active);
-    saveRole.onclick = update(user.active);
-    row.append(label, role, saveRole, status);
-    $('users').append(row);
-  }
-}
-$('refresh-users').onclick = run(users);
 try {
   const session = await accountBar();
   if (!session.user) {
@@ -738,10 +705,6 @@ try {
   } else {
     reset({ source: emptyAlgorithm });
     await library();
-    if (session.user.role === 'admin') {
-      $('admin').hidden = false;
-      await users();
-    }
     $('workbench').hidden = false;
     applyAiWidth();
     new ResizeObserver(applyAiWidth).observe(aiLayout);

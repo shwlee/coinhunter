@@ -8,11 +8,10 @@ const requested = new URLSearchParams(location.search).get('next');
 const next = ['/', '/editor', '/game', '/admin'].includes(requested) ? requested : '/';
 try {
   const page = document.body.dataset.page;
-  if (page === 'home' || page === 'admin') {
+  if (page === 'home') {
     const session = await accountBar();
     if (!session.user) location.replace('/signin');
-    else if (page === 'home') $('admin-entry').hidden = session.user.role !== 'admin';
-    else if (session.user.role !== 'admin') location.replace('/');
+    else $('admin-entry').hidden = session.user.role !== 'admin';
   } else {
     const signup = location.pathname === '/signup';
     for (const name of ['signin', 'signup'])

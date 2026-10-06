@@ -213,8 +213,7 @@ section {
   min-width: 0;
 }
 .writing,
-.testing,
-#admin {
+.testing {
   background: #192331;
   border-radius: 12px;
   padding: 18px;
@@ -656,24 +655,6 @@ iframe {
 details {
   margin-top: 18px;
   line-height: 1.7;
-}
-#admin {
-  margin-top: 20px;
-}
-#admin summary {
-  cursor: pointer;
-  font-weight: 700;
-}
-#admin[open] summary {
-  margin-bottom: 16px;
-}
-.user-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 12px 0;
-  border-bottom: 1px solid #46536a;
 }
 [hidden] {
   display: none !important;
