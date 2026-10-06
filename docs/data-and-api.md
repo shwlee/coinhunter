@@ -19,6 +19,10 @@
 | GET /api/algorithms/:id?metadata=1 | 로그인 쿠키 | 원문을 제외한 메타데이터 |
 | GET /api/algorithms/:id/source | 로그인 쿠키 | 원문 파일 스트림 |
 | GET /api/admin/users | 관리자 쿠키 | 계정 목록·이용 상태·역할 |
+| GET /api/admin/maps | 관리자 쿠키 | `{maps}`: 관리자 맵의 이름·설명·크기·draftRevision·publishedRevision·enabled·order·source |
+| GET /api/admin/maps/:id/draft | 관리자 쿠키 | `{map}`: 최신 초안 JSON. 샘플은 편집 대상으로 제공하지 않음 |
+| POST /api/admin/maps | 관리자 쿠키, JSON의 name·description(선택)·columns·rows·tiles | 201 `{map}`. 서버가 ID·리비전·기본 settings 부여, 비노출 초안 저장 |
+| PUT /api/admin/maps/:id/draft | 관리자 쿠키, 위 편집 필드와 expectedRevision | 200 `{map}`. 기존 settings와 게시 버전 보존, 오래된 리비전은 409 |
 | PUT /api/admin/users/:id | 관리자 쿠키, JSON의 `active`, `role`, 선택적인 이전 상태 `expectedActive`·`expectedRole` | 갱신된 계정. 이전 상태 불일치·자기 계정 중지/강등·마지막 관리자 해제는 409 |
 
 작은 설정 요청은 JSON으로 전달한다. 코드가 포함된 이전 JSON 형식은 2 MiB 이내에서 호환 처리하며, 새 화면은 코드를 `text/plain`으로 임시 파일에 스트리밍한다. 다른 세션 경기에는 404를 반환한다. 같은 세션의 동시 경기는 한 개, 서버 전체 초기 한도는 네 경기다. 준비 중 경기도 한도에 포함한다. 게스트 식별 쿠키는 HttpOnly/SameSite=Strict이며 제품 계정 인증을 대체하지 않는다.

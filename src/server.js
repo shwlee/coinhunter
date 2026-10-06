@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { Transform } from 'node:stream';
 import { mapRepository } from './game/map-repository.js';
+import { adminMapsRoute } from './admin-maps-api.js';
 import { Match } from './game/match.js';
 import { DEFAULT_CHARACTER, isPlayableCharacter } from '../public/characters.js';
 import { validateSource } from './runtime/policy.js';
@@ -22,6 +23,10 @@ const assets = new Map([
   ['/', ['home.html', 'text/html; charset=utf-8']],
   ['/admin', ['admin.html', 'text/html; charset=utf-8']],
   ['/admin.js', ['admin.js', 'text/javascript; charset=utf-8']],
+  ['/admin/maps/editor', ['map-editor.html', 'text/html; charset=utf-8']],
+  ['/map-editor.js', ['map-editor.js', 'text/javascript; charset=utf-8']],
+  ['/map-editing.js', ['map-editing.js', 'text/javascript; charset=utf-8']],
+  ['/map-editor.css', ['map-editor.css', 'text/css; charset=utf-8']],
   ['/game', ['index.html', 'text/html; charset=utf-8']],
   ['/signin', ['auth.html', 'text/html; charset=utf-8']],
   ['/signup', ['auth.html', 'text/html; charset=utf-8']],
@@ -216,6 +221,7 @@ export function createGameServer({
         await authoring.route(request, response, url, user, readJson, json, revoke, readSourceFile)
       )
         return;
+      if (await adminMapsRoute(request, response, url, user, maps, readJson, json)) return;
       if (request.method === 'GET' && url.pathname === '/' && !user) {
         response.writeHead(302, { Location: '/signin' });
         response.end();
@@ -226,9 +232,14 @@ export function createGameServer({
         response.end();
         return;
       }
-      if (request.method === 'GET' && ['/admin', '/admin.js'].includes(url.pathname)) {
+      if (
+        request.method === 'GET' &&
+        ['/admin', '/admin.js', '/admin/maps/editor', '/map-editor.js'].includes(url.pathname)
+      ) {
         if (!user) {
-          response.writeHead(302, { Location: '/signin?next=%2Fadmin' });
+          response.writeHead(302, {
+            Location: `/signin?next=${encodeURIComponent(url.pathname === '/admin/maps/editor' ? url.pathname : '/admin')}`,
+          });
           response.end();
           return;
         }

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>게임맵 제작 · Coin Hunter</title>
+    <link rel="icon" type="image/svg+xml" href="/coin-hunter-icon.svg" />
+    <link rel="stylesheet" href="/entry.css" />
+    <link rel="stylesheet" href="/map-editor.css" />
+    <script type="module" src="/map-editor.js"></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/"><img src="/coin-hunter-icon.svg" alt="" />COIN HUNTER</a>
+      <div id="account-bar"></div>
+    </header>
+    <main class="map-main">
+      <div class="map-heading">
+        <a href="/admin">← 관리자 페이지</a>
+        <h1>게임맵 제작</h1>
+      </div>
+      <div class="map-actions">
+        <strong id="map-identity">새 맵</strong><span id="dirty-state"></span>
+        <button id="open-maps" type="button">저장된 맵 불러오기</button>
+        <button id="save-map" type="button" disabled>맵 저장</button>
+      </div>
+      <form id="create-map" class="size-form">
+        <label
+          >열 (col)<input id="columns" type="number" min="4" max="40" value="12" required
+        /></label>
+        <span aria-hidden="true">×</span>
+        <label
+          >행 (row)<input id="rows" type="number" min="4" max="30" value="10" required
+        /></label>
+        <button type="submit">빈 게임판 생성</button>
+      </form>
+      <div class="map-workspace">
+        <fieldset id="tools" disabled>
+          <legend>배치 도구</legend>
+          <div class="tool-choices" role="group" aria-label="배치 도구">
+            <button type="button" data-tool="coin" aria-pressed="true">◉ 코인</button>
+            <button type="button" data-tool="wall" aria-pressed="false">▦ 벽</button>
+            <button type="button" data-tool="erase" aria-pressed="false">⌫ 지우개</button>
+          </div>
+          <label
+            >코인 점수<select id="coin-value">
+              <option>10</option>
+              <option>30</option>
+              <option>100</option>
+              <option>200</option>
+              <option>500</option>
+            </select></label
+          >
+          <label class="symmetry-label"
+            ><input id="symmetry" type="checkbox" checked />상하좌우 대칭</label
+          >
+          <div class="history-actions">
+            <button
+              id="undo"
+              type="button"
+              aria-label="실행 취소"
+              title="실행 취소 (Ctrl+Z)"
+              disabled
+            >
+              ↶</button
+            ><button
+              id="redo"
+              type="button"
+              aria-label="다시 실행"
+              title="다시 실행 (Ctrl+Shift+Z)"
+              disabled
+            >
+              ↷
+            </button>
+          </div>
+          <p class="tool-help">
+            도구 선택 후 바닥을 클릭하세요. 네 모서리는 시작 칸으로 비워 둡니다.
+          </p>
+          <p id="map-stats"></p>
+        </fieldset>
+        <section class="board-panel" aria-label="맵 편집">
+          <div class="view-actions">
+            <span id="board-size">게임판을 먼저 생성하세요.</span>
+            <div>
+              <button id="zoom-out" type="button" title="축소" disabled>−</button
+              ><button id="fit" type="button" disabled>전체 보기</button
+              ><button id="zoom-in" type="button" title="확대" disabled>+</button>
+            </div>
+          </div>
+          <div id="board-viewport">
+            <p id="board-empty">열과 행을 입력하면 빈 게임판이 만들어집니다.</p>
+            <div id="board" role="group" aria-label="게임판 타일 편집" hidden></div>
+          </div>
+          <label class="check-label"
+            ><input id="show-issues" type="checkbox" />게시 검사 문제 위치 표시</label
+          >
+          <p id="map-validation" role="status">
+            저장한 맵은 초안이며 사용자에게 자동 노출되지 않습니다.
+          </p>
+        </section>
+      </div>
+      <p id="map-feedback" role="status" aria-live="polite"></p>
+    </main>
+    <dialog id="save-dialog" aria-labelledby="save-title">
+      <form id="save-form">
+        <h2 id="save-title">맵 저장</h2>
+        <label>맵 이름<input id="map-name" maxlength="100" required /></label
+        ><label
+          >설명 (선택)<textarea id="map-description" maxlength="2000" rows="3"></textarea>
+        </label>
+        <p>초안으로 저장됩니다. 게시와 경기 설정은 게임 옵션에서 관리합니다.</p>
+        <p id="save-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" data-close="save-dialog">취소</button
+          ><button id="confirm-save" type="submit">저장</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="load-dialog" aria-labelledby="load-title">
+      <h2 id="load-title">저장된 맵 불러오기</h2>
+      <label>맵 검색<input id="map-search" type="search" placeholder="맵 이름 검색" /></label>
+      <p id="load-status" role="status"></p>
+      <div id="saved-maps"></div>
+      <div class="dialog-actions"><button type="button" data-close="load-dialog">닫기</button></div>
+    </dialog>
+  </body>
+</html>

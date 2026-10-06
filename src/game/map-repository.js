@@ -110,7 +110,9 @@ export class MapRepository {
       if (existing?.source === 'sample') throw new Error('샘플맵은 새 ID로 복사해서 편집하세요.');
       const latest = existing?.draftRevision ?? 0;
       if (expectedRevision !== latest)
-        throw new Error('맵이 변경되었습니다. 최신 버전을 다시 불러오세요.');
+        throw Object.assign(new Error('맵이 변경되었습니다. 최신 버전을 다시 불러오세요.'), {
+          status: 409,
+        });
       const revision = latest + 1;
       const map = { ...input, schemaVersion: 1, revision };
       validateMapDocument(map, { published: false });

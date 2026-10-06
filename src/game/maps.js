@@ -17,6 +17,17 @@
     throw new Error('시작점은 빈칸이어야 합니다.');
 }
 
+export const DEFAULT_MAP_SETTINGS = Object.freeze({
+  actionMs: 400,
+  runningTimeMs: 10000,
+  itemFirstMs: 5000,
+  itemIntervalMs: 15000,
+  itemDuration: 3,
+  blackMatterIntervalMs: 15000,
+  destroyWallIntervalMs: 3000,
+  hurryUpRemovalIntervalMs: { 10: 300, 30: 700, 100: 1000, 200: 1300, 500: 1300 },
+});
+
 export const DEFAULT_HURRY_UP_REMOVAL_INTERVAL_MS = Object.freeze({
   10: 300,
   30: 700,

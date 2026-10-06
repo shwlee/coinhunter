@@ -5,7 +5,9 @@ const status = (message) => {
 };
 const requested = new URLSearchParams(location.search).get('next');
 // Only application destinations are accepted, never URLs supplied by a caller.
-const next = ['/', '/editor', '/game', '/admin'].includes(requested) ? requested : '/';
+const next = ['/', '/editor', '/game', '/admin', '/admin/maps/editor'].includes(requested)
+  ? requested
+  : '/';
 try {
   const page = document.body.dataset.page;
   if (page === 'home') {
@@ -23,6 +25,7 @@ try {
       '/editor': '알고리즘 작업실',
       '/game': '게임 플레이',
       '/admin': '관리자 페이지',
+      '/admin/maps/editor': '게임맵 제작',
     };
     $('destination').textContent = `로그인 후 ${destinations[next]}로 이동합니다.`;
     if (signup)
@@ -30,7 +33,7 @@ try {
         '별도 비밀번호 없이 회사 계정으로 가입합니다. 기존 계정이면 바로 로그인됩니다.';
     const session = await api('/api/session');
     if (session.user) {
-      location.replace(next === '/admin' && session.user.role !== 'admin' ? '/' : next);
+      location.replace(next.startsWith('/admin') && session.user.role !== 'admin' ? '/' : next);
     } else {
       $('guest-link').hidden = false;
       $('guest-help').hidden = false;
@@ -55,7 +58,7 @@ try {
             method: 'POST',
             body: JSON.stringify({ email: $('identity').value }),
           });
-          location.replace(next === '/admin' && login.user.role !== 'admin' ? '/' : next);
+          location.replace(next.startsWith('/admin') && login.user.role !== 'admin' ? '/' : next);
         } catch (error) {
           status(error.message);
           $('authenticate').disabled = false;
