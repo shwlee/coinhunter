@@ -15,7 +15,16 @@ export function createAuthoring({
   if (mock && process.env.NODE_ENV === 'production')
     throw new Error('운영 환경에서는 목업 인증을 사용할 수 없습니다.');
   const sessions = new Map();
-  const identities = [accounts.adminEmail, `developer@${domain}`, `tester@${domain}`];
+  const mockIdentities = async () => {
+    const users = (await accounts.listUsers()).filter((account) => account.active);
+    return [
+      ...new Set([
+        ...users.filter((account) => account.role === 'admin').map((account) => account.email),
+        `developer@${domain}`,
+        `tester@${domain}`,
+      ]),
+    ];
+  };
   const tokenFor = (request) =>
     request.headers.cookie?.match(/(?:^|;\s*)coinhunter-session=([a-f0-9-]{36})(?:;|$)/)?.[1];
   async function current(request) {
@@ -39,7 +48,7 @@ export function createAuthoring({
     async route(request, response, url, user, readJson, json, revoke, readSourceFile) {
       const path = url.pathname;
       if (path === '/api/session' && request.method === 'GET') {
-        json(response, 200, { user, mock, identities: mock ? identities : [] });
+        json(response, 200, { user, mock, identities: mock ? await mockIdentities() : [] });
         return true;
       }
       if (path === '/api/auth/mock' && request.method === 'POST') {
@@ -49,7 +58,8 @@ export function createAuthoring({
         )
           throw fail(403, '로컬 개발에서만 목업 로그인을 사용할 수 있습니다.');
         const { email } = await readJson(request);
-        if (!identities.includes(email)) throw fail(403, '등록된 개발용 계정을 선택하세요.');
+        if (!(await mockIdentities()).includes(email))
+          throw fail(403, '등록된 개발용 계정을 선택하세요.');
         const next = await accounts.login(email);
         sessions.delete(tokenFor(request));
         for (const [key, session] of sessions)

@@ -9,13 +9,11 @@ import { withCopySpace } from './disk-space.js';
 export class FileAccountRepository {
   constructor(
     file = resolve(process.env.ACCOUNTS_FILE || 'data/accounts/store.json'),
-    adminEmail = process.env.INITIAL_ADMIN_EMAIL || 'vactormanbear@gmail.com',
     sources = new FileSourceStore(
       process.env.ALGORITHM_SOURCE_DIR || join(dirname(file), 'sources'),
     ),
   ) {
     this.file = file;
-    this.adminEmail = adminEmail.toLowerCase();
     this.sources = sources;
     this.queue = Promise.resolve();
     this.migrated = false;
@@ -81,15 +79,30 @@ export class FileAccountRepository {
         user = {
           id: randomUUID(),
           email,
-          role:
-            email === this.adminEmail && !data.users.some((u) => u.role === 'admin')
-              ? 'admin'
-              : 'user',
+          role: 'user',
           active: true,
         };
         data.users.push(user);
       }
       if (!user.active) throw fail(403, '이용이 중지된 계정입니다.');
+      return user;
+    });
+  }
+  bootstrapAdmin(email) {
+    const normalized = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (!/^[^\s@]+@[^\s@]+$/.test(normalized) || normalized.length > 320)
+      throw fail(400, '관리자 이메일을 확인하세요.');
+    return this.change((data) => {
+      const current = data.users.find((user) => user.active && user.role === 'admin');
+      if (current) {
+        if (current.email === normalized) return current;
+        throw fail(409, '활성 관리자가 이미 있습니다. 관리자 화면에서 권한을 변경하세요.');
+      }
+      let user = data.users.find((entry) => entry.email === normalized);
+      if (!user) {
+        user = { id: randomUUID(), email: normalized, role: 'admin', active: true };
+        data.users.push(user);
+      } else Object.assign(user, { role: 'admin', active: true });
       return user;
     });
   }

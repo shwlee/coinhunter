@@ -9,7 +9,7 @@ import { FileAccountRepository } from './file-account-repository.js';
  * checking the owner. File path methods are server-only and never exposed to clients.
  *
  * @typedef {object} AccountRepository
- * @property {string} adminEmail
+ * @property {(email: string) => Promise<object>} bootstrapAdmin
  * @property {(email: string) => Promise<object>} login
  * @property {(id: string) => Promise<object | undefined>} user
  * @property {() => Promise<object[]>} listUsers

@@ -6,7 +6,7 @@
 
 첫 진입 경로 `/`는 비로그인 사용자를 `/signin`으로 보내고, 로그인 후에는 홈 화면을 제공한다. 가입은 `/signup`, 게임은 `/game`, 작업실은 `/editor`다. 기본 로그인/가입 완료 후 홈으로 이동하며, 로그인 주소에 내부 목적지가 지정된 경우에는 해당 화면으로 돌아간다. 첫 로그인은 자동 가입으로 처리하며 별도 비밀번호 등록은 없다. 로그인 화면에서 게스트 게임으로 진입할 수 있다. 게스트가 `/editor`에 직접 접근하면 서버가 로그인 화면으로 이동시킨다. 목적지는 내부 경로만 허용한다.
 
-목업 로그인에서 초기 관리자 또는 개발용 직원 계정을 선택한다. 최초 로그인 시 계정을 자동 생성하고, 계정·알고리즘·경기 기록 메타데이터는 `data/accounts/store.json`에, 코드 원문은 `data/accounts/sources/*.js`에 저장한다. 두 영역은 Git에서 제외된다. 브라우저가 달라도 같은 목업 계정을 선택하면 같은 코드를 열 수 있다.
+목업 로그인에서 등록된 관리자 또는 개발용 직원 계정을 선택한다. 관리자 계정은 서버를 중지한 상태에서 `npm run admin:bootstrap -- <관리자 이메일>`로 한 번 등록한다. 일반 계정은 최초 로그인 시 자동 생성된다. 계정·역할·알고리즘·경기 기록 메타데이터는 `data/accounts/store.json`에, 코드 원문은 `data/accounts/sources/*.js`에 저장한다. 두 영역은 Git에서 제외된다. 브라우저가 달라도 같은 목업 계정을 선택하면 같은 코드를 열 수 있다.
 
 현재 로그인은 실제 Google 계정 소유를 증명하지 않는 로컬 개발 전용이다. HTTP 서버와 목업 로그인 모두 루프백 환경에 한정한다. `NODE_ENV=production`에서는 기본적으로 목업이 꺼지며 목업을 강제로 켜면 서버 생성이 실패한다. 실제 Google 인증은 배포 전에 구현·검증해야 한다.
 
@@ -16,13 +16,15 @@
 
 ```powershell
 $env:AUTH_MODE = 'mock'
-$env:INITIAL_ADMIN_EMAIL = 'vactormanbear@gmail.com'
 $env:MOCK_COMPANY_DOMAIN = 'company.test'
+npm run admin:bootstrap -- admin@example.com
 npm start
 ```
 
+예시 이메일은 실제 관리자 이메일로 바꿔 입력한다. 이미 관리자 역할이 저장된 기존 로컬 데이터에는 부트스트랩 명령을 다시 실행할 필요가 없다. `ACCOUNTS_FILE`을 변경했다면 부트스트랩 명령과 서버 실행에 같은 경로를 사용한다.
+
 - `AUTH_MODE`: `mock` 또는 `disabled`. 생략하면 개발에서는 mock, production에서는 disabled.
-- `INITIAL_ADMIN_EMAIL`: 초기 관리자 이메일. 기본 `vactormanbear@gmail.com`. 관리자 계정은 회사 도메인 예외다.
+- 초기 관리자 이메일과 역할은 저장소 설정이 아닌 로컬 계정 데이터에 기록한다. 이미 활성 관리자가 있으면 부트스트랩 명령은 다른 계정을 승격하지 않는다. 이후 권한 변경은 관리자 화면/API에서 수행한다.
 - `MOCK_COMPANY_DOMAIN`: 개발용 직원 두 계정의 도메인. 기본 `company.test`. 실제 Workspace 허용 도메인을 검증하는 설정은 아니다.
 - `ACCOUNTS_FILE`: 사용자·알고리즘·경기 기록 메타데이터 파일 경로. 상대 경로는 실행 디렉터리 기준.
 - `ACCOUNT_STORE_ADAPTER`: 현재는 `file`만 지원. 저장 경계와 DB 교체 조건은 [저장 어댑터](storage-adapters.md)를 참고.

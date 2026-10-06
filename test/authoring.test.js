@@ -21,7 +21,8 @@ test('production refuses explicit mock authentication', () => {
 test('local accounts persist, isolate code, reject conflicts and revoke disabled users', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'coinhunter-auth-'));
   const fileAccounts = new FileAccountRepository(join(dir, 'store.json'));
-  const accounts = { adminEmail: fileAccounts.adminEmail };
+  await fileAccounts.bootstrapAdmin('admin@company.test');
+  const accounts = {};
   for (const method of [
     'login',
     'user',
@@ -74,7 +75,7 @@ test('local accounts persist, isolate code, reject conflicts and revoke disabled
   assert.equal(adminRedirect.headers.get('location'), '/signin?next=%2Fadmin');
   assert.equal((await call('/api/admin/users')).status, 401);
   assert.equal((await call('/api/auth/mock', 'POST', { email: 'anyone@gmail.com' })).status, 403);
-  const admin = await login('vactormanbear@gmail.com');
+  const admin = await login('admin@company.test');
   assert.equal((await call('/', 'GET', undefined, admin.cookie)).status, 200);
   const adminPage = await call('/admin', 'GET', undefined, admin.cookie);
   assert.equal(adminPage.status, 200);

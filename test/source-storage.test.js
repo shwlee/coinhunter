@@ -6,6 +6,21 @@ import { tmpdir } from 'node:os';
 import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
 import { validateSource } from '../src/runtime/policy.js';
 
+test('administrator is bootstrapped once and its role persists without configuration', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'coinhunter-admin-bootstrap-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, 'store.json');
+  const repository = new FileAccountRepository(file);
+  const before = await repository.login('admin@company.test');
+  assert.equal(before.role, 'user');
+  const admin = await repository.bootstrapAdmin('admin@company.test');
+  assert.equal(admin.role, 'admin');
+  assert.equal((await repository.bootstrapAdmin('admin@company.test')).id, admin.id);
+  await assert.rejects(repository.bootstrapAdmin('other@company.test'), { status: 409 });
+  const reopened = new FileAccountRepository(file);
+  assert.equal((await reopened.login('admin@company.test')).role, 'admin');
+});
+
 test('source files stay separate from account and match metadata', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'coinhunter-sources-'));
   t.after(() => rm(dir, { recursive: true, force: true }));

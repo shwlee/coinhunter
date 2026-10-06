@@ -13,6 +13,7 @@
     "pretest:authoring": "npm run build:editor",
     "start": "node src/server.js",
     "maps": "node scripts/maps.js",
+    "admin:bootstrap": "node scripts/bootstrap-admin.js",
     "capture:login": "node scripts/capture-login-gameplay.js",
     "test": "node --test test",
     "test:browser": "node scripts/browser-smoke.js",

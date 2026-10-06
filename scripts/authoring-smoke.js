@@ -8,9 +8,11 @@ import { createAuthoring } from '../src/authoring-api.js';
 import { createGameServer } from '../src/server.js';
 
 const dir = await mkdtemp(join(tmpdir(), 'coinhunter-editor-'));
+const accounts = new FileAccountRepository(join(dir, 'store.json'));
+await accounts.bootstrapAdmin('admin@company.test');
 const { server, close } = createGameServer({
   authoring: createAuthoring({
-    accounts: new FileAccountRepository(join(dir, 'store.json')),
+    accounts,
   }),
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -104,6 +106,7 @@ try {
   await page.waitForURL(base + '/');
   await page.locator('#go-editor[href="/editor"]').waitFor();
   await page.locator('#go-admin').waitFor({ state: 'visible' });
+  await page.locator('#account-bar .admin-link[href="/admin"]').waitFor({ state: 'visible' });
   await page.click('#go-admin');
   await page.waitForURL(base + '/admin');
   assert.equal(await page.locator('.admin-panel').count(), 3);
@@ -118,6 +121,14 @@ try {
   await page.setViewportSize({ width: 1550, height: 1100 });
   await page.click('.back-link');
   await page.waitForURL(base + '/');
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+    'Admin entry fits the home page on mobile',
+  );
+  await page.screenshot({ path: 'artifacts/entry-admin-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1550, height: 1100 });
   const regular = await browser.newPage();
   await regular.goto(base + '/signin');
   await regular.locator('#authenticate:enabled').waitFor();
@@ -125,8 +136,13 @@ try {
   await regular.click('#authenticate');
   await regular.waitForURL(base + '/');
   assert.equal(await regular.locator('#go-admin').isVisible(), false);
+  assert.equal(await regular.locator('#account-bar .admin-link').count(), 0);
   assert.equal((await regular.goto(base + '/admin')).status(), 403);
   await regular.close();
+  await page.goto(base + '/game');
+  await page.locator('#account-bar .admin-link[href="/admin"]').waitFor({ state: 'visible' });
+  await page.goto(base + '/');
+  await page.locator('#go-editor').waitFor({ state: 'visible' });
   assert.equal(
     await page.locator('header .brand img').getAttribute('src'),
     '/coin-hunter-icon.svg',
@@ -153,6 +169,7 @@ try {
   await page.screenshot({ path: 'artifacts/entry-desktop.png', fullPage: true });
   await page.click('#go-editor');
   await page.waitForSelector('#workbench', { state: 'visible' });
+  await page.locator('#account-bar .admin-link[href="/admin"]').waitFor({ state: 'visible' });
   assert.equal(await warnsOnExit(), false, 'The new document does not warn on exit');
   assert.equal(
     await page.locator('#document-origin').textContent(),

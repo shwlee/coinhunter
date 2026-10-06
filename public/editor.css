@@ -23,6 +23,20 @@ body {
   gap: 10px;
   flex-wrap: wrap;
 }
+#account-bar .admin-link {
+  padding: 8px 11px;
+  border: 1px solid #849b6e;
+  border-radius: 8px;
+  background: #b6f36e14;
+  color: #c8fa77;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+#account-bar .admin-link:hover {
+  border-color: #b6f36e;
+  background: #b6f36e26;
+}
 header {
   padding: 18px 24px 24px;
   background: #192331;

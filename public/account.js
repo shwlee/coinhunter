@@ -18,6 +18,13 @@ export async function accountBar(onChange = () => {}) {
   label.textContent = session.user ? session.user.email : '게스트';
   host.append(label);
   if (session.user) {
+    if (session.user.role === 'admin' && location.pathname !== '/admin') {
+      const admin = document.createElement('a');
+      admin.className = 'admin-link';
+      admin.href = '/admin';
+      admin.textContent = '관리자 페이지';
+      host.append(admin);
+    }
     const logout = document.createElement('button');
     logout.textContent = '로그아웃';
     logout.type = 'button';

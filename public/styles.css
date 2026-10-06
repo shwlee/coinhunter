@@ -1203,6 +1203,18 @@ footer > span:last-child {
   flex-wrap: wrap;
   font-size: 13px;
 }
+#account-bar .admin-link {
+  padding: 8px 11px;
+  border: 1px solid #849b6e;
+  border-radius: 8px;
+  background: #b6f36e14;
+  color: #c8fa77;
+  font-weight: 700;
+}
+#account-bar .admin-link:hover {
+  border-color: #b6f36e;
+  background: #b6f36e26;
+}
 .embedded-game .topbar,
 .embedded-game footer {
   display: none;
