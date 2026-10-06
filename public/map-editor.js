@@ -1,6 +1,7 @@
 import { api, accountBar } from './account.js';
 import { loadCoins, drawCoinSample } from './coin-renderer.js';
 import { COIN_VALUES, starts, placementIndices, applyTile, inspectMap } from './map-editing.js';
+import { mapStatus } from './map-status.js';
 
 const $ = (id) => document.getElementById(id);
 let map = null,
@@ -14,6 +15,7 @@ let cells = [],
   zoom = null,
   savedMaps = [];
 const coinImages = new Map();
+let publication = null;
 const snapshot = () =>
   JSON.stringify(
     map && {
@@ -41,6 +43,9 @@ function updateControls() {
         : '새 게임판'
     : '';
   $('map-identity').textContent = map?.id ? `${map.name} · v${map.revision}` : '새 맵';
+  $('publication-state').textContent = map?.id
+    ? `${mapStatus(publication)}${publication?.publishedRevision ? ` · 게시 v${publication.publishedRevision}` : ''}`
+    : '';
   $('save-map').disabled = !map || busy;
   $('tools').disabled = !map || busy;
   $('undo').disabled = !undo.length || busy;
@@ -113,8 +118,14 @@ function renderTiles() {
     : '게시 검사 통과. 저장은 초안으로 이루어집니다.';
   updateControls();
 }
-function openMap(document, saved = false) {
+function openMap(document, saved = false, state = null) {
   map = structuredClone(document);
+  publication = state;
+  window.history.replaceState(
+    null,
+    '',
+    map.id ? `/admin/maps/editor?mapId=${encodeURIComponent(map.id)}` : '/admin/maps/editor',
+  );
   undo = [];
   redo = [];
   selected = 0;
@@ -305,6 +316,8 @@ $('save-form').onsubmit = async (event) => {
       body: JSON.stringify(input),
     });
     map = result.map;
+    publication = result.state;
+    window.history.replaceState(null, '', `/admin/maps/editor?mapId=${encodeURIComponent(map.id)}`);
     baseline = snapshot();
     $('save-dialog').close();
     feedback('맵을 초안으로 저장했습니다.');
@@ -338,7 +351,7 @@ function renderList() {
       let failure = '';
       try {
         const result = await api(`/api/admin/maps/${entry.id}/draft`);
-        openMap(result.map, true);
+        openMap(result.map, true, result.state);
         $('load-dialog').close();
         feedback('저장된 맵을 불러왔습니다.');
       } catch (error) {
@@ -383,6 +396,8 @@ $('open-maps').onclick = async () => {
   }
 };
 try {
+  busy = true;
+  updateControls();
   const session = await accountBar();
   if (!session.user || session.user.role !== 'admin') location.replace('/admin');
   else {
@@ -394,7 +409,18 @@ try {
       coinImages.set(value, canvas.toDataURL());
     }
     if (map) renderTiles();
+    const id = new URLSearchParams(location.search).get('mapId');
+    if (id !== null) {
+      if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(id)) throw new Error('불러올 맵 ID를 확인하세요.');
+      const result = await api(`/api/admin/maps/${id}/draft`);
+      openMap(result.map, true, result.state);
+      feedback('저장된 맵을 불러왔습니다.');
+    }
   }
 } catch (error) {
   feedback(error.message, true);
+} finally {
+  busy = false;
+  if (map) renderTiles();
+  else updateControls();
 }

@@ -507,12 +507,7 @@ $('open').onclick = async () => {
   try {
     if (!(await mayDiscard())) return;
     const id = $('library').value;
-    const response = await fetch(`/api/algorithms/${id}/source`);
-    if (!response.ok) throw new Error('저장된 코드를 불러오지 못했습니다.');
-    const encodedMetadata = response.headers.get('X-Coinhunter-Metadata');
-    if (!encodedMetadata) throw new Error('저장된 코드 정보를 불러오지 못했습니다.');
-    const metadata = JSON.parse(decodeURIComponent(encodedMetadata));
-    reset({ ...metadata, source: await response.text() });
+    await loadSavedAlgorithm(id);
     $('load-panel').close();
     showPanel('writing');
     notice('저장 코드를 열었습니다.');
@@ -520,6 +515,19 @@ $('open').onclick = async () => {
     loadError(error.message);
   }
 };
+async function loadSavedAlgorithm(id) {
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id))
+    throw new Error('불러올 알고리즘 ID를 확인하세요.');
+  const response = await fetch(`/api/algorithms/${id}/source`);
+  if (!response.ok)
+    throw new Error(
+      '저장된 코드를 불러오지 못했습니다. 삭제되었거나 접근 권한이 없을 수 있습니다.',
+    );
+  const encodedMetadata = response.headers.get('X-Coinhunter-Metadata');
+  if (!encodedMetadata) throw new Error('저장된 코드 정보를 불러오지 못했습니다.');
+  const metadata = JSON.parse(decodeURIComponent(encodedMetadata));
+  reset({ ...metadata, source: await response.text() });
+}
 $('import').onchange = async () => {
   const file = $('import').files[0];
   if (!file || saving) return;
@@ -708,9 +716,15 @@ try {
     $('workbench').hidden = false;
     applyAiWidth();
     new ResizeObserver(applyAiWidth).observe(aiLayout);
-    notice(
-      '로컬 작업실 · 로그인은 목업이며 AI 자유 입력은 아직 연결되지 않았습니다. 템플릿 코드 생성, 저장, 테스트 플레이는 실제로 동작합니다.',
-    );
+    const selectedId = new URLSearchParams(location.search).get('algorithmId');
+    if (selectedId !== null) {
+      await loadSavedAlgorithm(selectedId);
+      showPanel('writing');
+      notice('선택한 저장 알고리즘을 열었습니다.');
+    } else
+      notice(
+        '로컬 작업실 · 로그인은 목업이며 AI 자유 입력은 아직 연결되지 않았습니다. 템플릿 코드 생성, 저장, 테스트 플레이는 실제로 동작합니다.',
+      );
   }
 } catch (error) {
   notice(error.message);

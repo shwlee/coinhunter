@@ -4,11 +4,29 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { validateMapDocument } from './maps.js';
+import { fail } from '../persistence/errors.js';
 
 const sampleRoot = fileURLToPath(new URL('../../maps/', import.meta.url));
 const dataRoot = fileURLToPath(new URL('../../data/maps/', import.meta.url));
 const validId = (id) => typeof id === 'string' && /^[a-z0-9][a-z0-9-]{0,63}$/.test(id);
 const validRevision = (revision) => Number.isSafeInteger(revision) && revision > 0;
+
+function checkState(entry, expected) {
+  if (expected === undefined) return;
+  if (
+    !expected ||
+    !validRevision(expected.draftRevision) ||
+    (expected.publishedRevision !== null && !validRevision(expected.publishedRevision)) ||
+    typeof expected.enabled !== 'boolean'
+  )
+    throw fail(400, '맵의 이전 상태를 확인하세요.');
+  if (
+    entry.draftRevision !== expected.draftRevision ||
+    entry.publishedRevision !== expected.publishedRevision ||
+    entry.enabled !== expected.enabled
+  )
+    throw fail(409, '맵 상태가 변경되었습니다. 최신 목록을 확인하세요.');
+}
 
 function readRegistry(path, optional = false) {
   let registry;
@@ -136,28 +154,36 @@ export class MapRepository {
       return map;
     });
   }
-  publish(id, revision) {
+  publish(id, revision, expected) {
+    const previous = expected === undefined ? undefined : structuredClone(expected);
     return this.change(async () => {
       const entry = this.registry().find((entry) => entry.id === id && entry.source === 'custom');
-      if (!entry || entry.draftRevision !== revision)
-        throw new Error('최신 임시 저장 버전만 게시할 수 있습니다.');
+      if (!entry) throw fail(404, '관리자 맵을 선택하세요.');
+      checkState(entry, previous);
+      if (entry.draftRevision !== revision)
+        throw fail(409, '최신 임시 저장 버전만 게시할 수 있습니다.');
       this.read(entry, revision);
       const registry = readRegistry(join(this.dataDirectory, 'registry.json'));
       Object.assign(
         registry.maps.find((entry) => entry.id === id),
-        { publishedRevision: revision, enabled: true },
+        {
+          publishedRevision: revision,
+          enabled: entry.publishedRevision === null ? true : entry.enabled,
+        },
       );
       await atomicJson(join(this.dataDirectory, 'registry.json'), registry);
     });
   }
-  setEnabled(id, enabled, order) {
+  setEnabled(id, enabled, order, expected) {
+    const previous = expected === undefined ? undefined : structuredClone(expected);
     return this.change(async () => {
       if (typeof enabled !== 'boolean' || (order !== undefined && !Number.isSafeInteger(order)))
         throw new Error('잘못된 표시 설정');
       const registry = readRegistry(join(this.dataDirectory, 'registry.json'));
       const entry = registry.maps.find((entry) => entry.id === id);
-      if (!entry || (enabled && entry.publishedRevision === null))
-        throw new Error('게시된 사용자 맵을 선택하세요.');
+      if (!entry) throw fail(404, '관리자 맵을 선택하세요.');
+      checkState(entry, previous);
+      if (entry.publishedRevision === null) throw fail(400, '게시된 사용자 맵을 선택하세요.');
       entry.enabled = enabled;
       if (order !== undefined) entry.order = order;
       await atomicJson(join(this.dataDirectory, 'registry.json'), registry);

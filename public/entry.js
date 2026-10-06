@@ -5,7 +5,9 @@ const status = (message) => {
 };
 const requested = new URLSearchParams(location.search).get('next');
 // Only application destinations are accepted, never URLs supplied by a caller.
-const next = ['/', '/editor', '/game', '/admin', '/admin/maps/editor'].includes(requested)
+const next = ['/', '/editor', '/game', '/admin', '/admin/maps', '/admin/maps/editor'].includes(
+  requested,
+)
   ? requested
   : '/';
 try {
@@ -26,6 +28,7 @@ try {
       '/game': '게임 플레이',
       '/admin': '관리자 페이지',
       '/admin/maps/editor': '게임맵 제작',
+      '/admin/maps': '맵 관리',
     };
     $('destination').textContent = `로그인 후 ${destinations[next]}로 이동합니다.`;
     if (signup)

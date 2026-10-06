@@ -102,6 +102,7 @@ test('concurrent saves reject stale revision and keep a readable registry', asyn
 
 test('API lists only enabled published files and refuses unpublished maps for play', async (t) => {
   const maps = await repository(t);
+  const publishedCount = maps.listPublished().length;
   const { server, close } = createGameServer({ maps });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   t.after(close);
@@ -109,7 +110,7 @@ test('API lists only enabled published files and refuses unpublished maps for pl
   await maps.saveDraft(custom());
   let response = await fetch(base + '/api/maps');
   const cookie = response.headers.get('set-cookie').split(';')[0];
-  assert.equal((await response.json()).maps.length, MAPS.length);
+  assert.equal((await response.json()).maps.length, publishedCount);
   const rejected = await fetch(base + '/api/matches', {
     method: 'POST',
     headers: { cookie, 'Content-Type': 'application/json' },
@@ -123,8 +124,8 @@ test('API lists only enabled published files and refuses unpublished maps for pl
   assert.equal(rejected.status, 400);
   await maps.publish('test-map', 1);
   response = await fetch(base + '/api/maps');
-  assert.equal((await response.json()).maps.length, MAPS.length + 1);
+  assert.equal((await response.json()).maps.length, publishedCount + 1);
   await maps.setEnabled('test-map', false);
   response = await fetch(base + '/api/maps');
-  assert.equal((await response.json()).maps.length, MAPS.length);
+  assert.equal((await response.json()).maps.length, publishedCount);
 });

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>맵 관리 · Coin Hunter</title>
+    <link rel="icon" href="/coin-hunter-icon.svg" />
+    <link rel="stylesheet" href="/entry.css" />
+    <link rel="stylesheet" href="/map-management.css" />
+    <script type="module" src="/map-management.js"></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/"><img src="/coin-hunter-icon.svg" alt="" />COIN HUNTER</a>
+      <div id="account-bar"></div>
+    </header>
+    <main class="maps-main">
+      <a href="/admin">← 관리자 페이지</a>
+      <div class="maps-heading">
+        <h1>맵 관리</h1>
+        <a class="new-map" href="/admin/maps/editor">＋ 새 맵 만들기</a>
+      </div>
+      <div class="maps-filters">
+        <label>맵 검색<input id="search" type="search" placeholder="맵 이름 검색" /></label
+        ><label
+          >상태<select id="filter">
+            <option value="all">전체</option>
+            <option value="draft">미게시</option>
+            <option value="visible">노출 중</option>
+            <option value="hidden">비노출</option>
+            <option value="changed">수정본 미게시</option>
+          </select></label
+        ><button id="refresh" type="button">새로고침</button>
+      </div>
+      <p id="feedback" role="status" aria-live="polite"></p>
+      <p id="count"></p>
+      <div id="maps" role="list" aria-label="맵 목록"></div>
+      <p id="empty" hidden></p>
+    </main>
+    <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-description"></p>
+      <p id="action-error" role="alert"></p>
+      <div class="confirm-actions">
+        <button id="cancel" type="button">취소</button
+        ><button id="confirm" type="button">확인</button>
+      </div>
+    </dialog>
+  </body>
+</html>

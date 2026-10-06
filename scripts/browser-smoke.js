@@ -261,10 +261,23 @@ try {
     .locator('#algorithm-file')
     .setInputFiles({ name: 'invalid.txt', mimeType: 'text/plain', buffer: Buffer.from('invalid') });
   assert.equal(await page.locator('#file-next').isDisabled(), true);
+  await page.locator('#algorithm-file').setInputFiles({
+    name: 'undefined-name.js',
+    mimeType: 'text/javascript',
+    buffer: Buffer.from(
+      "module.exports=class Player { initialize(){} getName(){return '이름';ㅂㅈㄷ} moveNext(){return -1;} };",
+    ),
+  });
+  await page.locator('#file-next').click();
+  await page.locator('#file-validation').filter({ hasText: 'ㅂㅈㄷ' }).waitFor();
+  assert.equal(await page.locator('#file-step').isVisible(), true);
+  assert.equal(await page.locator('#algorithm-file').isEnabled(), true);
+  assert.match(await page.locator('#file-validation').textContent(), /1행/);
   await page
     .locator('#algorithm-file')
     .setInputFiles(fileURLToPath(new URL('../examples/nearest-coin.js', import.meta.url)));
   await page.locator('#file-next').click();
+  await page.locator('#settings-step').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#settings-step').isVisible(), true);
   for (const width of [1440, 1024, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
@@ -489,6 +502,19 @@ try {
   });
   await page.screenshot({ path: 'artifacts/wizard-mobile-file.png', fullPage: true });
   await page.locator('#file-next').click();
+  await page.locator('#file-validation').filter({ hasText: '500ms 초과' }).waitFor();
+  assert.equal(await page.locator('#file-step').isVisible(), true);
+  assert.equal(await page.locator('#algorithm-file').isEnabled(), true);
+  assert.equal(await page.locator('#start-countdown').isVisible(), false);
+  // A later timeout remains a per-turn runtime penalty; preflight checks the first three calls.
+  await page.locator('#algorithm-file').setInputFiles({
+    name: 'recovery.js',
+    mimeType: 'text/javascript',
+    buffer: Buffer.from(timeoutSource.replace('this.calls===1', 'this.calls===4')),
+  });
+  assert.equal(await page.locator('#file-validation').isHidden(), true);
+  await page.locator('#file-next').click();
+  await page.locator('#settings-next').waitFor({ state: 'visible' });
   const nextBounds = await page.locator('#settings-next').boundingBox();
   const panelBounds = await page.locator('#arena-overlay').boundingBox();
   assert.ok(nextBounds.y + nextBounds.height <= panelBounds.y + panelBounds.height);
@@ -498,7 +524,7 @@ try {
   await page.locator('#position-next').click();
   await page.locator('#start-button').click();
   await page.locator('#debug-output').filter({ hasText: 'timeout' }).waitFor();
-  await page.locator('#debug-output').filter({ hasText: '회복 2' }).waitFor();
+  await page.locator('#debug-output').filter({ hasText: '회복 5' }).waitFor();
   assert.equal(await page.locator('.score-card[data-character="dino"]').count(), 1);
   await page.locator('#stop-button').click();
   await page.locator('#game-status').filter({ hasText: '경기 종료' }).waitFor();
@@ -506,7 +532,7 @@ try {
   assert.equal(await page.locator('#setup-form').isVisible(), false);
   assert.equal(await page.locator('#result-podium .podium-player').count(), 1);
   await page.locator('#play-again').click();
-  assert.equal(await page.locator('#file-label').textContent(), 'timeout.js');
+  assert.equal(await page.locator('#file-label').textContent(), 'recovery.js');
   assert.equal(await page.locator('#file-next').isEnabled(), true);
   assert.deepEqual(errors, []);
   // Exercise the actual snapshot-to-scoreboard path, including dummy equipment changes.

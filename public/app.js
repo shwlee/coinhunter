@@ -25,6 +25,8 @@ const stepTitles = [
   '시작 위치를 선택하세요',
 ];
 let selectedStartSlot = 0;
+let validatingFile = false;
+let fileLoadVersion = 0;
 let finishStage = null;
 let finishTimer = null;
 let analysisOpen = false;
@@ -76,6 +78,11 @@ let maps = [],
 function setError(message) {
   $('error-message').textContent = message;
 }
+function fileValidation(message = '', error = false) {
+  $('file-validation').textContent = message;
+  $('file-validation').hidden = !message;
+  $('file-validation').classList.toggle('error', error);
+}
 function active() {
   return game && (game.status === 'playing' || game.status === 'hurryup');
 }
@@ -96,6 +103,8 @@ function controls() {
     'history-select',
     'history-refresh',
     'algorithm-file',
+    'saved-current',
+    'refresh-library',
     'map-select',
     'dummy-count',
     'black-matter',
@@ -107,6 +116,9 @@ function controls() {
   $('position-next').disabled = !charactersReady || busy || active();
   $('character-back').disabled = busy || active();
   $('file-next').disabled = !filesReady() || busy || active();
+  $('edit-selected-algorithm').disabled =
+    !loggedIn || !$('saved-current').value || busy || active();
+  $('file-next').textContent = validatingFile ? '검사 중…' : '다음 →';
   const missingSelection = !testMode && isDuel() && !filesReady() && !busy && !active();
   $('file-next-reason').hidden = !missingSelection;
   $('file-next-reason').textContent = missingSelection
@@ -177,7 +189,6 @@ $('analysis-toggle').addEventListener('click', () => {
   if (analysisOpen) $('result-analysis').focus();
 });
 for (const [id, step] of [
-  ['file-next', 'settings'],
   ['file-back', 'file'],
   ['settings-next', 'character'],
   ['settings-back', 'settings'],
@@ -187,6 +198,37 @@ for (const [id, step] of [
     $(`${step}-step`).querySelector('input,select,button').focus();
   });
 }
+$('file-next').addEventListener('click', async () => {
+  if (!filesReady() || busy || active()) return;
+  busy = true;
+  validatingFile = true;
+  controls();
+  setError('');
+  fileValidation('알고리즘의 문법과 실행 결과를 검사하고 있습니다…');
+  let passed = false;
+  try {
+    await api('/api/game/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: source,
+    });
+    passed = true;
+    fileValidation('알고리즘 검사 통과');
+  } catch (error) {
+    const position = error.diagnostic
+      ? ` (${error.diagnostic.line}행 ${error.diagnostic.column}열)`
+      : '';
+    fileValidation(`${error.message}${position} · 코드를 수정하거나 다른 파일을 선택하세요.`, true);
+  } finally {
+    busy = false;
+    validatingFile = false;
+    controls();
+  }
+  if (passed) {
+    showSetupStep('settings');
+    $('settings-step').querySelector('input,select,button').focus();
+  }
+});
 $('position-next').addEventListener('click', () => {
   showSetupStep('position');
   document.querySelector('input[name="start-slot"]:checked').focus();
@@ -201,21 +243,37 @@ for (const input of document.querySelectorAll('input[name="start-slot"]')) {
     showSetupStep('position');
   });
 }
-async function loadFile(file) {
+async function loadFile(file, savedId = '') {
   if (busy || active() || !file) return;
+  const version = ++fileLoadVersion;
   source = '';
+  $('saved-current').value = savedId;
+  fileValidation();
   controls();
   if (!file.name.toLowerCase().endsWith('.js')) {
     setError('.js 파일을 선택하세요.');
     controls();
     return;
   }
-  source = await file.text();
+  let text;
+  try {
+    text = await file.text();
+  } catch {
+    if (version === fileLoadVersion) setError('파일을 읽지 못했습니다. 다른 파일을 선택하세요.');
+    return;
+  }
+  if (version !== fileLoadVersion) return;
+  source = text;
   $('file-label').textContent = file.name;
   setError('');
   controls();
 }
 $('algorithm-file').addEventListener('change', (event) => loadFile(event.target.files[0]));
+$('edit-selected-algorithm').addEventListener('click', () => {
+  const id = $('saved-current').value;
+  if (loggedIn && id && !busy && !active())
+    location.assign(`/editor?algorithmId=${encodeURIComponent(id)}`);
+});
 $('history-select').addEventListener('change', () => {
   historyId = $('history-select').value;
   controls();
@@ -751,6 +809,7 @@ try {
         $(id).replaceChildren(new Option('현재 코드 불러오기', ''));
         for (const item of data.algorithms) $(id).add(new Option(item.name, item.id));
       }
+      controls();
     };
     await updateLibrary();
     controls();
@@ -759,14 +818,25 @@ try {
     });
     for (const id of ['saved-current']) {
       $(id).addEventListener('change', async () => {
+        controls();
         if (!$(id).value || busy || active()) return;
+        const selectedId = $(id).value;
+        const version = ++fileLoadVersion;
+        source = '';
+        fileValidation();
+        controls();
         try {
-          const item = await api(`/api/algorithms/${$(id).value}`);
-          if (busy || active()) return;
-          await loadFile(new File([item.source], item.name + '.js'));
+          const response = await fetch(`/api/algorithms/${selectedId}/source`);
+          if (!response.ok) throw new Error('저장된 코드를 불러오지 못했습니다.');
+          const encoded = response.headers.get('X-Coinhunter-Metadata');
+          if (!encoded) throw new Error('저장된 코드 정보를 불러오지 못했습니다.');
+          const item = JSON.parse(decodeURIComponent(encoded));
+          const text = await response.text();
+          if (busy || active() || version !== fileLoadVersion || $(id).value !== selectedId) return;
+          await loadFile(new File([text], item.name + '.js'), selectedId);
           controls();
         } catch (error) {
-          setError(error.message);
+          if (version === fileLoadVersion) setError(error.message);
         }
       });
     }

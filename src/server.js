@@ -11,6 +11,7 @@ import { adminMapsRoute } from './admin-maps-api.js';
 import { Match } from './game/match.js';
 import { DEFAULT_CHARACTER, isPlayableCharacter } from '../public/characters.js';
 import { validateSource } from './runtime/policy.js';
+import { validateAlgorithm } from './runtime/preflight.js';
 import { createAuthoring } from './authoring-api.js';
 import { diskSpace, hasUploadSpace } from './persistence/disk-space.js';
 import { cleanupOrphanUploads } from './persistence/upload-cleanup.js';
@@ -24,6 +25,10 @@ const assets = new Map([
   ['/admin', ['admin.html', 'text/html; charset=utf-8']],
   ['/admin.js', ['admin.js', 'text/javascript; charset=utf-8']],
   ['/admin/maps/editor', ['map-editor.html', 'text/html; charset=utf-8']],
+  ['/admin/maps', ['map-management.html', 'text/html; charset=utf-8']],
+  ['/map-management.js', ['map-management.js', 'text/javascript; charset=utf-8']],
+  ['/map-management.css', ['map-management.css', 'text/css; charset=utf-8']],
+  ['/map-status.js', ['map-status.js', 'text/javascript; charset=utf-8']],
   ['/map-editor.js', ['map-editor.js', 'text/javascript; charset=utf-8']],
   ['/map-editing.js', ['map-editing.js', 'text/javascript; charset=utf-8']],
   ['/map-editor.css', ['map-editor.css', 'text/css; charset=utf-8']],
@@ -234,11 +239,18 @@ export function createGameServer({
       }
       if (
         request.method === 'GET' &&
-        ['/admin', '/admin.js', '/admin/maps/editor', '/map-editor.js'].includes(url.pathname)
+        [
+          '/admin',
+          '/admin.js',
+          '/admin/maps/editor',
+          '/map-editor.js',
+          '/admin/maps',
+          '/map-management.js',
+        ].includes(url.pathname)
       ) {
         if (!user) {
           response.writeHead(302, {
-            Location: `/signin?next=${encodeURIComponent(url.pathname === '/admin/maps/editor' ? url.pathname : '/admin')}`,
+            Location: `/signin?next=${encodeURIComponent(url.pathname.startsWith('/admin/maps') ? url.pathname : '/admin')}`,
           });
           response.end();
           return;
@@ -269,6 +281,16 @@ export function createGameServer({
       }
       if (request.method === 'GET' && url.pathname === '/api/maps') {
         json(response, 200, { maps: maps.listPublished() });
+        return;
+      }
+      if (request.method === 'POST' && url.pathname === '/api/game/validate') {
+        const sourcePath = await readSourceFile(request);
+        try {
+          const result = await validateAlgorithm(undefined, user?.id || owner, sourcePath);
+          json(response, result.ok ? 200 : 400, result);
+        } finally {
+          await unlink(sourcePath).catch(() => {});
+        }
         return;
       }
       if (request.method === 'GET' && url.pathname === '/api/example') {

@@ -810,6 +810,42 @@ try {
   await second.click('#authenticate');
   await second.waitForSelector('#library option[value]:not([value=""])', { state: 'attached' });
   assert.ok((await second.locator('#library').textContent()).includes('브라우저 저장 테스트'));
+  const libraryResponse = await second.request.get(base + '/api/algorithms');
+  const editable = (await libraryResponse.json()).algorithms.find(
+    (item) => item.name === '브라우저 저장 테스트',
+  );
+  assert.ok(editable);
+  const expectedCode = await (
+    await second.request.get(base + `/api/algorithms/${editable.id}/source`)
+  ).text();
+  await second.goto(base + '/game');
+  await second
+    .locator(`#saved-current option[value="${editable.id}"]`)
+    .waitFor({ state: 'attached' });
+  assert.equal(await second.locator('#edit-selected-algorithm').isDisabled(), true);
+  await second.locator('#saved-current').selectOption(editable.id);
+  await second.locator('#file-label').filter({ hasText: editable.name }).waitFor();
+  assert.equal(await second.locator('#edit-selected-algorithm').isEnabled(), true);
+  await second.locator('#algorithm-file').setInputFiles('examples/nearest-coin.js');
+  assert.equal(await second.locator('#edit-selected-algorithm').isDisabled(), true);
+  await second.locator('#saved-current').selectOption(editable.id);
+  await second.locator('#file-label').filter({ hasText: editable.name }).waitFor();
+  await second.locator('#edit-selected-algorithm').click();
+  await second.waitForURL(base + `/editor?algorithmId=${editable.id}`);
+  await second.locator('#document-title').filter({ hasText: editable.name }).waitFor();
+  assert.equal(await second.locator('#code').inputValue(), expectedCode);
+  assert.match(await second.locator('#document-origin').textContent(), /저장/);
+  assert.equal(
+    await second.evaluate(() => {
+      const event = new Event('beforeunload', { cancelable: true });
+      dispatchEvent(event);
+      return event.defaultPrevented;
+    }),
+    false,
+  );
+  await second.locator('#save').click();
+  assert.equal(await second.locator('#overwrite-option').isVisible(), true);
+  await second.locator('#cancel-save').click();
   const guest = await browser.newPage({ viewport: { width: 390, height: 850 } });
   await guest.goto(base + '/signin?next=https%3A%2F%2Fevil.example');
   await guest.locator('#authenticate:enabled').waitFor();

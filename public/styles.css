@@ -1164,6 +1164,18 @@ footer > span:last-child {
   line-height: 1.35;
   text-align: left;
 }
+.setup-wizard #file-validation {
+  margin: 8px 0 0;
+  color: var(--accent);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+  max-height: 4.05em;
+  overflow: auto;
+}
+.setup-wizard #file-validation.error {
+  color: #ffaaa4;
+}
 .setup-wizard .position-actions .primary,
 .setup-wizard #position-next {
   min-width: 150px;
@@ -1273,6 +1285,18 @@ footer > span:last-child {
   width: auto;
   padding: 5px;
   font-size: 11px;
+}
+.saved-code-selection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.saved-code-selection select {
+  flex: 1;
+  min-width: 0;
+}
+.saved-code-selection button {
+  flex-shrink: 0;
 }
 #saved-algorithms select {
   width: 45%;
