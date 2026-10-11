@@ -48,12 +48,30 @@ try {
           ? '목업 계정으로 가입하고 계속'
           : '목업 로그인하고 계속';
       } else {
-        $('authenticate').textContent = 'Google 로그인 준비 중';
-        status('Google 인증 연결 설정이 필요합니다.');
+        $('identity').disabled = true;
+        $('authenticate').disabled = !session.google;
+        $('authenticate').textContent = session.google
+          ? 'Google 계정으로 계속'
+          : 'Google 로그인 준비 중';
+        if (!session.google) status('Google 인증 연결 설정이 필요합니다.');
+      }
+      const authError = new URLSearchParams(location.search).get('authError');
+      if (authError) {
+        status(
+          authError === 'denied'
+            ? '허용된 계정인지 또는 계정 이용 상태를 확인하세요.'
+            : '로그인이 취소되었거나 인증에 실패했습니다. 다시 시도하세요.',
+        );
+        history.replaceState(null, '', `${location.pathname}?next=${encodeURIComponent(next)}`);
       }
       $('auth-form').addEventListener('submit', async (event) => {
         event.preventDefault();
         if ($('authenticate').disabled) return;
+        if (session.google) {
+          $('authenticate').disabled = true;
+          location.assign(`/api/auth/google/start?next=${encodeURIComponent(next)}`);
+          return;
+        }
         $('authenticate').disabled = true;
         status('로그인하고 있습니다…');
         try {

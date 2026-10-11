@@ -17,7 +17,8 @@ npm start
 
 ## 구현된 기능
 
-- [로컬 알고리즘 작업실](docs/local-authoring.md): `/editor`에서 목업 로그인, 코드 편집·계정별 저장·테스트 플레이·사용자 관리. Google 로그인과 AI 응답은 개발용 목업입니다.
+- [로컬 알고리즘 작업실](docs/local-authoring.md): `/editor`에서 코드 편집·계정별 저장·테스트 플레이·사용자 관리. 기본 로그인과 AI 응답은 개발용 목업입니다.
+- [Google OAuth 설정](docs/google-auth-setup.md): `.env`에 웹 클라이언트 설정을 입력하고 Google 로그인을 활성화합니다. 실제 Google 로그인 확인과 운영 네트워크 연결은 별도 검증합니다.
 - [계정 데이터 저장 어댑터](docs/storage-adapters.md): 메타데이터와 별도 `.js` 코드 파일, 단일 컨테이너 영구 볼륨, 이후 DB 교체 계약.
 
 - 플레이어별 프로세스·QuickJS 인스턴스를 경기 동안 유지
@@ -38,6 +39,7 @@ npm run verify:runtime
 npm run demo
 npm run test:browser
 npm run test:authoring
+npm run test:google-auth
 ```
 
 브라우저 검증은 설치된 Edge/Chrome/Chromium을 사용합니다. 자동으로 찾지 못하면 `COINHUNTER_BROWSER`에 실행 파일 경로를 지정합니다. 별도 브라우저 다운로드는 하지 않습니다. 스크린샷은 Git에서 제외한 `artifacts/`에 생성됩니다.
@@ -48,7 +50,7 @@ npm run test:authoring
 
 ## 아직 구현하지 않은 기능
 
-실제 Google 로그인·AI 연결, 관리자 맵 편집 화면, 선택적 공유 더미, 대회, 실제 사내 배포는 후속 단계입니다. 작업실의 계정·알고리즘·종료 경기 메타데이터는 로컬 JSON에, 코드 원문과 과거 경기 코드 사본은 별도 `.js` 파일에 유지됩니다. 게스트 업로드 코드와 경기 기록은 영구 저장되지 않으며 경기 결과는 종료 후 약 5분 동안 서버 메모리에 유지됩니다.
+실제 Google 계정으로 로그인 확인·기존 목업 계정 이관, AI 연결, 선택적 공유 더미, 대회, 실제 사내 배포는 후속 단계입니다. 작업실의 계정·알고리즘·종료 경기 메타데이터는 로컬 JSON에, 코드 원문과 과거 경기 코드 사본은 별도 `.js` 파일에 유지됩니다. 게스트 업로드 코드와 경기 기록은 영구 저장되지 않으며 경기 결과는 종료 후 약 5분 동안 서버 메모리에 유지됩니다.
 
 ## 문서
 

@@ -1,11 +1,17 @@
 import { randomUUID } from 'node:crypto';
+import { appendCookie } from './cookies.js';
 
 const lifetimeMs = 8 * 3600000;
 const tokenFor = (request) =>
   request.headers.cookie?.match(/(?:^|;\s*)coinhunter-session=([a-f0-9-]{36})(?:;|$)/)?.[1];
 
 // One host, in-memory sessions. A restart intentionally requires another login.
-export function createMemorySessionStore({ now = Date.now } = {}) {
+export function createMemorySessionStore({
+  now = Date.now,
+  secure = false,
+  sameSite = 'Strict',
+} = {}) {
+  const attributes = `HttpOnly; SameSite=${sameSite}; Path=/${secure ? '; Secure' : ''}`;
   const sessions = new Map();
   const remove = (request) => sessions.delete(tokenFor(request));
   return {
@@ -25,10 +31,7 @@ export function createMemorySessionStore({ now = Date.now } = {}) {
       for (const [token, session] of sessions) if (session.expires <= time) sessions.delete(token);
       const token = randomUUID();
       sessions.set(token, { userId, expires: time + lifetimeMs });
-      response.setHeader(
-        'Set-Cookie',
-        `coinhunter-session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800`,
-      );
+      appendCookie(response, `coinhunter-session=${token}; ${attributes}; Max-Age=28800`);
     },
     remove,
     revokeUser(userId) {
@@ -37,10 +40,7 @@ export function createMemorySessionStore({ now = Date.now } = {}) {
     },
     logout(request, response) {
       remove(request);
-      response.setHeader(
-        'Set-Cookie',
-        'coinhunter-session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0',
-      );
+      appendCookie(response, `coinhunter-session=; ${attributes}; Max-Age=0`);
     },
   };
 }

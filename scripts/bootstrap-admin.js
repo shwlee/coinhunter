@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { createAccountRepository } from '../src/persistence/account-repository.js';
 
 const email = process.argv[2];

@@ -5,17 +5,32 @@ import { fail } from './persistence/errors.js';
 import { validateAlgorithm } from './runtime/preflight.js';
 import { createMockProvider } from './auth/mock-provider.js';
 import { createAuthenticationService } from './auth/authentication-service.js';
+import { readAuthConfig } from './auth/config.js';
+import { createGoogleProvider } from './auth/google-provider.js';
+import { createMemorySessionStore } from './auth/memory-session-store.js';
 
 export function createAuthoring({
   accounts = createAccountRepository(),
-  mock = process.env.AUTH_MODE
-    ? process.env.AUTH_MODE === 'mock'
-    : process.env.NODE_ENV !== 'production',
+  authConfig = readAuthConfig(),
+  mock = authConfig.mode === 'mock',
   domain = process.env.MOCK_COMPANY_DOMAIN || 'company.test',
+  googleClient,
 } = {}) {
+  const google =
+    authConfig.mode === 'google'
+      ? createGoogleProvider({ config: authConfig, client: googleClient })
+      : null;
   const authentication = createAuthenticationService({
     accounts,
-    providers: [createMockProvider({ accounts, enabled: mock, domain })],
+    providers: [
+      createMockProvider({ accounts, enabled: !google && mock, domain }),
+      ...(google ? [google] : []),
+    ],
+    sessions: createMemorySessionStore({
+      secure: !!authConfig.secure,
+      sameSite: google ? 'Lax' : 'Strict',
+    }),
+    allowIdentitySignup: async () => !!google,
   });
   const { current, requireUser } = authentication;
   return {

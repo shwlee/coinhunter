@@ -64,8 +64,37 @@ export function createAuthenticationService({
         json(response, 200, {
           user,
           mock: !!mock?.enabled,
+          google: !!registered.get('google')?.enabled,
           identities: mock?.enabled ? await mock.identities() : [],
         });
+        return true;
+      }
+      if (url.pathname === '/api/auth/google/start' && request.method === 'GET') {
+        const google = registered.get('google');
+        if (!google?.enabled) throw fail(403, 'Google 인증이 활성화되지 않았습니다.');
+        const location = google.begin(request, response, url.searchParams.get('next'));
+        response.writeHead(302, { Location: location });
+        response.end();
+        return true;
+      }
+      if (url.pathname === '/api/auth/google/callback' && request.method === 'GET') {
+        const google = registered.get('google');
+        if (!google?.enabled) throw fail(403, 'Google 인증이 활성화되지 않았습니다.');
+        let destination = '/';
+        try {
+          const flow = google.consume(request, response, url);
+          destination = flow.next;
+          if (flow.cancelled) throw fail(401, 'Google 로그인이 취소되었습니다.');
+          const next = await login('google', request, response, flow);
+          response.writeHead(303, {
+            Location: flow.next.startsWith('/admin') && next.role !== 'admin' ? '/' : flow.next,
+          });
+        } catch (error) {
+          response.writeHead(303, {
+            Location: `/signin?next=${encodeURIComponent(destination)}&authError=${error.status === 403 ? 'denied' : 'failed'}`,
+          });
+        }
+        response.end();
         return true;
       }
       if (url.pathname === '/api/auth/mock' && request.method === 'POST') {
