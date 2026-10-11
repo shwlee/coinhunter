@@ -1,6 +1,7 @@
 import { api, accountBar } from './account.js';
 import { createCodeEditor } from '/code-editor.js';
 import { PRIORITY_WEIGHTS, STRATEGY_TEMPLATES, buildTemplateSource } from './strategy-templates.js';
+import { initializeAiConnections } from './ai-connections.js';
 const $ = (id) => document.getElementById(id);
 const editor = createCodeEditor($('code'), $('code-editor'), $('cursor'));
 const emptyAlgorithm = `module.exports = class Player {
@@ -724,6 +725,7 @@ try {
     reset({ source: emptyAlgorithm });
     await library();
     $('workbench').hidden = false;
+    void initializeAiConnections();
     applyAiWidth();
     new ResizeObserver(applyAiWidth).observe(aiLayout);
     const selectedId = new URLSearchParams(location.search).get('algorithmId');
@@ -733,7 +735,7 @@ try {
       notice('선택한 저장 알고리즘을 열었습니다.');
     } else
       notice(
-        '로컬 작업실 · 로그인은 목업이며 AI 자유 입력은 아직 연결되지 않았습니다. 템플릿 코드 생성, 저장, 테스트 플레이는 실제로 동작합니다.',
+        '전략 템플릿으로 코드를 만들거나 직접 편집하세요. AI 연결과 모델 선택을 준비할 수 있으며 실제 AI 생성은 아직 연결되지 않았습니다.',
       );
   }
 } catch (error) {

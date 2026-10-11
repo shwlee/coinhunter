@@ -34,6 +34,7 @@ export function createAiStorage({
     new FileAiConnectionRepository({
       file: join(directory, 'connections.json'),
       guard,
+      maxConnectionsPerUser: config.maxConnectionsPerUser,
     });
   const detach = sessions.onRemoved(({ sessionId }) => {
     connections.deleteSession(sessionId);
@@ -65,7 +66,7 @@ export function createAiStorage({
       guard(scope);
       return publicConnection(await connections.get(scope, id));
     },
-    create(scope, metadata, secret) {
+    create(scope, metadata, secret, verification = {}) {
       const input = validateConnectionMetadata(metadata);
       if (!config.allowedProviders.includes(input.provider))
         throw fail(403, '허용되지 않은 AI 제공자입니다.');
@@ -73,7 +74,11 @@ export function createAiStorage({
         const reference = await vault.put(scope, input.credentialMode, secret);
         try {
           return publicConnection(
-            await connections.create(scope, { ...input, credentialRef: reference }),
+            await connections.create(scope, {
+              ...input,
+              credentialRef: reference,
+              ...verification,
+            }),
           );
         } catch (error) {
           await clean(scope.ownerId, reference);
@@ -87,11 +92,20 @@ export function createAiStorage({
       return mutate(scope, async () => {
         const previous = await connections.get(scope, id);
         if (previous.revision !== revision) throw fail(409, 'AI 연결이 변경되었습니다.');
+        const validated = validateConnectionMetadata({
+          name: Object.hasOwn(input, 'name') ? input.name : previous.name,
+          provider: previous.provider,
+          credentialMode: previous.credentialMode,
+          defaultModelId: Object.hasOwn(input, 'defaultModelId')
+            ? input.defaultModelId
+            : previous.defaultModelId,
+        });
         await beforeConnectionChange(id);
-        return publicConnection(await connections.update(scope, id, revision, input));
+        const changes = Object.fromEntries(Object.keys(input).map((key) => [key, validated[key]]));
+        return publicConnection(await connections.update(scope, id, revision, changes));
       });
     },
-    replaceCredential(scope, id, revision, secret, check = async () => {}) {
+    replaceCredential(scope, id, revision, secret, check = async () => {}, verification = {}) {
       return mutate(scope, async () => {
         const previous = await connections.get(scope, id);
         if (previous.revision !== revision) throw fail(409, 'AI 연결이 변경되었습니다.');
@@ -102,7 +116,10 @@ export function createAiStorage({
           await check(await vault.resolve(scope, reference), previous.provider);
           guard(scope);
           await beforeConnectionChange(id);
-          next = await connections.update(scope, id, revision, { credentialRef: reference });
+          next = await connections.update(scope, id, revision, {
+            credentialRef: reference,
+            ...verification,
+          });
         } catch (error) {
           await clean(scope.ownerId, reference);
           throw error;
@@ -131,7 +148,15 @@ export function createAiStorage({
       return { secret, connection: item }; // Server-only; never serialize in HTTP responses.
     },
     preference: (scope) => connections.preference(scope),
-    setPreference: (scope, selection) => connections.setPreference(scope, selection),
+    recordCheck(scope, id, revision, status, checkedAt) {
+      return mutate(scope, async () =>
+        publicConnection(
+          await connections.update(scope, id, revision, { checkStatus: status, checkedAt }),
+        ),
+      );
+    },
+    setPreference: (scope, selection, revision) =>
+      connections.setPreference(scope, selection, revision),
     // Account deletion implementation is deferred; callers first revoke all owner sessions.
     deleteOwner(ownerId) {
       const job = queue.then(async () => {

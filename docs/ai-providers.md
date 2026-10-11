@@ -1,5 +1,7 @@
 # AI 제공자 연결 확인·모델 조회 — 3단계
 
+이 문서는 3단계 당시 범위다. 현재 HTTP·UI·공통 검증 경로는 [4단계 연결 UI 문서](ai-connections-ui.md)를 참고한다.
+
 ## 구현 범위
 
 `src/ai/providers.js`는 Claude·OpenAI·Gemini의 `checkConnection`과 `listModels`를 구현한다. Node 18의 서버 `fetch`를 사용하며 자격 증명은 인증 헤더로만 전달한다. 외부 주소는 어댑터에 고정하고 리디렉션은 거부한다. 사용자가 임의 주소를 지정할 수 없으며 승인된 중계 경로는 배포 준비 때 서버 전송 계층에서 별도로 구현한다.

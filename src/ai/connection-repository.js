@@ -12,10 +12,12 @@ export class FileAiConnectionRepository {
     file = 'data/ai/connections.json',
     guard = () => {},
     now = () => new Date().toISOString(),
+    maxConnectionsPerUser = 20,
   } = {}) {
     this.store = new AiJsonStore(file);
     this.guard = guard;
     this.now = now;
+    this.maxConnectionsPerUser = maxConnectionsPerUser;
   }
   #scope(scope) {
     assertScope(scope);
@@ -60,12 +62,23 @@ export class FileAiConnectionRepository {
     return this.#transaction(scope, (data) => clone(this.#find(data, scope, id)));
   }
   create(scope, input) {
-    const { credentialRef, ...metadata } = input;
+    const { credentialRef, checkStatus = 'unchecked', checkedAt = null, ...metadata } = input;
+    if (
+      !['unchecked', 'ready'].includes(checkStatus) ||
+      (checkStatus === 'ready' && !Number.isFinite(Date.parse(checkedAt)))
+    )
+      throw fail(400, 'AI 확인 상태를 확인하세요.');
     const validated = validateConnectionMetadata(metadata);
     if (!identifier(credentialRef)) throw fail(400, 'AI 자격 증명 참조를 확인하세요.');
     return this.#transaction(
       scope,
       (data, commit) => {
+        if (
+          [...data.connections, ...this.#temporary.values()].filter(
+            (item) => item.ownerId === scope.ownerId,
+          ).length >= this.maxConnectionsPerUser
+        )
+          throw fail(429, '계정의 AI 연결 수 한도에 도달했습니다. 기존 연결을 정리하세요.');
         const time = this.now();
         const item = {
           id: randomUUID(),
@@ -75,8 +88,8 @@ export class FileAiConnectionRepository {
           revision: 1,
           createdAt: time,
           updatedAt: time,
-          checkStatus: 'unchecked',
-          checkedAt: null,
+          checkStatus,
+          checkedAt,
         };
         if (item.credentialMode === 'session') {
           item.sessionId = scope.sessionId;
@@ -127,6 +140,18 @@ export class FileAiConnectionRepository {
         };
         next.name = validated.name;
         if (input.credentialRef && input.credentialRef !== item.credentialRef) {
+          next.defaultModelId = null;
+          data.preferences = data.preferences.filter((selection) => selection.connectionId !== id);
+          commit(() => {
+            for (const [session, selection] of this.#selections)
+              if (selection.connectionId === id) this.#selections.delete(session);
+          });
+        }
+        if (
+          input.credentialRef &&
+          input.credentialRef !== item.credentialRef &&
+          !input.checkStatus
+        ) {
           next.checkStatus = 'unchecked';
           next.checkedAt = null;
         }
@@ -165,7 +190,7 @@ export class FileAiConnectionRepository {
       return { connectionId: selection.connectionId, modelId: selection.modelId };
     });
   }
-  setPreference(scope, selection) {
+  setPreference(scope, selection, revision) {
     if (
       !selection ||
       Object.keys(selection).some((key) => !['connectionId', 'modelId'].includes(key))
@@ -181,6 +206,8 @@ export class FileAiConnectionRepository {
         }
         if (!validModelId(selection.modelId)) throw fail(400, 'AI 모델을 선택하세요.');
         const item = this.#find(data, scope, selection.connectionId);
+        if (revision !== undefined && item.revision !== revision)
+          throw fail(409, 'AI 연결이 변경되었습니다. 모델을 다시 선택하세요.');
         if (item.credentialMode === 'session')
           commit(() =>
             this.#selections.set(scope.sessionId, { ...selection, ownerId: scope.ownerId }),

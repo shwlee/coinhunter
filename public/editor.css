@@ -659,6 +659,141 @@ details {
 [hidden] {
   display: none !important;
 }
+.ai-connection-controls {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #46536a;
+}
+.ai-select-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  min-width: 0;
+}
+.ai-select-row select {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+}
+#ai-panel .ai-select-row .icon-button {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  padding: 7px;
+  margin: 0;
+}
+#ai-connection-status,
+.ai-help {
+  font-size: 12px;
+  color: #bdcbdc;
+  overflow-wrap: anywhere;
+}
+#ai-dialog {
+  width: min(560px, calc(100vw - 32px));
+  overscroll-behavior: contain;
+}
+#ai-connection-form > label,
+#ai-storage-options > label {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 6px;
+}
+#ai-connection-form > input,
+#ai-connection-form > select,
+#ai-credential-mode {
+  width: 100%;
+}
+#ai-dialog-status {
+  color: #c9e7a7;
+  overflow-wrap: anywhere;
+  min-height: 24px;
+}
+#ai-dialog-status[data-error='true'] {
+  color: #ffbf99;
+}
+#ai-delete-connection {
+  color: #ffbf99;
+  margin-right: auto;
+}
+.ai-setup-progress {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  list-style: none;
+  padding: 0;
+  gap: 5px;
+  font-size: 12px;
+}
+.ai-setup-progress li {
+  padding: 9px 5px;
+  text-align: center;
+  border-bottom: 2px solid #46536a;
+  color: #bdcbdc;
+}
+#ai-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+#ai-connection-form {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#ai-dialog > h2,
+#ai-dialog > .ai-select-row,
+#ai-setup-progress,
+#ai-dialog > .dialog-actions {
+  flex-shrink: 0;
+}
+#ai-wizard-actions {
+  padding: 12px 0 6px;
+}
+.ai-setup-progress li {
+  white-space: nowrap;
+  font-size: 11px;
+}
+.ai-setup-progress li[aria-current='step'] {
+  color: #c9e7a7;
+  border-color: #b6f36e;
+}
+#ai-guide-instructions {
+  padding-left: 22px;
+  line-height: 1.65;
+}
+#ai-guide-instructions li {
+  margin: 10px 0;
+}
+.ai-guide-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+#ai-key-console {
+  display: inline-block;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: #b6f36e;
+  color: #162217;
+  font-weight: 700;
+  text-decoration: none;
+}
+#ai-guide-step details {
+  margin-top: 16px;
+}
+#ai-provider-step label,
+#ai-credential-step > label,
+#ai-model-step label {
+  display: block;
+  margin: 14px 0 6px;
+}
+#ai-provider,
+#ai-credential-step > input,
+#ai-setup-model {
+  width: 100%;
+}
+body:has(#ai-dialog[open]) {
+  overflow: hidden;
+}
 .testing-header {
   display: flex;
   align-items: center;

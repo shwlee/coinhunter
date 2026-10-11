@@ -7,6 +7,8 @@ export async function api(path, options = {}) {
   if (!response.ok)
     throw Object.assign(new Error(data.error || '요청에 실패했습니다.'), {
       diagnostic: data.diagnostic,
+      code: data.code,
+      status: response.status,
     });
   return data;
 }

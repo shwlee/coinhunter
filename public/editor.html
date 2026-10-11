@@ -68,6 +68,12 @@
           d="m12 2 1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8zM19 17l.7 2.3L22 20l-2.3.7L19 23l-.7-2.3L16 20l2.3-.7z"
         />
       </symbol>
+      <symbol id="icon-connections" viewBox="0 0 24 24">
+        <path d="M9 7V3m6 4V3M6 7h12v4a6 6 0 0 1-12 0zM12 17v4" />
+      </symbol>
+      <symbol id="icon-refresh" viewBox="0 0 24 24">
+        <path d="M20 9a8 8 0 1 0 0 6M20 3v6h-6" />
+      </symbol>
     </svg>
     <header>
       <div class="header-top">
@@ -268,6 +274,41 @@
                   <span id="ai-arrow" aria-hidden="true">›</span>
                 </button>
                 <aside id="ai-panel" aria-label="AI 스크립팅">
+                  <section class="ai-connection-controls" aria-label="AI 연결과 모델">
+                    <div class="ai-select-row">
+                      <select id="ai-connection" aria-label="AI 연결" disabled>
+                        <option value="">AI 연결 선택</option>
+                      </select>
+                      <button
+                        id="ai-manage"
+                        class="icon-button"
+                        type="button"
+                        aria-label="AI 연결 관리"
+                        data-tooltip="AI 연결 관리"
+                        disabled
+                      >
+                        <svg aria-hidden="true"><use href="#icon-connections" /></svg>
+                      </button>
+                    </div>
+                    <div class="ai-select-row">
+                      <select id="ai-model" aria-label="AI 모델" disabled>
+                        <option value="">모델 선택</option>
+                      </select>
+                      <button
+                        id="ai-refresh-models"
+                        class="icon-button"
+                        type="button"
+                        aria-label="모델 목록 새로고침"
+                        data-tooltip="모델 목록 새로고침"
+                        disabled
+                      >
+                        <svg aria-hidden="true"><use href="#icon-refresh" /></svg>
+                      </button>
+                    </div>
+                    <p id="ai-connection-status" role="status" aria-live="polite">
+                      AI 연결 상태를 확인하고 있습니다.
+                    </p>
+                  </section>
                   <h2>어떤 전략으로 움직일까요?</h2>
                   <fieldset id="strategy-templates">
                     <legend>전략 템플릿 <span id="template-count">0 / 3</span></legend>
@@ -286,12 +327,12 @@
                   <textarea
                     id="prompt"
                     rows="5"
-                    placeholder="AI 연결 후 반영할 추가 전략을 적어 두세요."
+                    placeholder="코드 생성 연결 후 반영할 추가 전략을 적어 두세요."
                     aria-label="AI 전략 요청"
                   ></textarea>
                   <p id="ai-limit-note">
-                    현재는 선택한 템플릿과 가중치로 코드를 생성합니다. 자유 입력은 AI 연결 전까지
-                    코드에 반영되지 않습니다.
+                    현재는 선택한 템플릿과 가중치로 코드를 생성합니다. 자유 입력은 실제 AI 생성 연결
+                    전까지 코드에 반영되지 않습니다.
                   </p>
                   <button id="generate" disabled>템플릿 코드 생성</button
                   ><button id="cancel-ai" disabled>취소</button>
@@ -382,6 +423,119 @@
             <button id="confirm-save" type="submit">저장하기</button>
           </div>
         </form>
+      </dialog>
+      <dialog id="ai-dialog" aria-labelledby="ai-dialog-title">
+        <h2 id="ai-dialog-title">AI 연결 관리</h2>
+        <ol id="ai-setup-progress" class="ai-setup-progress" aria-label="연결 준비 단계" hidden>
+          <li>1 제공자</li>
+          <li>2 키 발급</li>
+          <li>3 연결 확인</li>
+          <li>4 모델 선택</li>
+        </ol>
+        <div class="ai-select-row">
+          <select id="ai-managed-connection" aria-label="관리할 AI 연결">
+            <option value="">새 연결</option></select
+          ><button id="ai-add-connection" type="button">새 연결</button>
+        </div>
+        <form id="ai-connection-form" autocomplete="off">
+          <div id="ai-provider-step">
+            <label for="ai-provider">제공자</label
+            ><select id="ai-provider" required></select>
+          </div>
+          <section id="ai-guide-step" hidden aria-labelledby="ai-guide-title">
+            <h3 id="ai-guide-title">API 키 준비</h3>
+            <div class="ai-guide-links">
+              <a id="ai-key-console" target="_blank" rel="noopener noreferrer"
+                >키 발급 화면 열기 ↗</a
+              ><a id="ai-billing-guide" target="_blank" rel="noopener noreferrer"
+                >API 결제·이용 한도 확인 ↗</a
+              >
+            </div>
+            <p id="ai-guide-preparation"></p>
+            <ol id="ai-guide-instructions"></ol>
+            <details>
+              <summary>발급 화면에서 막혔나요?</summary>
+              <p id="ai-guide-trouble"></p>
+            </details>
+            <p class="ai-help">
+              화면 이름은 언어·계정에 따라 다를 수 있습니다. 안내 확인: 2026-10-11
+            </p>
+          </section>
+          <p>
+            <a id="ai-provider-guide" target="_blank" rel="noopener noreferrer"
+              >API 키 발급 안내 ↗</a
+            >
+          </p>
+          <p class="ai-help">
+            게임 로그인과 AI API 인증은 별개입니다. 제공자의 API 키를 사용하세요. API 이용료는 해당
+            제공자 계정에 적용됩니다.
+          </p>
+          <div id="ai-credential-step">
+            <label for="ai-connection-name">연결 이름</label
+            ><input
+              id="ai-connection-name"
+              maxlength="80"
+              required
+              placeholder="예: 내 OpenAI 연결"
+            />
+            <div id="ai-storage-options">
+              <label for="ai-credential-mode">키 보관</label
+              ><select id="ai-credential-mode">
+                <option value="session">이번 로그인 동안 사용</option>
+                <option value="stored">계정에 암호화 저장</option>
+              </select>
+              <p id="ai-storage-help" class="ai-help"></p>
+            </div>
+            <label id="ai-key-label" for="ai-api-key">API 키</label
+            ><input
+              id="ai-api-key"
+              type="password"
+              autocomplete="new-password"
+              spellcheck="false"
+              autocapitalize="none"
+            />
+            <p class="ai-help">
+              키는 서버로 전달됩니다. 임시 키는 로그아웃·세션 만료·서버 재시작 시 제거됩니다. 이후
+              AI 생성에서는 요청과 코드가 선택한 제공자로 전송됩니다.
+            </p>
+          </div>
+          <section id="ai-model-step" hidden aria-labelledby="ai-model-step-title">
+            <h3 id="ai-model-step-title">연결 확인 완료</h3>
+            <p>연결과 키는 저장되었습니다. 사용할 모델을 선택하면 설정이 끝납니다.</p>
+            <label for="ai-setup-model">사용할 모델</label
+            ><select id="ai-setup-model" aria-label="새 연결의 모델">
+              <option value="">모델 선택</option>
+            </select>
+            <button id="ai-setup-refresh" type="button">모델 목록 다시 확인</button>
+            <p class="ai-help">
+              목록 조회는 확인됐습니다. 실제 AI 코드 생성은 아직 연결되지 않았습니다.
+            </p>
+          </section>
+          <p id="ai-dialog-status" role="status" aria-live="polite"></p>
+          <p id="ai-error-help" class="ai-help" hidden></p>
+          <div class="dialog-actions" id="ai-wizard-actions" hidden>
+            <button id="ai-setup-back" type="button">이전</button
+            ><button id="ai-setup-next" type="button">다음</button
+            ><button id="ai-setup-finish" type="button" hidden>모델 선택 완료</button>
+          </div>
+          <div class="dialog-actions">
+            <button id="ai-delete-connection" type="button" hidden>연결 삭제</button
+            ><button id="ai-check-connection" type="button" hidden>재확인</button
+            ><button id="ai-save-name" type="button" hidden>이름 저장</button
+            ><button id="ai-submit-connection" type="submit">확인 후 추가</button>
+          </div>
+        </form>
+        <div class="dialog-actions">
+          <button
+            id="ai-close-dialog"
+            class="icon-button"
+            type="button"
+            aria-label="AI 연결 관리 닫기"
+            data-tooltip="닫기"
+          >
+            <svg aria-hidden="true"><use href="#icon-close" /></svg>
+          </button>
+        </div>
       </dialog>
     </main>
   </body>

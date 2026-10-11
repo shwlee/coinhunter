@@ -70,6 +70,7 @@ export function readAiConfig(env = process.env) {
     maxConnectionRunningPerUser,
     connectionCooldownMs: integer('AI_CONNECTION_COOLDOWN_MS', 1000, 60000),
     modelCacheTtlMs: integer('AI_MODEL_CACHE_TTL_MS', 300000, 3600000),
+    maxConnectionsPerUser: integer('AI_MAX_CONNECTIONS_PER_USER', 20, 1000),
     preparedTtlMs: integer('AI_PREPARED_TTL_MS', 120000, 600000),
     candidateTtlMs: integer('AI_CANDIDATE_TTL_MS', 900000, 86400000),
   });

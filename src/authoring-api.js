@@ -11,6 +11,7 @@ import { createMemorySessionStore } from './auth/memory-session-store.js';
 import { readAiConfig } from './ai/config.js';
 import { createAiStorage } from './ai/storage-service.js';
 import { createAiModelCatalog } from './ai/model-catalog.js';
+import { createAiRoutes } from './ai/routes.js';
 
 export function createAuthoring({
   accounts = createAccountRepository(),
@@ -61,6 +62,12 @@ export function createAuthoring({
     throw error;
   }
   const { current, requireUser } = authentication;
+  const aiRoute = createAiRoutes({
+    config: aiConfig,
+    storage: aiStorage,
+    catalog: aiCatalog,
+    authentication,
+  });
   return {
     accounts,
     current,
@@ -77,6 +84,7 @@ export function createAuthoring({
       if (await authentication.route(request, response, url, user, readJson, json, revoke))
         return true;
       const path = url.pathname;
+      if (await aiRoute(request, response, url, user, readJson, json)) return true;
       if (path.startsWith('/api/admin/')) {
         requireUser(user);
         if (user.role !== 'admin') throw fail(403, '관리자 권한이 필요합니다.');

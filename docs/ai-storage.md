@@ -1,5 +1,7 @@
 # AI 연결·자격 증명 저장 — 2단계
 
+이 문서는 2단계 당시 범위다. 현재 HTTP·UI 흐름과 설정은 [4단계 연결 UI 문서](ai-connections-ui.md)를 참고한다.
+
 - 상태: 저장 어댑터·조율 서비스·인증 세션 정리 구현. 연결 등록 HTTP API, 제공자 확인·모델 조회, 사용자 모달은 아직 없다.
 - 기준: [공통 계약](ai-contracts.md), [AI 작업 계획](ai-scripting-plan.md), [개인정보 운영 준비](privacy-operations-plan.md).
 

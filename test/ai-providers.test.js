@@ -182,7 +182,7 @@ function fixture(t, options = {}) {
       calls++;
       return options.list
         ? options.list(input)
-        : { models: [{ id: 'model-a', name: 'A', generationVerified: false }], nextCursor: null };
+        : { models: [{ id: 'gpt-5', name: 'A', generationVerified: false }], nextCursor: null };
     },
   };
   const config = readAiConfig({
@@ -217,14 +217,14 @@ function fixture(t, options = {}) {
 
 test('catalog discovers all pages, deduplicates and applies allowlist without inventing models', async (t) => {
   const f = fixture(t, {
-    env: { AI_OPENAI_ALLOWED_MODELS: 'model-a,not-returned' },
+    env: { AI_OPENAI_ALLOWED_MODELS: 'gpt-5,not-returned' },
     list: async ({ cursor }) =>
       cursor
-        ? { models: [{ id: 'model-a', name: 'A' }], nextCursor: null }
+        ? { models: [{ id: 'gpt-5', name: 'A' }], nextCursor: null }
         : {
             models: [
-              { id: 'model-b', name: 'B' },
-              { id: 'model-a', name: 'A' },
+              { id: 'gpt-5-mini', name: 'B' },
+              { id: 'gpt-5', name: 'A' },
             ],
             nextCursor: 'next',
           },
@@ -234,11 +234,11 @@ test('catalog discovers all pages, deduplicates and applies allowlist without in
   const result = await f.catalog.refresh(f.scope, 'connection');
   assert.deepEqual(
     result.models.map((m) => m.id),
-    ['model-a'],
+    ['gpt-5'],
   );
   assert.equal(f.calls(), 2);
   result.models[0].name = 'tamper';
-  assert.equal((await f.catalog.cached(f.scope, 'connection')).models[0].name, 'A');
+  assert.equal((await f.catalog.cached(f.scope, 'connection')).models[0].name, 'GPT-5');
   await assert.rejects(f.catalog.refresh(f.scope, 'connection'), { code: 'rate_limited' });
   f.revise();
   assert.equal((await f.catalog.cached(f.scope, 'connection')).state, 'not_loaded');
@@ -298,7 +298,7 @@ test('pagination cycles and failures do not overwrite a previous catalog', async
   let fail = false;
   const f = fixture(t, {
     list: async () => ({
-      models: [{ id: 'model-a', name: 'A' }],
+      models: [{ id: 'gpt-5', name: 'A' }],
       nextCursor: fail ? 'cycle' : null,
     }),
   });
@@ -307,7 +307,7 @@ test('pagination cycles and failures do not overwrite a previous catalog', async
   fail = true;
   await assert.rejects(f.catalog.refresh(f.scope, 'connection'), { code: 'invalid_response' });
   const previous = await f.catalog.cached(f.scope, 'connection');
-  assert.equal(previous.models[0].id, 'model-a');
+  assert.equal(previous.models[0].id, 'gpt-5');
   assert.equal(previous.state, 'stale');
   assert.equal(previous.errorCode, 'invalid_response');
 });
@@ -332,7 +332,7 @@ test('real storage isolates users and cancels lookup on key replacement and logo
         started.resolve();
         return held.promise;
       }
-      return json({ data: [{ id: 'model-a' }] });
+      return json({ data: [{ id: 'gpt-5' }] });
     },
   });
   catalog = createAiModelCatalog({ storage, sessions, config, providers });
@@ -393,7 +393,7 @@ test('invalid credential refresh removes a previously usable catalog', async (t)
   const f = fixture(t, {
     list: async () => {
       if (invalid) throw Object.assign(new Error('safe'), { code: 'credential_invalid' });
-      return { models: [{ id: 'model-a', name: 'A' }], nextCursor: null };
+      return { models: [{ id: 'gpt-5', name: 'A' }], nextCursor: null };
     },
   });
   await f.catalog.refresh(f.scope, 'connection');

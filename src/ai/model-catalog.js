@@ -1,4 +1,5 @@
 import { aiError, createAiProviders } from './providers.js';
+import { selectRepresentativeModels } from './model-selection.js';
 
 // No credentials, external response bodies or durable model lists are cached.
 export function createAiModelCatalog({
@@ -52,8 +53,32 @@ export function createAiModelCatalog({
         ...(value.errorCode ? { errorCode: value.errorCode } : {}),
       };
     },
-    async refresh(scope, id) {
-      const selected = await connection(scope, id);
+    async remember(scope, selected, result) {
+      const current = await connection(scope, selected.id);
+      if (current.revision !== selected.revision) throw aiError('revision_conflict', 409);
+      const allowed = config.allowedModels[selected.provider];
+      for (const key of cache.keys()) if (JSON.parse(key)[2] === selected.id) cache.delete(key);
+      while (cache.size >= 128) cache.delete(cache.keys().next().value);
+      cache.set(keyFor(scope, selected), {
+        sessionId: scope.sessionId,
+        expiresAt: Date.parse(result.checkedAt) + config.modelCacheTtlMs,
+        checkedAt: result.checkedAt,
+        models: selectRepresentativeModels(selected.provider, result.models, allowed),
+      });
+    },
+    verify(scope, provider, credential, id = null) {
+      return this.refresh(scope, id, { provider, credential });
+    },
+    async refresh(scope, id, verification = null) {
+      guard(scope);
+      const selected = id
+        ? await connection(scope, id)
+        : { id: null, provider: verification?.provider, revision: 0 };
+      if (
+        !config.allowedProviders.includes(selected.provider) ||
+        (verification && verification.provider !== selected.provider)
+      )
+        throw aiError('invalid_input', 400);
       if (
         running.size >= config.maxConnectionRunning ||
         [...running].filter((job) => job.scope.ownerId === scope.ownerId).length >=
@@ -70,7 +95,7 @@ export function createAiModelCatalog({
       let timer;
       const timeout = new Promise((_, reject) => {
         timer = setTimeout(() => {
-          const previous = cache.get(keyFor(scope, selected));
+          const previous = verification ? null : cache.get(keyFor(scope, selected));
           if (previous) {
             previous.state = 'stale';
             previous.errorCode = 'timeout';
@@ -81,7 +106,9 @@ export function createAiModelCatalog({
       });
       const work = (async () => {
         try {
-          const { secret, connection: current } = await storage.credential(scope, id);
+          const { secret, connection: current } = verification
+            ? { secret: verification.credential, connection: selected }
+            : await storage.credential(scope, id);
           if (current.revision !== selected.revision) throw aiError('revision_conflict', 409);
           const models = new Map();
           const cursors = new Set();
@@ -104,7 +131,7 @@ export function createAiModelCatalog({
           }
           guard(scope);
           if (job.controller.signal.aborted) throw aiError('cancelled', 409);
-          if ((await connection(scope, id)).revision !== selected.revision)
+          if (id && (await connection(scope, id)).revision !== selected.revision)
             throw aiError('revision_conflict', 409);
           guard(scope);
           if (job.controller.signal.aborted) throw aiError('cancelled', 409);
@@ -113,13 +140,13 @@ export function createAiModelCatalog({
             sessionId: scope.sessionId,
             expiresAt: now() + config.modelCacheTtlMs,
             checkedAt: new Date(now()).toISOString(),
-            models: [...models.values()]
-              .filter((model) => !allowed.length || allowed.includes(model.id))
-              .sort((a, b) => a.id.localeCompare(b.id)),
+            models: selectRepresentativeModels(selected.provider, [...models.values()], allowed),
           };
-          for (const [key, item] of cache) if (item.expiresAt <= now()) cache.delete(key);
-          while (cache.size >= 128) cache.delete(cache.keys().next().value);
-          cache.set(keyFor(scope, selected), value);
+          if (!verification) {
+            for (const [key, item] of cache) if (item.expiresAt <= now()) cache.delete(key);
+            while (cache.size >= 128) cache.delete(cache.keys().next().value);
+            cache.set(keyFor(scope, selected), value);
+          }
           return {
             state: 'ready',
             models: value.models.map((model) => ({ ...model })),
@@ -127,8 +154,8 @@ export function createAiModelCatalog({
           };
         } catch (error) {
           const key = keyFor(scope, selected);
-          const previous = cache.get(key);
-          if (error.code === 'credential_invalid') cache.delete(key);
+          const previous = verification ? null : cache.get(key);
+          if (!verification && error.code === 'credential_invalid') cache.delete(key);
           else if (previous && !job.controller.signal.aborted) {
             previous.state = 'stale';
             previous.errorCode = error.code || 'unavailable';
