@@ -556,6 +556,7 @@ export function createGameServer({
     await Promise.all([...matches.values()].map((record) => record.archivePromise));
     await Promise.all([...matches.values()].map((record) => record.cleanupPromise));
     for (const stream of streams) stream.end();
+    await authoring.close?.();
     await new Promise((resolve) => server.close(resolve));
   };
   return { server, close };

@@ -1,6 +1,7 @@
 # AI 공통 계약 — 1단계
 
 - 상태: 공통 계약·입력/공개 데이터 검증·설정 해석 구현. 저장소·HTTP API·외부 제공자 호출은 아직 연결하지 않았다.
+- 2단계 갱신: 저장 어댑터와 내부 세션 수명 연결을 추가했다. 설정은 작성 서비스에서 읽으며 `AI_ENABLED`일 때 내부 저장 계층을 준비한다. HTTP·외부 호출은 아직 없다. 아래 1단계 설명 중 미연결 상태는 작성 당시 기준이며 현재 저장 범위는 [AI 저장 문서](ai-storage.md)를 따른다.
 - 소스: `src/ai/contracts.js`, `src/ai/config.js`.
 - 기준: [AI 작업 계획](ai-scripting-plan.md), [개인정보 설계 조건](privacy-operations-plan.md).
 

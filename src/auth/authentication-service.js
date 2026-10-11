@@ -57,6 +57,14 @@ export function createAuthenticationService({
   return {
     current,
     login,
+    sessions,
+    close: () => sessions.close?.(),
+    async scope(request) {
+      const user = await current(request);
+      const scope = sessions.scope?.(request);
+      if (!user || !scope || scope.ownerId !== user.id) throw fail(401, '로그인이 필요합니다.');
+      return scope;
+    },
     revokeUser: sessions.revokeUser,
     requireUser(user) {
       if (!user) throw fail(401, '로그인이 필요합니다.');

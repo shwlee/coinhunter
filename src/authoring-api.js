@@ -8,6 +8,8 @@ import { createAuthenticationService } from './auth/authentication-service.js';
 import { readAuthConfig } from './auth/config.js';
 import { createGoogleProvider } from './auth/google-provider.js';
 import { createMemorySessionStore } from './auth/memory-session-store.js';
+import { readAiConfig } from './ai/config.js';
+import { createAiStorage } from './ai/storage-service.js';
 
 export function createAuthoring({
   accounts = createAccountRepository(),
@@ -15,28 +17,44 @@ export function createAuthoring({
   mock = authConfig.mode === 'mock',
   domain = process.env.MOCK_COMPANY_DOMAIN || 'company.test',
   googleClient,
+  aiConfig = readAiConfig(),
+  aiEnv = process.env,
 } = {}) {
   const google =
     authConfig.mode === 'google'
       ? createGoogleProvider({ config: authConfig, client: googleClient })
       : null;
+  const sessions = createMemorySessionStore({
+    secure: !!authConfig.secure,
+    sameSite: google ? 'Lax' : 'Strict',
+  });
   const authentication = createAuthenticationService({
     accounts,
     providers: [
       createMockProvider({ accounts, enabled: !google && mock, domain }),
       ...(google ? [google] : []),
     ],
-    sessions: createMemorySessionStore({
-      secure: !!authConfig.secure,
-      sameSite: google ? 'Lax' : 'Strict',
-    }),
+    sessions,
     allowIdentitySignup: async () => !!google,
   });
+  let aiStorage = null;
+  try {
+    if (aiConfig.enabled) aiStorage = createAiStorage({ sessions, config: aiConfig, env: aiEnv });
+  } catch (error) {
+    sessions.close();
+    throw error;
+  }
   const { current, requireUser } = authentication;
   return {
     accounts,
     current,
     requireUser,
+    aiStorage,
+    aiScope: authentication.scope,
+    async close() {
+      authentication.close();
+      await aiStorage?.close();
+    },
     async route(request, response, url, user, readJson, json, revoke, readSourceFile) {
       if (await authentication.route(request, response, url, user, readJson, json, revoke))
         return true;
