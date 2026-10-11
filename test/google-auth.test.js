@@ -457,3 +457,197 @@ test('a newer pending attempt and expiry invalidate consumed flows before sessio
   assert.throws(next.assertCurrent, { status: 409 });
   next.complete();
 });
+
+test('login quotas reject cookie and forwarded-address churn while preserving other peers and pending retries', () => {
+  let time = Date.now();
+  const client = testClient();
+  const provider = createGoogleProvider({
+    config: { ...config, startsPerMinute: 4, flowsPerAddress: 2 },
+    client,
+    now: () => time,
+  });
+  const peer = (address, cookie = '') => ({
+    ...request(cookie),
+    socket: { remoteAddress: address },
+  });
+  const firstResponse = response();
+  const first = new URL(provider.begin(peer('192.0.2.1'), firstResponse, '/editor'));
+  const firstCookie = cookieOf(firstResponse);
+  const secondResponse = response();
+  const second = new URL(provider.begin(peer('192.0.2.1'), secondResponse, '/editor'));
+  const blocked = response();
+  const forged = peer('::ffff:192.0.2.1', 'coinhunter-oauth=' + 'A'.repeat(43));
+  forged.headers['x-forwarded-for'] = '192.0.2.2';
+  forged.headers.forwarded = 'for=192.0.2.2';
+  assert.throws(() => provider.begin(forged, blocked, '/editor'), { status: 429 });
+  assert.equal(blocked.headers['Retry-After'], '60');
+  assert.equal(blocked.headers['Set-Cookie'], undefined);
+  // The existing browser can replace its own slot even at the per-peer active limit.
+  const retryResponse = response();
+  const retry = new URL(provider.begin(peer('192.0.2.1', firstCookie), retryResponse, '/editor'));
+  assert.equal(cookieOf(retryResponse), firstCookie);
+  assert.throws(
+    () =>
+      provider.consume(
+        peer('192.0.2.1', firstCookie),
+        response(),
+        callback(first.searchParams.get('state')),
+      ),
+    { status: 401 },
+  );
+  const deniedRetry = response();
+  assert.throws(() => provider.begin(peer('192.0.2.1', firstCookie), deniedRetry, '/editor'), {
+    status: 429,
+  });
+  assert.equal(deniedRetry.headers['Retry-After'], '60');
+  provider
+    .consume(peer('192.0.2.1', firstCookie), response(), callback(retry.searchParams.get('state')))
+    .complete();
+  provider
+    .consume(
+      peer('192.0.2.1', cookieOf(secondResponse)),
+      response(),
+      callback(second.searchParams.get('state')),
+    )
+    .complete();
+  // Completed callbacks free slots, but do not reset the start-frequency limit.
+  for (let i = 0; i < 1000; i++)
+    assert.throws(() => provider.begin(peer('192.0.2.1'), response(), '/editor'), { status: 429 });
+  const healthy = response();
+  assert.ok(
+    new URL(provider.begin(peer('192.0.2.2'), healthy, '/editor')).searchParams.get('state'),
+  );
+  time += 60000;
+  assert.ok(
+    new URL(provider.begin(peer('192.0.2.1'), response(), '/editor')).searchParams.get('state'),
+  );
+});
+
+test('consumed exchanges retain their peer quota until completion, while expiry frees abandoned flows', () => {
+  let time = Date.now();
+  const provider = createGoogleProvider({
+    config: { ...config, flowsPerAddress: 1 },
+    client: testClient(),
+    now: () => time,
+  });
+  const res = response();
+  const url = new URL(provider.begin(request(), res, '/editor'));
+  const active = provider.consume(
+    request(cookieOf(res)),
+    response(),
+    callback(url.searchParams.get('state')),
+  );
+  assert.throws(() => provider.begin(request(), response(), '/editor'), { status: 429 });
+  active.complete();
+  provider.begin(request(), response(), '/editor');
+  time += 60000;
+  assert.throws(() => provider.begin(request(), response(), '/editor'), { status: 429 });
+  time += 540000;
+  provider.begin(request(), response(), '/editor');
+});
+
+test('global pool exhaustion still allows an admitted browser retry and recovers on callback completion', () => {
+  const provider = createGoogleProvider({ config, client: testClient() });
+  let admitted;
+  for (let i = 0; i < 1000; i++) {
+    const res = response();
+    const req = { ...request(), socket: { remoteAddress: `192.0.2.${Math.floor(i / 50) + 1}` } };
+    const url = new URL(provider.begin(req, res, '/editor'));
+    if (i === 0)
+      admitted = { req: { ...req, headers: { ...req.headers, cookie: cookieOf(res) } }, url };
+  }
+  const newcomer = { ...request(), socket: { remoteAddress: '198.51.100.1' } };
+  assert.throws(() => provider.begin(newcomer, response(), '/editor'), { status: 429 });
+  const retry = new URL(provider.begin(admitted.req, response(), '/editor'));
+  assert.throws(
+    () =>
+      provider.consume(admitted.req, response(), callback(admitted.url.searchParams.get('state'))),
+    { status: 401 },
+  );
+  const flow = provider.consume(
+    admitted.req,
+    response(),
+    callback(retry.searchParams.get('state')),
+  );
+  flow.complete();
+  provider.begin(newcomer, response(), '/editor');
+});
+
+test('rate limit configuration rejects invalid or unbounded quotas', () => {
+  const defaults = readAuthConfig(environment);
+  assert.equal(defaults.startsPerMinute, 60);
+  assert.equal(defaults.flowsPerAddress, 50);
+  for (const key of ['GOOGLE_AUTH_STARTS_PER_MINUTE', 'GOOGLE_AUTH_FLOWS_PER_ADDRESS']) {
+    for (const value of ['0', '-1', '1.5', 'NaN', 'Infinity', '1e3', '99999999999999999'])
+      assert.throws(() => readAuthConfig({ ...environment, [key]: value }), new RegExp(key));
+  }
+  assert.throws(() => readAuthConfig({ ...environment, GOOGLE_AUTH_FLOWS_PER_ADDRESS: '1000' }));
+  const configured = readAuthConfig({
+    ...environment,
+    GOOGLE_AUTH_STARTS_PER_MINUTE: '120',
+    GOOGLE_AUTH_FLOWS_PER_ADDRESS: '80',
+  });
+  assert.equal(configured.startsPerMinute, 120);
+  assert.equal(configured.flowsPerAddress, 80);
+});
+
+test('HTTP rejects excessive starts with Retry-After without breaking an admitted callback', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'coin-google-limit-http-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const settings = { ...config, startsPerMinute: 1 };
+  const app = createGameServer({
+    authoring: createAuthoring({
+      accounts: new FileAccountRepository(join(dir, 'store.json')),
+      authConfig: settings,
+      googleClient: testClient(settings),
+    }),
+  });
+  await new Promise((done) => app.server.listen(0, '127.0.0.1', done));
+  t.after(app.close);
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  settings.redirectUri = base + '/api/auth/google/callback';
+  const started = await fetch(base + '/api/auth/google/start', { redirect: 'manual' });
+  const state = new URL(started.headers.get('location')).searchParams.get('state');
+  const cookie = started.headers.get('set-cookie').match(/coinhunter-oauth=[A-Za-z0-9_-]+/)[0];
+  const blocked = await fetch(base + '/api/auth/google/start', {
+    redirect: 'manual',
+    headers: { cookie, 'x-forwarded-for': '192.0.2.99' },
+  });
+  assert.equal(blocked.status, 429);
+  assert.match(blocked.headers.get('retry-after'), /^[1-9]\d*$/);
+  assert.doesNotMatch(blocked.headers.get('set-cookie') || '', /coinhunter-oauth=/);
+  const finished = await fetch(base + `/api/auth/google/callback?state=${state}&code=code`, {
+    redirect: 'manual',
+    headers: { cookie },
+  });
+  assert.equal(finished.status, 303);
+  assert.equal(finished.headers.get('location'), '/');
+  assert.match(finished.headers.get('set-cookie'), /coinhunter-session=/);
+});
+
+test('rate tracker memory is bounded and expired peer buckets permit new clients again', () => {
+  let time = Date.now();
+  const provider = createGoogleProvider({ config, client: testClient(), now: () => time });
+  const peer = (address, cookie = '') => ({
+    ...request(cookie),
+    socket: { remoteAddress: address },
+  });
+  for (let i = 0; i < 4096; i++) {
+    const address = `2001:db8::${i.toString(16)}`;
+    const res = response();
+    const url = new URL(provider.begin(peer(address), res, '/editor'));
+    provider
+      .consume(
+        peer(address, cookieOf(res)),
+        response(),
+        callback(url.searchParams.get('state'), '&error=access_denied'),
+      )
+      .complete();
+  }
+  assert.throws(() => provider.begin(peer('2001:db8::ffff'), response(), '/editor'), {
+    status: 429,
+  });
+  provider.begin(peer('2001:db8::0'), response(), '/editor');
+  time += 60000;
+  provider.begin(peer('2001:db8::ffff'), response(), '/editor');
+});

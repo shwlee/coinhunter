@@ -33,6 +33,18 @@ export function createGoogleProvider({
 }) {
   const pending = new Map();
   const latest = new Map();
+  const starts = new Map();
+  const startsPerMinute = config.startsPerMinute ?? 60;
+  const flowsPerAddress = config.flowsPerAddress ?? 50;
+  if (
+    !Number.isSafeInteger(startsPerMinute) ||
+    startsPerMinute < 1 ||
+    startsPerMinute > 10000 ||
+    !Number.isSafeInteger(flowsPerAddress) ||
+    flowsPerAddress < 1 ||
+    flowsPerAddress >= 1000
+  )
+    throw new Error('Google 로그인 요청 제한 설정을 확인하세요.');
   const cookie = (value, age) =>
     `coinhunter-oauth=${value}; HttpOnly; SameSite=Lax; Path=/api/auth/google; Max-Age=${age}${config.secure ? '; Secure' : ''}`;
   function checkHost(request) {
@@ -42,6 +54,11 @@ export function createGoogleProvider({
   function prune() {
     for (const [state, flow] of pending) if (flow.expires <= now()) pending.delete(state);
     for (const [browser, flow] of latest) if (flow.expires <= now()) latest.delete(browser);
+    for (const [address, bucket] of starts) if (bucket.expires <= now()) starts.delete(address);
+  }
+  function reject(response, seconds = 60) {
+    response.setHeader('Retry-After', String(Math.max(1, Math.ceil(seconds))));
+    throw fail(429, '로그인 요청이 많습니다. 잠시 후 다시 시도하세요.');
   }
   return {
     id: 'google',
@@ -64,18 +81,44 @@ export function createGoogleProvider({
       }
       checkHost(request);
       prune();
-      // Limit pending flows before allocating credentials. A repeated browser login replaces its flow.
+      // Use the TCP peer only. Untrusted forwarding headers and browser cookies cannot bypass quotas.
+      const address = (request.socket?.remoteAddress || 'unknown')
+        .toLowerCase()
+        .replace(/^::ffff:/, '');
+      let bucket = starts.get(address);
+      if (bucket?.count >= startsPerMinute) reject(response, (bucket.expires - now()) / 1000);
+      if (!bucket) {
+        if (starts.size >= 4096) reject(response);
+        bucket = { count: 0, expires: now() + 60000 };
+        starts.set(address, bucket);
+      }
+      bucket.count++;
+      // Check admission before invalidating a pending retry, so a rejected request preserves its flow.
       const previous = browserToken(request);
-      if (previous)
-        for (const [state, flow] of pending)
-          if (equal(previous, flow.browser)) pending.delete(state);
-      if (pending.size >= 1000 || (!latest.has(previous) && latest.size >= 1000))
-        throw fail(429, '로그인 요청이 많습니다. 잠시 후 다시 시도하세요.');
+      const replaced = latest.get(previous);
+      const active = [...latest.values()].filter(
+        (flow) => flow.address === address && flow !== replaced,
+      );
+      if (active.length >= flowsPerAddress) reject(response);
+      if (
+        (!replaced && latest.size >= 1000) ||
+        (pending.size >= 1000 && !pending.has(replaced?.state))
+      )
+        reject(response);
       const state = random(),
         nonce = random(),
         browser = previous || random(),
         verifier = random();
-      const flow = { browser, nonce, verifier, next: target, expires: now() + lifetime };
+      const flow = {
+        state,
+        address,
+        browser,
+        nonce,
+        verifier,
+        next: target,
+        expires: now() + lifetime,
+      };
+      if (replaced) pending.delete(replaced.state);
       pending.set(state, flow);
       latest.set(browser, flow);
       const url = client.generateAuthUrl({

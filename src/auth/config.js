@@ -45,6 +45,14 @@ export function readAuthConfig(env = process.env) {
     throw new Error(
       '운영 Google 인증에는 GOOGLE_ALLOWED_DOMAINS 또는 GOOGLE_ALLOWED_EMAILS가 필요합니다.',
     );
+  const positiveInteger = (key, fallback, maximum) => {
+    const value = env[key]?.trim();
+    if (!value) return fallback;
+    const number = Number(value);
+    if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(number) || number > maximum)
+      throw new Error(`${key}는 1~${maximum} 범위의 정수여야 합니다.`);
+    return number;
+  };
   return {
     mode,
     clientId: env.GOOGLE_CLIENT_ID.trim(),
@@ -53,5 +61,7 @@ export function readAuthConfig(env = process.env) {
     secure: callback.protocol === 'https:',
     allowedDomains,
     allowedEmails,
+    startsPerMinute: positiveInteger('GOOGLE_AUTH_STARTS_PER_MINUTE', 60, 10000),
+    flowsPerAddress: positiveInteger('GOOGLE_AUTH_FLOWS_PER_ADDRESS', 50, 999),
   };
 }
