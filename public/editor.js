@@ -366,12 +366,22 @@ async function mayDiscard() {
   }
   return false;
 }
+let libraryRequestId = 0;
 async function library() {
-  const previous = $('library').value;
-  const { algorithms } = await api('/api/algorithms');
+  const requestId = ++libraryRequestId;
+  let algorithms;
+  try {
+    ({ algorithms } = await api('/api/algorithms'));
+  } catch (error) {
+    if (requestId !== libraryRequestId) return;
+    throw error;
+  }
+  if (requestId !== libraryRequestId) return;
+  // Preserve the selection made while fetching, rather than the value before the request.
+  const selected = $('library').value;
   $('library').replaceChildren(new Option('저장 코드 선택', ''));
   for (const item of algorithms) $('library').add(new Option(item.name, item.id));
-  $('library').value = previous;
+  $('library').value = algorithms.some((item) => item.id === selected) ? selected : '';
 }
 async function save(copy, name) {
   if (saving) return false;

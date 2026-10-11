@@ -20,6 +20,7 @@
     "test:browser": "node scripts/browser-smoke.js",
     "test:game-layout": "node scripts/game-layout-smoke.js",
     "test:authoring": "node scripts/authoring-smoke.js",
+    "test:library-refresh": "node scripts/library-refresh-smoke.js",
     "test:google-auth": "node scripts/google-auth-smoke.js",
     "test:maps": "node scripts/map-editor-smoke.js",
     "test:map-management": "node scripts/map-management-smoke.js",
