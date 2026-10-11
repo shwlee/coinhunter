@@ -62,10 +62,17 @@ test('admin map API protects access, preserves settings and publication, rejects
   assert.equal(guestPage.status, 302);
   assert.match(guestPage.headers.get('location'), /next=%2Fadmin%2Fmaps%2Feditor/);
   const ordinary = await login('developer@company.test');
-  for (const path of ['/api/admin/maps', '/admin/maps/editor', '/map-editor.js'])
+  for (const path of [
+    '/api/admin/maps',
+    '/api/admin/maps/default-settings',
+    '/admin/maps/editor',
+    '/map-editor.js',
+  ])
     assert.equal((await call(path, 'GET', undefined, ordinary)).status, 403);
   assert.equal((await call('/api/admin/maps', 'POST', {}, ordinary)).status, 403);
   const cookie = await login('admin@company.test');
+  const defaults = await call('/api/admin/maps/default-settings', 'GET', undefined, cookie);
+  assert.deepEqual((await defaults.json()).settings, DEFAULT_MAP_SETTINGS);
   assert.equal((await call('/admin/maps/editor', 'GET', undefined, cookie)).status, 200);
   const input = {
     columns: 5,
@@ -77,11 +84,28 @@ test('admin map API protects access, preserves settings and publication, rejects
   const created = await call(
     '/api/admin/maps',
     'POST',
-    { ...input, id: '../bad', settings: { actionMs: 0 }, enabled: true },
+    { ...input, id: '../bad', enabled: true },
     cookie,
   );
   assert.equal(created.status, 201);
   const first = (await created.json()).map;
+  const validatePath = '/api/admin/maps/validate-json';
+  assert.equal((await call(validatePath, 'POST', first)).status, 401);
+  assert.equal((await call(validatePath, 'POST', first, ordinary)).status, 403);
+  const validTransfer = await call(validatePath, 'POST', { ...first, enabled: true }, cookie);
+  assert.equal(validTransfer.status, 200);
+  assert.equal(Object.hasOwn((await validTransfer.json()).map, 'enabled'), false);
+  for (const document of [
+    null,
+    { ...first, schemaVersion: 2 },
+    { ...first, tiles: [0] },
+    { ...first, tiles: first.tiles.map((tile, index) => (index === 0 ? 10 : tile)) },
+    { ...first, settings: { ...first.settings, actionMs: 0 } },
+  ]) {
+    assert.equal((await call(validatePath, 'POST', document, cookie)).status, 400);
+  }
+  assert.equal(maps.registry().filter((entry) => entry.source === 'custom').length, 1);
+  assert.equal(maps.getDraft(first.id).revision, 1);
   assert.match(first.id, /^map-/);
   assert.deepEqual(first.settings, DEFAULT_MAP_SETTINGS);
   assert.equal(maps.getPublished(first.id), null);
@@ -113,7 +137,7 @@ test('admin map API protects access, preserves settings and publication, rejects
   const update = await call(
     `/api/admin/maps/${first.id}/draft`,
     'PUT',
-    { ...input, name: '미게시 수정', expectedRevision: 3, settings: { actionMs: 1 } },
+    { ...input, name: '미게시 수정', expectedRevision: 3 },
     cookie,
   );
   assert.equal(update.status, 200);
@@ -129,12 +153,54 @@ test('admin map API protects access, preserves settings and publication, rejects
     { ...input, columns: 41 },
     { ...input, tiles: [0] },
     { ...input, name: ' ' },
+    { ...input, settings: { ...DEFAULT_MAP_SETTINGS, actionMs: 1 } },
+    { ...input, settings: { ...DEFAULT_MAP_SETTINGS, unsupported: true } },
     { ...input, tiles: input.tiles.map((v, i) => (i === 0 ? -1 : v)) },
   ]) {
     assert.equal((await call('/api/admin/maps', 'POST', body, cookie)).status, 400);
   }
   assert.equal((await call(`/api/admin/maps/${first.id}/draft`, 'PUT', input, cookie)).status, 400);
   assert.equal((await call('/api/admin/maps/missing/draft', 'GET', undefined, cookie)).status, 404);
+  const optionUpdate = await call(
+    `/api/admin/maps/${first.id}/draft`,
+    'PUT',
+    {
+      ...input,
+      expectedRevision: 4,
+      settings: { ...DEFAULT_MAP_SETTINGS, actionMs: 888 },
+    },
+    cookie,
+  );
+  assert.equal(optionUpdate.status, 200);
+  assert.equal(maps.getDraft(first.id).settings.actionMs, 888);
+  assert.deepEqual(maps.getPublished(first.id), published);
+  assert.equal(
+    (
+      await call(
+        `/api/admin/maps/${first.id}/draft`,
+        'PUT',
+        {
+          ...input,
+          expectedRevision: 4,
+          settings: DEFAULT_MAP_SETTINGS,
+        },
+        cookie,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(maps.getDraft(first.id).settings.actionMs, 888);
+  const customCreate = await call(
+    '/api/admin/maps',
+    'POST',
+    {
+      ...input,
+      settings: { ...DEFAULT_MAP_SETTINGS, actionMs: 555 },
+    },
+    cookie,
+  );
+  assert.equal(customCreate.status, 201);
+  assert.equal((await customCreate.json()).map.settings.actionMs, 555);
   assert.equal(
     (
       await call(

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
@@ -33,10 +33,17 @@ try {
   await page.waitForURL(base + '/admin/maps/editor');
   await page.locator('#account-bar button').waitFor();
   assert.equal(await page.locator('#save-map').isDisabled(), true);
+  assert.equal(await page.locator('#edit-options').isDisabled(), true);
   await page.locator('#columns').fill('5');
   await page.locator('#rows').fill('5');
   await page.locator('#create-map button').click();
   assert.equal(await page.locator('.map-cell').count(), 25);
+  await page.locator('#edit-options').click();
+  await page.locator('#save-options:enabled').waitFor();
+  await page.locator('#option-actionMs').fill('650');
+  await page.locator('#save-options').click();
+  await page.locator('#options-dialog').waitFor({ state: 'hidden' });
+  assert.equal(maps.registry().filter((entry) => entry.source === 'custom').length, 0);
   await page.waitForFunction(() => !!document.querySelector('#account-bar button'));
   const tile = (index) => page.locator(`.map-cell[data-index="${index}"]`);
   await page.locator('#coin-value').selectOption('100');
@@ -106,18 +113,35 @@ try {
   assert.equal(await warnsOnExit(), false);
   // Another administrator saves a newer revision while this page still edits v1.
   const entry = maps.registry().find((entry) => entry.source === 'custom');
+  assert.equal(maps.getDraft(entry.id).settings.actionMs, 650);
+  await tile(13).click();
+  const unsavedTiles = await page.locator('.map-cell img').count();
+  await page.locator('#edit-options').click();
+  await page.locator('#save-options:enabled').waitFor();
+  assert.equal(await page.locator('#option-actionMs').inputValue(), '650');
+  await page.locator('#option-actionMs').fill('700');
+  await page.locator('#save-options').click();
+  await page.locator('#options-dialog').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('.map-cell img').count(), unsavedTiles);
+  assert.equal(maps.getDraft(entry.id).settings.actionMs, 650);
+  assert.equal(await warnsOnExit(), true);
+  await page.locator('#save-map').click();
+  await page.locator('#confirm-save').click();
+  await page.locator('#save-dialog').waitFor({ state: 'hidden' });
+  assert.equal(maps.getDraft(entry.id).settings.actionMs, 700);
+  assert.equal(await warnsOnExit(), false);
   await maps.saveDraft(
     { ...maps.getDraft(entry.id), name: '다른 관리자 수정' },
-    { expectedRevision: 1 },
+    { expectedRevision: 2 },
   );
-  await tile(13).click();
+  await tile(14).click();
   assert.equal(await warnsOnExit(), true);
   await page.locator('#save-map').click();
   await page.locator('#confirm-save').click();
   await page.waitForFunction(() =>
     document.querySelector('#save-error').textContent.includes('최신 버전'),
   );
-  assert.equal(await page.locator('.map-cell img').count(), 6);
+  assert.equal(await page.locator('.map-cell img').count(), 7);
   await page.locator('[data-close="save-dialog"]').click();
   page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#columns').fill('40');
@@ -164,6 +188,51 @@ try {
     mobileEmptyLayout,
     'First mobile asset preserves layout when validation text shortens',
   );
+  await page.locator('#edit-options').click();
+  await page.locator('#save-options:enabled').waitFor();
+  await page.locator('#option-actionMs').fill('800');
+  await page.locator('#save-options').click();
+  await page.locator('#options-dialog').waitFor({ state: 'hidden' });
+  const downloadPromise = page.waitForEvent('download');
+  await page.locator('#export-json').click();
+  const download = await downloadPromise;
+  const exported = JSON.parse(await readFile(await download.path(), 'utf8'));
+  assert.equal(exported.schemaVersion, 1);
+  assert.equal(exported.columns, 12);
+  assert.equal(exported.settings.actionMs, 800);
+  assert.equal(exported.tiles.filter((value) => value > 0).length, 4);
+  assert.equal(maps.registry().filter((entry) => entry.source === 'custom').length, 1);
+  const uploadJson = async (content) => {
+    await page.locator('#map-json-file').setInputFiles({
+      name: 'transfer.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(content),
+    });
+    await page.locator('#import-json:enabled').waitFor();
+  };
+  await uploadJson('{broken');
+  assert.match(await page.locator('#map-feedback').textContent(), /가져오기 실패/);
+  assert.equal(await page.locator('.map-cell img').count(), 4);
+  await uploadJson(JSON.stringify({ ...exported, tiles: [0] }));
+  assert.match(await page.locator('#map-feedback').textContent(), /가져오기 실패/);
+  assert.equal(await page.locator('.map-cell').count(), 120);
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await uploadJson(JSON.stringify({ ...exported, columns: 5, rows: 5, tiles: Array(25).fill(0) }));
+  assert.equal(await page.locator('.map-cell').count(), 120);
+  page.once('dialog', (dialog) => dialog.accept());
+  await uploadJson('\uFEFF' + JSON.stringify({ ...exported, name: '가져온 맵' }));
+  assert.equal(await page.locator('#map-identity').textContent(), '가져온 맵');
+  assert.equal(await page.locator('.map-cell img').count(), 4);
+  await page.locator('#save-map').click();
+  await page.locator('#confirm-save').click();
+  await page.locator('#save-dialog').waitFor({ state: 'hidden' });
+  const imported = maps
+    .registry()
+    .filter((item) => item.source === 'custom' && item.id !== entry.id);
+  assert.equal(imported.length, 1);
+  assert.equal(maps.getDraft(imported[0].id).settings.actionMs, 800);
+  assert.deepEqual(maps.getDraft(imported[0].id).tiles, exported.tiles);
+  assert.equal(maps.getPublished(imported[0].id), null);
   assert.deepEqual(errors, []);
   console.log('Map editor browser smoke passed');
 } finally {

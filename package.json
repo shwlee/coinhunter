@@ -17,6 +17,7 @@
     "capture:login": "node scripts/capture-login-gameplay.js",
     "test": "node --test test",
     "test:browser": "node scripts/browser-smoke.js",
+    "test:game-layout": "node scripts/game-layout-smoke.js",
     "test:authoring": "node scripts/authoring-smoke.js",
     "test:maps": "node scripts/map-editor-smoke.js",
     "test:map-management": "node scripts/map-management-smoke.js",

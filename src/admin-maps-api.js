@@ -1,12 +1,53 @@
 import { randomUUID } from 'node:crypto';
-import { DEFAULT_MAP_SETTINGS } from './game/maps.js';
+import {
+  DEFAULT_MAP_SETTINGS,
+  MAP_SETTING_LIMITS,
+  DEFAULT_HURRY_UP_REMOVAL_INTERVAL_MS,
+  validateMapDocument,
+} from './game/maps.js';
 import { fail } from './persistence/errors.js';
+
+function checkSettings(settings) {
+  const allowed = [...Object.keys(MAP_SETTING_LIMITS), 'hurryUpRemovalIntervalMs'];
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings))
+    throw fail(400, '맵 옵션을 확인하세요.');
+  if (Object.keys(settings).some((key) => !allowed.includes(key)))
+    throw fail(400, '지원하지 않는 맵 옵션입니다.');
+}
 
 export async function adminMapsRoute(request, response, url, user, maps, readJson, json) {
   const path = url.pathname;
   if (path !== '/api/admin/maps' && !path.startsWith('/api/admin/maps/')) return false;
   if (!user) throw fail(401, '로그인이 필요합니다.');
   if (user.role !== 'admin') throw fail(403, '관리자 권한이 필요합니다.');
+  if (path === '/api/admin/maps/default-settings' && request.method === 'GET') {
+    json(response, 200, { settings: DEFAULT_MAP_SETTINGS, limits: MAP_SETTING_LIMITS });
+    return true;
+  }
+  if (path === '/api/admin/maps/validate-json' && request.method === 'POST') {
+    const input = await readJson(request);
+    try {
+      checkSettings(input?.settings);
+      validateMapDocument(input, { published: false });
+    } catch (error) {
+      throw fail(400, error.message);
+    }
+    // Transfer map content only; visibility and publication are managed separately.
+    json(response, 200, {
+      map: {
+        schemaVersion: 1,
+        id: input.id,
+        revision: input.revision,
+        name: input.name.trim(),
+        description: input.description,
+        columns: input.columns,
+        rows: input.rows,
+        tiles: input.tiles,
+        settings: input.settings,
+      },
+    });
+    return true;
+  }
   if (path === '/api/admin/maps' && request.method === 'GET') {
     const entries = maps
       .registry()
@@ -29,6 +70,53 @@ export async function adminMapsRoute(request, response, url, user, maps, readJso
       }),
     });
     return true;
+  }
+  const settingsId = path.match(/^\/api\/admin\/maps\/([a-z0-9][a-z0-9-]{0,63})\/settings$/)?.[1];
+  if (settingsId) {
+    const entry = maps.registry().find((item) => item.id === settingsId);
+    if (!entry) throw fail(404, '맵을 찾을 수 없습니다.');
+    const draft = maps.read(entry, entry.draftRevision ?? entry.publishedRevision, false);
+    const result = (document) => ({
+      map: {
+        id: document.id,
+        name: document.name,
+        revision: document.revision,
+        settings: {
+          ...document.settings,
+          hurryUpRemovalIntervalMs: {
+            ...DEFAULT_HURRY_UP_REMOVAL_INTERVAL_MS,
+            ...document.settings.hurryUpRemovalIntervalMs,
+          },
+        },
+      },
+      state: maps.registry().find((item) => item.id === settingsId),
+      limits: MAP_SETTING_LIMITS,
+    });
+    if (request.method === 'GET') {
+      json(response, 200, result(draft));
+      return true;
+    }
+    if (request.method === 'PUT') {
+      if (entry.source === 'sample') throw fail(403, '기본 샘플은 읽기 전용입니다.');
+      const input = await readJson(request);
+      if (
+        !input ||
+        !Number.isSafeInteger(input.expectedRevision) ||
+        input.expectedRevision < 1 ||
+        !input.settings ||
+        typeof input.settings !== 'object' ||
+        Array.isArray(input.settings)
+      )
+        throw fail(400, '맵 옵션과 이전 저장 버전을 확인하세요.');
+      checkSettings(input.settings);
+      const saved = await maps.saveDraft(
+        { ...draft, settings: structuredClone(input.settings) },
+        { expectedRevision: input.expectedRevision },
+      );
+      json(response, 200, result(saved));
+      return true;
+    }
+    throw fail(404, '지원하지 않는 맵 옵션 요청입니다.');
   }
   const action = path.match(
     /^\/api\/admin\/maps\/([a-z0-9][a-z0-9-]{0,63})\/(preview|publish|visibility)$/,
@@ -89,6 +177,7 @@ export async function adminMapsRoute(request, response, url, user, maps, readJso
       throw fail(400, '맵 정보를 확인하세요.');
     if (id && (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 1))
       throw fail(400, '맵의 저장 버전을 확인하세요.');
+    if (Object.hasOwn(input, 'settings')) checkSettings(input.settings);
     const document = {
       id: id || `map-${randomUUID()}`,
       name: typeof input.name === 'string' ? input.name.trim() : input.name,
@@ -96,7 +185,7 @@ export async function adminMapsRoute(request, response, url, user, maps, readJso
       columns: input.columns,
       rows: input.rows,
       tiles: input.tiles,
-      settings: structuredClone(draft?.settings || DEFAULT_MAP_SETTINGS),
+      settings: structuredClone(input.settings ?? draft?.settings ?? DEFAULT_MAP_SETTINGS),
     };
     const saved = await maps.saveDraft(document, {
       expectedRevision: id ? input.expectedRevision : 0,

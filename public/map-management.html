@@ -7,6 +7,7 @@
     <link rel="icon" href="/coin-hunter-icon.svg" />
     <link rel="stylesheet" href="/entry.css" />
     <link rel="stylesheet" href="/map-management.css" />
+    <link rel="stylesheet" href="/map-options.css" />
     <script type="module" src="/map-management.js"></script>
   </head>
   <body>
@@ -37,6 +38,20 @@
       <div id="maps" role="list" aria-label="맵 목록"></div>
       <p id="empty" hidden></p>
     </main>
+    <dialog id="options-dialog" aria-labelledby="options-title">
+      <form id="options-form">
+        <h2 id="options-title">게임 옵션</h2>
+        <p id="options-map"></p>
+        <p id="options-note">옵션은 초안으로 저장됩니다. 게시 버전 갱신 후 새 경기에 적용됩니다.</p>
+        <div id="options-fields"></div>
+        <p id="options-error" role="alert"></p>
+        <div class="confirm-actions">
+          <button id="reload-options" type="button">최신 옵션 불러오기</button
+          ><button id="close-options" type="button">닫기</button
+          ><button id="save-options" type="submit">초안 저장</button>
+        </div>
+      </form>
+    </dialog>
     <dialog id="confirm-dialog" aria-labelledby="confirm-title">
       <h2 id="confirm-title"></h2>
       <p id="confirm-description"></p>

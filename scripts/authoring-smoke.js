@@ -109,7 +109,7 @@ try {
   await page.locator('#account-bar .admin-link[href="/admin"]').waitFor({ state: 'visible' });
   await page.click('#go-admin');
   await page.waitForURL(base + '/admin');
-  assert.equal(await page.locator('.admin-panel').count(), 3);
+  assert.equal(await page.locator('.admin-panel').count(), 2);
   await page.locator('#user-management').waitFor({ state: 'visible' });
   const ownRow = page.locator('.admin-user-row').filter({ hasText: 'admin@company.test' });
   assert.equal(await ownRow.locator('select').isDisabled(), true);

@@ -11,6 +11,9 @@
 * {
   box-sizing: border-box;
 }
+html {
+  scrollbar-gutter: stable both-edges;
+}
 body {
   margin: 0;
   background: var(--bg);
@@ -724,9 +727,9 @@ canvas {
   padding: 12px;
   background: #0d1521;
   border-radius: 5px;
-  min-height: 90px;
-  max-height: 175px;
+  height: 175px;
   overflow: auto;
+  scrollbar-gutter: stable;
   color: #a2b8a3;
   font: 11px/1.8 var(--mono);
   white-space: pre-wrap;

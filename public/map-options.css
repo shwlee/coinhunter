@@ -1,0 +1,64 @@
+html {
+  scrollbar-gutter: stable;
+}
+html:has(dialog:modal) {
+  overflow: hidden;
+}
+#options-dialog .confirm-actions {
+  display: flex;
+  justify-content: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+#options-dialog {
+  width: min(720px, calc(100vw - 32px));
+  max-height: 90vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#options-fields fieldset {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid #52647a;
+  border-radius: 10px;
+}
+#options-fields label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+}
+#options-fields input {
+  min-width: 0;
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  color: #e8eef7;
+  background: #101722;
+  border: 1px solid #46536a;
+  border-radius: 8px;
+}
+#options-fields input:disabled {
+  opacity: 0.65;
+}
+#options-fields small,
+#options-fields p,
+#options-note {
+  color: #b6c2d2;
+  font-size: 12px;
+}
+#options-fields p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+#options-error {
+  color: #ffaaa4;
+}
+@media (max-width: 500px) {
+  #options-fields fieldset {
+    grid-template-columns: 1fr;
+  }
+}

@@ -2,6 +2,7 @@ import { api, accountBar } from './account.js';
 import { loadCoins, drawCoinSample } from './coin-renderer.js';
 import { COIN_VALUES, starts, placementIndices, applyTile, inspectMap } from './map-editing.js';
 import { mapStatus } from './map-status.js';
+import { installMapOptions } from './map-options.js';
 
 const $ = (id) => document.getElementById(id);
 let map = null,
@@ -16,6 +17,39 @@ let cells = [],
   savedMaps = [];
 const coinImages = new Map();
 let publication = null;
+let optionDefaults = null;
+const openOptions = installMapOptions(
+  () => {
+    updateControls();
+    feedback('옵션을 적용했습니다. 맵 저장 시 배치와 함께 저장됩니다.');
+  },
+  {
+    async load() {
+      optionDefaults ??= await api('/api/admin/maps/default-settings');
+      return {
+        map: {
+          name: map.name || '새 맵',
+          revision: map.revision ?? 0,
+          settings: {
+            ...(map.settings ?? optionDefaults.settings),
+            hurryUpRemovalIntervalMs: {
+              ...optionDefaults.settings.hurryUpRemovalIntervalMs,
+              ...map.settings?.hurryUpRemovalIntervalMs,
+            },
+          },
+        },
+        limits: optionDefaults.limits,
+      };
+    },
+    async save(settings) {
+      map.settings = structuredClone(settings);
+      return { map };
+    },
+  },
+);
+$('edit-options').onclick = () => {
+  if (map && !busy) void openOptions({ id: map.id, name: map.name || '새 맵', source: 'custom' });
+};
 const snapshot = () =>
   JSON.stringify(
     map && {
@@ -24,6 +58,7 @@ const snapshot = () =>
       columns: map.columns,
       rows: map.rows,
       tiles: map.tiles,
+      settings: map.settings,
     },
   );
 const dirty = () => snapshot() !== baseline && !!map;
@@ -42,16 +77,19 @@ function updateControls() {
         ? '저장됨'
         : '새 게임판'
     : '';
-  $('map-identity').textContent = map?.id ? `${map.name} · v${map.revision}` : '새 맵';
+  $('map-identity').textContent = map?.id ? `${map.name} · v${map.revision}` : map?.name || '새 맵';
   $('publication-state').textContent = map?.id
     ? `${mapStatus(publication)}${publication?.publishedRevision ? ` · 게시 v${publication.publishedRevision}` : ''}`
     : '';
   $('save-map').disabled = !map || busy;
+  $('edit-options').disabled = !map || busy;
   $('tools').disabled = !map || busy;
   $('undo').disabled = !undo.length || busy;
   $('redo').disabled = !redo.length || busy;
   for (const id of ['zoom-out', 'zoom-in', 'fit']) $(id).disabled = !map;
   $('open-maps').disabled = busy;
+  $('import-json').disabled = busy;
+  $('export-json').disabled = !map || busy;
   for (const element of $('create-map').elements) element.disabled = busy;
   $('coin-value').disabled = !map || tool !== 'coin' || busy;
 }
@@ -152,6 +190,82 @@ function openMap(document, saved = false, state = null) {
   resizeBoard();
 }
 const documentElement = (tag) => document.createElement(tag);
+async function validateJson(document) {
+  return (
+    await api('/api/admin/maps/validate-json', {
+      method: 'POST',
+      body: JSON.stringify(document),
+    })
+  ).map;
+}
+$('import-json').onclick = () => {
+  if (!busy) $('map-json-file').click();
+};
+$('map-json-file').onchange = async () => {
+  const file = $('map-json-file').files[0];
+  $('map-json-file').value = '';
+  if (!file || busy) return;
+  busy = true;
+  updateControls();
+  try {
+    if (file.size > 64 * 1024) throw new Error('맵 JSON 파일은 64 KiB 이하로 선택하세요.');
+    let input;
+    try {
+      input = JSON.parse((await file.text()).replace(/^\uFEFF/, ''));
+    } catch {
+      throw new Error('JSON 형식이 올바르지 않습니다.');
+    }
+    const imported = await validateJson(input);
+    if (!mayReplace()) return;
+    // Import as a new editable map, never overwrite a file's original identity.
+    const { id, revision, ...content } = imported;
+    openMap(content);
+    feedback('JSON을 새 맵으로 가져왔습니다. 맵 저장 후 맵 관리에서 게시할 수 있습니다.');
+  } catch (error) {
+    feedback(`가져오기 실패: ${error.message}`, true);
+  } finally {
+    busy = false;
+    if (map) renderTiles();
+    else updateControls();
+  }
+};
+$('export-json').onclick = async () => {
+  if (!map || busy) return;
+  busy = true;
+  updateControls();
+  try {
+    optionDefaults ??= await api('/api/admin/maps/default-settings');
+    const document = await validateJson({
+      schemaVersion: 1,
+      id: map.id ?? `map-${crypto.randomUUID()}`,
+      revision: map.revision ?? 1,
+      name: map.name || '새 맵',
+      description: map.description || '',
+      columns: map.columns,
+      rows: map.rows,
+      tiles: map.tiles,
+      settings: map.settings ?? optionDefaults.settings,
+    });
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(document, null, 2) + '\n'], {
+        type: 'application/json;charset=utf-8',
+      }),
+    );
+    const link = documentElement('a');
+    link.href = url;
+    link.download = `${document.id}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    feedback(
+      '현재 배치와 적용한 옵션을 JSON으로 내보냈습니다. 서버 저장 상태는 변경되지 않습니다.',
+    );
+  } catch (error) {
+    feedback(`내보내기 실패: ${error.message}`, true);
+  } finally {
+    busy = false;
+    updateControls();
+  }
+};
 $('create-map').onsubmit = (event) => {
   event.preventDefault();
   if (busy || !mayReplace()) return;
@@ -241,11 +355,7 @@ function history(back) {
 $('undo').onclick = () => history(true);
 $('redo').onclick = () => history(false);
 document.addEventListener('keydown', (event) => {
-  if (
-    $('save-dialog').open ||
-    $('load-dialog').open ||
-    event.target.matches('input, textarea, select')
-  )
+  if (document.querySelector('dialog[open]') || event.target.matches('input, textarea, select'))
     return;
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
     event.preventDefault();
@@ -309,6 +419,7 @@ $('save-form').onsubmit = async (event) => {
     rows: map.rows,
     tiles: [...map.tiles],
     expectedRevision: map.revision,
+    ...(map.settings ? { settings: map.settings } : {}),
   };
   try {
     const result = await api(map.id ? `/api/admin/maps/${map.id}/draft` : '/api/admin/maps', {

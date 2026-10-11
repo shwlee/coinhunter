@@ -1,11 +1,20 @@
 import { api, accountBar } from './account.js';
 import { mapStatus } from './map-status.js';
+import { installMapOptions } from './map-options.js';
 const $ = (id) => document.getElementById(id);
 let entries = [],
   busy = false,
   pending = null,
   previews;
 const cache = new Map();
+const openOptions = installMapOptions(async (entry) => {
+  try {
+    await load();
+    feedback(`“${entry.name}” 옵션을 초안으로 저장했습니다. 게시 버전 갱신 후 적용됩니다.`);
+  } catch (error) {
+    feedback(`옵션은 저장됐지만 목록 조회에 실패했습니다. ${error.message}`, true);
+  }
+});
 const node = (tag, text, className) => {
   const element = document.createElement(tag);
   if (text) element.textContent = text;
@@ -125,6 +134,12 @@ function render() {
       ),
     );
     const controls = node('div', '', 'map-buttons');
+    const options = node('button', entry.source === 'sample' ? '옵션 보기' : '게임 옵션');
+    options.type = 'button';
+    options.dataset.action = 'settings';
+    options.disabled = busy;
+    options.onclick = () => openOptions(entry);
+    controls.append(options);
     if (entry.source === 'sample') controls.append(node('p', '기본 샘플 · 읽기 전용'));
     else {
       const edit = node('a', '편집');

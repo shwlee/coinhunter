@@ -36,6 +36,16 @@ export const DEFAULT_HURRY_UP_REMOVAL_INTERVAL_MS = Object.freeze({
   500: 1300,
 });
 
+export const MAP_SETTING_LIMITS = Object.freeze({
+  actionMs: [50, 10000],
+  runningTimeMs: [1000, 3600000],
+  itemFirstMs: [0, 3600000],
+  itemIntervalMs: [100, 3600000],
+  itemDuration: [1, 100],
+  blackMatterIntervalMs: [100, 3600000],
+  destroyWallIntervalMs: [100, 3600000],
+});
+
 export function validateMapDocument(map, { published = true } = {}) {
   if (
     !map ||
@@ -52,16 +62,7 @@ export function validateMapDocument(map, { published = true } = {}) {
   )
     throw new Error('잘못된 맵 메타데이터');
   validateMap(map);
-  const limits = {
-    actionMs: [50, 10000],
-    runningTimeMs: [1000, 3600000],
-    itemFirstMs: [0, 3600000],
-    itemIntervalMs: [100, 3600000],
-    itemDuration: [1, 100],
-    blackMatterIntervalMs: [100, 3600000],
-    destroyWallIntervalMs: [100, 3600000],
-  };
-  for (const [key, [min, max]] of Object.entries(limits)) {
+  for (const [key, [min, max]] of Object.entries(MAP_SETTING_LIMITS)) {
     const value = map.settings?.[key];
     if (!Number.isInteger(value) || value < min || value > max)
       throw new Error(`잘못된 맵 옵션: ${key}`);

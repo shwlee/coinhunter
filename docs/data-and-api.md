@@ -5,32 +5,40 @@
 
 ## HTTP
 
-| 메서드·경로 | 요청 | 응답 |
-| --- | --- | --- |
-| GET /api/maps | 없음 | 서버 등록 맵·설정 목록 |
-| GET /api/example | 없음 | 다운로드 가능한 샘플 JS 파일 |
-| POST /api/game/validate | 게스트/로그인 세션, `text/plain` 알고리즘 원문 | 검사 통과 시 200 `{ok:true,calls}`, 실패 시 400 `{error,diagnostic}`. 파일 선택 단계의 다음 버튼에서 실행 |
-| POST /api/matches | `text/plain` 코드 본문과 `X-Coinhunter-Options` JSON 헤더(mapId, dummyCount, blackMatter, destroyWalls, characterId, startSlot 등) | 준비 완료 후 경기 id |
-| GET /api/matches/:id | 게스트 세션 쿠키 | 최신 상태·로그 |
-| GET /api/matches/:id/events | 게스트 세션 쿠키 | SSE snapshot 이벤트 |
-| DELETE /api/matches/:id | 게스트 세션 쿠키 | 경기 종료·프로세스 정리 후 ok |
-| POST /api/algorithms/validate | 로그인 쿠키와 `text/plain` 코드 본문 | 별도 프로세스 검사 결과 |
-| POST /api/algorithms?name=... | 로그인 쿠키와 `text/plain` 코드 본문 | 새 알고리즘 메타데이터 |
-| PUT /api/algorithms/:id?name=...&revision=... | 로그인 쿠키와 `text/plain` 코드 본문 | 갱신된 메타데이터 |
-| GET /api/algorithms/:id?metadata=1 | 로그인 쿠키 | 원문을 제외한 메타데이터 |
-| GET /api/algorithms/:id/source | 로그인 쿠키 | 원문 파일 스트림 |
-| GET /api/admin/users | 관리자 쿠키 | 계정 목록·이용 상태·역할 |
-| GET /api/admin/maps | 관리자 쿠키 | `{maps}`: 관리자 맵의 이름·설명·크기·draftRevision·publishedRevision·enabled·order·source |
-| GET /api/admin/maps?includeSamples=1 | 관리자 쿠키 | 관리자 맵과 읽기 전용 샘플. 목록에 coins·score·walls 통계 포함. 미리보기·통계는 최신 초안(샘플은 게시 원본) 기준 |
-| GET /api/admin/maps/:id/preview?revision=N | 관리자 쿠키, 저장 버전 | `{map}`: id·revision·columns·rows·tiles. 샘플도 읽기 가능 |
-| POST /api/admin/maps/:id/publish | 관리자 쿠키, JSON의 revision 및 expected={draftRevision,publishedRevision,enabled} | `{state}`. 최신 초안을 검증한 후 게시. 첫 게시 시 노출, 갱신은 기존 노출 상태 유지 |
-| PUT /api/admin/maps/:id/visibility | 관리자 쿠키, JSON의 enabled 및 위 expected | `{state}`. 기존 게시 버전 노출·숨기기. 초안 자동 게시 없음 |
-| GET /api/admin/maps/:id/draft | 관리자 쿠키 | `{map}`: 최신 초안 JSON. 샘플은 편집 대상으로 제공하지 않음 |
-| POST /api/admin/maps | 관리자 쿠키, JSON의 name·description(선택)·columns·rows·tiles | 201 `{map}`. 서버가 ID·리비전·기본 settings 부여, 비노출 초안 저장 |
-| PUT /api/admin/maps/:id/draft | 관리자 쿠키, 위 편집 필드와 expectedRevision | 200 `{map}`. 기존 settings와 게시 버전 보존, 오래된 리비전은 409 |
-| PUT /api/admin/users/:id | 관리자 쿠키, JSON의 `active`, `role`, 선택적인 이전 상태 `expectedActive`·`expectedRole` | 갱신된 계정. 이전 상태 불일치·자기 계정 중지/강등·마지막 관리자 해제는 409 |
+| 메서드·경로                                   | 요청                                                                                                                               | 응답                                                                                                             |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| GET /api/maps                                 | 없음                                                                                                                               | 서버 등록 맵·설정 목록                                                                                           |
+| GET /api/example                              | 없음                                                                                                                               | 다운로드 가능한 샘플 JS 파일                                                                                     |
+| POST /api/game/validate                       | 게스트/로그인 세션, `text/plain` 알고리즘 원문                                                                                     | 검사 통과 시 200 `{ok:true,calls}`, 실패 시 400 `{error,diagnostic}`. 파일 선택 단계의 다음 버튼에서 실행        |
+| POST /api/matches                             | `text/plain` 코드 본문과 `X-Coinhunter-Options` JSON 헤더(mapId, dummyCount, blackMatter, destroyWalls, characterId, startSlot 등) | 준비 완료 후 경기 id                                                                                             |
+| GET /api/matches/:id                          | 게스트 세션 쿠키                                                                                                                   | 최신 상태·로그                                                                                                   |
+| GET /api/matches/:id/events                   | 게스트 세션 쿠키                                                                                                                   | SSE snapshot 이벤트                                                                                              |
+| DELETE /api/matches/:id                       | 게스트 세션 쿠키                                                                                                                   | 경기 종료·프로세스 정리 후 ok                                                                                    |
+| POST /api/algorithms/validate                 | 로그인 쿠키와 `text/plain` 코드 본문                                                                                               | 별도 프로세스 검사 결과                                                                                          |
+| POST /api/algorithms?name=...                 | 로그인 쿠키와 `text/plain` 코드 본문                                                                                               | 새 알고리즘 메타데이터                                                                                           |
+| PUT /api/algorithms/:id?name=...&revision=... | 로그인 쿠키와 `text/plain` 코드 본문                                                                                               | 갱신된 메타데이터                                                                                                |
+| GET /api/algorithms/:id?metadata=1            | 로그인 쿠키                                                                                                                        | 원문을 제외한 메타데이터                                                                                         |
+| GET /api/algorithms/:id/source                | 로그인 쿠키                                                                                                                        | 원문 파일 스트림                                                                                                 |
+| GET /api/admin/users                          | 관리자 쿠키                                                                                                                        | 계정 목록·이용 상태·역할                                                                                         |
+| GET /api/admin/maps                           | 관리자 쿠키                                                                                                                        | `{maps}`: 관리자 맵의 이름·설명·크기·draftRevision·publishedRevision·enabled·order·source                        |
+| GET /api/admin/maps?includeSamples=1          | 관리자 쿠키                                                                                                                        | 관리자 맵과 읽기 전용 샘플. 목록에 coins·score·walls 통계 포함. 미리보기·통계는 최신 초안(샘플은 게시 원본) 기준 |
+| GET /api/admin/maps/:id/preview?revision=N    | 관리자 쿠키, 저장 버전                                                                                                             | `{map}`: id·revision·columns·rows·tiles. 샘플도 읽기 가능                                                        |
+| POST /api/admin/maps/:id/publish              | 관리자 쿠키, JSON의 revision 및 expected={draftRevision,publishedRevision,enabled}                                                 | `{state}`. 최신 초안을 검증한 후 게시. 첫 게시 시 노출, 갱신은 기존 노출 상태 유지                               |
+| PUT /api/admin/maps/:id/visibility            | 관리자 쿠키, JSON의 enabled 및 위 expected                                                                                         | `{state}`. 기존 게시 버전 노출·숨기기. 초안 자동 게시 없음                                                       |
+| GET /api/admin/maps/:id/draft                 | 관리자 쿠키                                                                                                                        | `{map}`: 최신 초안 JSON. 샘플은 편집 대상으로 제공하지 않음                                                      |
+| GET /api/admin/maps/:id/settings              | 관리자 쿠키                                                                                                                        | `{map,state,limits}`: 최신 초안 설정과 필드별 허용 범위. 샘플도 조회 가능                                        |
+| PUT /api/admin/maps/:id/settings              | 관리자 쿠키, JSON의 settings·expectedRevision                                                                                      | `{map,state}`: 옵션만 새 초안으로 저장. 타일·게시 버전·노출 상태 보존, 충돌은 409                                |
+| POST /api/admin/maps                          | 관리자 쿠키, JSON의 name·description(선택)·columns·rows·tiles                                                                      | 201 `{map}`. 서버가 ID·리비전·기본 settings 부여, 비노출 초안 저장                                               |
+| PUT /api/admin/maps/:id/draft                 | 관리자 쿠키, 위 편집 필드와 expectedRevision                                                                                       | 200 `{map}`. 기존 settings와 게시 버전 보존, 오래된 리비전은 409                                                 |
+| PUT /api/admin/users/:id                      | 관리자 쿠키, JSON의 `active`, `role`, 선택적인 이전 상태 `expectedActive`·`expectedRole`                                           | 갱신된 계정. 이전 상태 불일치·자기 계정 중지/강등·마지막 관리자 해제는 409                                       |
 
 맵 초안 조회·저장은 `{map, state}`를 반환한다. `state`는 등록 정보이며 편집기에 게시 상태를 표시할 때 사용한다. 게시·노출 요청의 `expected`는 필수이고 저장소의 쓰기 구간에서 비교한다. 상태 변경 충돌은 409, 잘못된 게시 대상은 400, 없는 맵은 404, 샘플 쓰기는 403이다. 관리 화면은 충돌 후 최신 목록을 다시 조회하며 자동 재시도하지 않는다.
+
+편집 화면용 `GET /api/admin/maps/default-settings`는 관리자에게 `{settings,limits}`를 반환한다. 맵 생성·초안 수정 API에서도 선택적인 `settings`를 받아 배치와 함께 검증·저장한다. 생략하면 신규 맵은 기본값, 기존 맵은 저장된 값을 사용한다. 허용하지 않는 옵션 필드는 거부하며 리비전 충돌 시 배치·옵션 모두 저장하지 않는다.
+
+`POST /api/admin/maps/validate-json`는 관리자에게 전체 맵 JSON의 초안 규칙 검증을 제공한다. 통과 시 `{map}`으로 지원 필드만 반환하며 저장소를 수정하지 않는다. 실패는 400이다. 편집기의 가져오기·내보내기가 같은 검증을 사용한다.
+
+옵션 조회는 누락된 Hurry Up 점수별 간격을 기본값으로 채운다. 저장은 필드·정수 범위·점수 키를 검사하며 샘플 변경은 403이다. 변경은 게시 버전 갱신 후 새 경기에 적용한다.
 
 작은 설정 요청은 JSON으로 전달한다. 코드가 포함된 이전 JSON 형식은 2 MiB 이내에서 호환 처리하며, 새 화면은 코드를 `text/plain`으로 임시 파일에 스트리밍한다. 다른 세션 경기에는 404를 반환한다. 같은 세션의 동시 경기는 한 개, 서버 전체 초기 한도는 네 경기다. 준비 중 경기도 한도에 포함한다. 게스트 식별 쿠키는 HttpOnly/SameSite=Strict이며 제품 계정 인증을 대체하지 않는다.
 
