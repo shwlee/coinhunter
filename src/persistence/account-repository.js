@@ -11,6 +11,9 @@ import { FileAccountRepository } from './file-account-repository.js';
  * @typedef {object} AccountRepository
  * @property {(email: string) => Promise<object>} bootstrapAdmin
  * @property {(email: string) => Promise<object>} login
+ * @property {(provider: string, subject: string) => Promise<object | null>} findByIdentity
+ * @property {(identity: {provider: string, subject: string, email: string}, options?: {allowCreate?: boolean}) => Promise<object>} loginIdentity
+ * @property {(userId: string, identity: {provider: string, subject: string}) => Promise<object>} linkIdentity
  * @property {(id: string) => Promise<object | undefined>} user
  * @property {() => Promise<object[]>} listUsers
  * @property {(id: string, input: object) => Promise<object>} updateUser
@@ -26,6 +29,10 @@ import { FileAccountRepository } from './file-account-repository.js';
  * @property {(ownerId: string, id: string) => Promise<string>} historySourcePath
  * @property {(ownerId: string, entry: object) => Promise<object>} recordMatch
  */
+
+// Identity operations must be atomic: unique (provider, subject), at most one subject
+// per (userId, provider), no email-based merging, and disabled accounts cannot log in.
+// linkIdentity is an explicit server/offline operation, never a public linking endpoint.
 
 /** @returns {AccountRepository} */
 export function createAccountRepository() {

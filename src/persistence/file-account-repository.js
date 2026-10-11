@@ -5,6 +5,36 @@ import { fail } from './errors.js';
 import { FileSourceStore } from './file-source-store.js';
 import { withCopySpace } from './disk-space.js';
 
+function identityKey(identity) {
+  if (
+    !identity ||
+    typeof identity.provider !== 'string' ||
+    !/^[a-z][a-z0-9-]{0,31}$/.test(identity.provider) ||
+    identity.provider === 'mock' ||
+    typeof identity.subject !== 'string' ||
+    !identity.subject ||
+    identity.subject.length > 255 ||
+    identity.subject.trim() !== identity.subject
+  )
+    throw fail(400, '인증 제공자와 신원 식별자를 확인하세요.');
+  return { provider: identity.provider, subject: identity.subject };
+}
+function identityEmail(email) {
+  const value = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (!/^[^\s@]+@[^\s@]+$/.test(value) || value.length > 320)
+    throw fail(400, '인증 이메일을 확인하세요.');
+  return value;
+}
+const sameIdentity = (a, b) => a.provider === b.provider && a.subject === b.subject;
+function identityAccount(data, key) {
+  const links = (data.identities || []).filter((link) => sameIdentity(link, key));
+  if (links.length > 1) throw fail(503, '중복된 인증 신원 연결을 확인하세요.');
+  if (!links.length) return null;
+  const user = data.users.find((user) => user.id === links[0].userId);
+  if (!user) throw fail(503, '인증 신원에 연결된 계정을 찾을 수 없습니다.');
+  return user;
+}
+
 // Single local server: serialize read/modify/write and replace the file atomically.
 export class FileAccountRepository {
   constructor(
@@ -25,7 +55,7 @@ export class FileAccountRepository {
       return JSON.parse(await readFile(this.file, 'utf8'));
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
-      return { users: [], algorithms: [], history: [] };
+      return { users: [], algorithms: [], history: [], identities: [] };
     }
   }
   async write(data) {
@@ -74,7 +104,10 @@ export class FileAccountRepository {
   }
   login(email) {
     return this.change((data) => {
-      let user = data.users.find((u) => u.email === email);
+      // Development email login must never select an externally linked account.
+      let user = data.users.find(
+        (u) => u.email === email && !(data.identities || []).some((link) => link.userId === u.id),
+      );
       if (!user) {
         user = {
           id: randomUUID(),
@@ -85,6 +118,51 @@ export class FileAccountRepository {
         data.users.push(user);
       }
       if (!user.active) throw fail(403, '이용이 중지된 계정입니다.');
+      return user;
+    });
+  }
+  findByIdentity(provider, subject) {
+    const key = identityKey({ provider, subject });
+    return this.inspect((data) => identityAccount(data, key));
+  }
+  loginIdentity(identity, { allowCreate = false } = {}) {
+    const key = identityKey(identity),
+      email = identityEmail(identity.email);
+    return this.change((data) => {
+      let user = identityAccount(data, key);
+      if (user) {
+        if (!user.active) throw fail(403, '이용이 중지된 계정입니다.');
+        user.email = email;
+        return user;
+      }
+      if (allowCreate !== true)
+        throw fail(403, '연결된 계정이 없습니다. 가입 또는 계정 연결이 필요합니다.');
+      // Email is display metadata, never a key for merging existing accounts.
+      user = { id: randomUUID(), email, role: 'user', active: true };
+      data.users.push(user);
+      data.identities ??= [];
+      data.identities.push({ ...key, userId: user.id, createdAt: new Date().toISOString() });
+      return user;
+    });
+  }
+  linkIdentity(userId, identity) {
+    const key = identityKey(identity);
+    return this.change((data) => {
+      const user = data.users.find((user) => user.id === userId);
+      if (!user) throw fail(404, '연결할 계정을 찾을 수 없습니다.');
+      if (!user.active) throw fail(403, '이용이 중지된 계정입니다.');
+      const existing = identityAccount(data, key);
+      if (existing && existing.id !== userId)
+        throw fail(409, '이미 다른 계정에 연결된 인증 신원입니다.');
+      if (existing) return user;
+      if (
+        (data.identities || []).some(
+          (link) => link.userId === userId && link.provider === key.provider,
+        )
+      )
+        throw fail(409, '이 계정에는 해당 제공자의 인증 신원이 이미 연결되어 있습니다.');
+      data.identities ??= [];
+      data.identities.push({ ...key, userId, createdAt: new Date().toISOString() });
       return user;
     });
   }

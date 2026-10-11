@@ -2,15 +2,23 @@ import { fail } from '../persistence/errors.js';
 import { createMemorySessionStore } from './memory-session-store.js';
 
 /** Providers authenticate requests; resolveAccount links verified identities to internal users.
- * Only the mock email resolver exists in this step. Google must supply its own sub-based resolver.
+ * Google identities use sub-based storage after provider verification and signup policy approval.
  */
 export function createAuthenticationService({
   accounts,
   providers,
   sessions = createMemorySessionStore(),
-  resolveAccount = (identity) => {
-    if (identity.provider !== 'mock') throw fail(503, '인증 계정 연결이 구성되지 않았습니다.');
-    return accounts.login(identity.email);
+  allowIdentitySignup = async () => false,
+  resolveAccount = async (identity) => {
+    if (identity.provider === 'mock') return accounts.login(identity.email);
+    if (identity.provider === 'google') {
+      if (identity.emailVerified !== true) throw fail(401, '인증된 이메일을 확인할 수 없습니다.');
+      return accounts.loginIdentity(
+        { provider: 'google', subject: identity.subject, email: identity.email },
+        { allowCreate: (await allowIdentitySignup(identity)) === true },
+      );
+    }
+    throw fail(503, '인증 계정 연결이 구성되지 않았습니다.');
   },
 }) {
   const registered = new Map();
