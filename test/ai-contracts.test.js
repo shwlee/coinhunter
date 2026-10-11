@@ -38,6 +38,9 @@ test('AI configuration validates quotas, boolean switches and discovered-model p
     { AI_MAX_PREPARED_PER_USER: '21' },
     { AI_REQUEST_TIMEOUT_MS: 'Infinity' },
     { AI_CANDIDATE_TTL_MS: '-1' },
+    { AI_MAX_CONNECTION_RUNNING_PER_USER: '3' },
+    { AI_CONNECTION_COOLDOWN_MS: '0' },
+    { AI_MODEL_CACHE_TTL_MS: 'invalid' },
     { AI_OPENAI_ALLOWED_MODELS: 'invalid model' },
   ])
     assert.throws(() => readAiConfig(env), /AI 설정/);

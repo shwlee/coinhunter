@@ -10,6 +10,7 @@ import { createGoogleProvider } from './auth/google-provider.js';
 import { createMemorySessionStore } from './auth/memory-session-store.js';
 import { readAiConfig } from './ai/config.js';
 import { createAiStorage } from './ai/storage-service.js';
+import { createAiModelCatalog } from './ai/model-catalog.js';
 
 export function createAuthoring({
   accounts = createAccountRepository(),
@@ -19,6 +20,7 @@ export function createAuthoring({
   googleClient,
   aiConfig = readAiConfig(),
   aiEnv = process.env,
+  aiProviders,
 } = {}) {
   const google =
     authConfig.mode === 'google'
@@ -38,8 +40,22 @@ export function createAuthoring({
     allowIdentitySignup: async () => !!google,
   });
   let aiStorage = null;
+  let aiCatalog = null;
   try {
-    if (aiConfig.enabled) aiStorage = createAiStorage({ sessions, config: aiConfig, env: aiEnv });
+    if (aiConfig.enabled) {
+      aiStorage = createAiStorage({
+        sessions,
+        config: aiConfig,
+        env: aiEnv,
+        beforeConnectionChange: async (id) => aiCatalog?.cancelConnection(id),
+      });
+      aiCatalog = createAiModelCatalog({
+        storage: aiStorage,
+        sessions,
+        config: aiConfig,
+        providers: aiProviders,
+      });
+    }
   } catch (error) {
     sessions.close();
     throw error;
@@ -50,9 +66,11 @@ export function createAuthoring({
     current,
     requireUser,
     aiStorage,
+    aiCatalog,
     aiScope: authentication.scope,
     async close() {
       authentication.close();
+      await aiCatalog?.close();
       await aiStorage?.close();
     },
     async route(request, response, url, user, readJson, json, revoke, readSourceFile) {

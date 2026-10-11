@@ -46,6 +46,10 @@ export function readAiConfig(env = process.env) {
   const maxPreparedPerUser = integer('AI_MAX_PREPARED_PER_USER', 2, 1000);
   if (maxQueuedPerUser > maxQueued) problem('AI_MAX_QUEUED_PER_USER');
   if (maxPreparedPerUser > maxPrepared) problem('AI_MAX_PREPARED_PER_USER');
+  const maxConnectionRunning = integer('AI_MAX_CONNECTION_RUNNING', 2, 100);
+  const maxConnectionRunningPerUser = integer('AI_MAX_CONNECTION_RUNNING_PER_USER', 1, 100);
+  if (maxConnectionRunningPerUser > maxConnectionRunning)
+    problem('AI_MAX_CONNECTION_RUNNING_PER_USER');
   return Object.freeze({
     enabled: flag('AI_ENABLED', false),
     // This is permission to offer storage, not proof that encryption is configured.
@@ -62,6 +66,10 @@ export function readAiConfig(env = process.env) {
     maxCandidatesPerUser: integer('AI_MAX_CANDIDATES_PER_USER', 3, 100),
     requestTimeoutMs: integer('AI_REQUEST_TIMEOUT_MS', 120000, 600000),
     connectionTimeoutMs: integer('AI_CONNECTION_TIMEOUT_MS', 10000, 60000),
+    maxConnectionRunning,
+    maxConnectionRunningPerUser,
+    connectionCooldownMs: integer('AI_CONNECTION_COOLDOWN_MS', 1000, 60000),
+    modelCacheTtlMs: integer('AI_MODEL_CACHE_TTL_MS', 300000, 3600000),
     preparedTtlMs: integer('AI_PREPARED_TTL_MS', 120000, 600000),
     candidateTtlMs: integer('AI_CANDIDATE_TTL_MS', 900000, 86400000),
   });

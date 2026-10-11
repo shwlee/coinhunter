@@ -10,7 +10,7 @@
  * credentialMode: CredentialMode, credentialRef: string, sessionId?: string,
  * defaultModelId: string | null, revision: number, createdAt: string,
  * updatedAt: string, checkStatus: string, checkedAt: string | null}} AiConnection
- * @typedef {{id: string, name: string, description?: string}} AiModel
+ * @typedef {{id: string, name: string, description?: string, generationVerified?: boolean}} AiModel
  *
  * @typedef {object} AiConnectionRepository
  * @property {(scope: AiScope) => Promise<AiConnection[]>} list
