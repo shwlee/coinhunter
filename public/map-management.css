@@ -123,6 +123,28 @@
   color: #e8eef7;
   border: 1px solid #52647a;
 }
+.map-order-actions {
+  display: flex;
+  gap: 6px;
+}
+.order-help {
+  color: #a2b1c4;
+  font-size: 12px;
+  line-height: 1.6;
+}
+#copy-dialog label {
+  display: grid;
+  gap: 8px;
+}
+#copy-name {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  font: inherit;
+}
+#copy-error {
+  color: #ffaaa4;
+}
 dialog {
   background: #192331;
   color: #e8eef7;

@@ -24,6 +24,19 @@ export async function adminMapsRoute(request, response, url, user, maps, readJso
     json(response, 200, { settings: DEFAULT_MAP_SETTINGS, limits: MAP_SETTING_LIMITS });
     return true;
   }
+  if (path === '/api/admin/maps/order' && request.method === 'PUT') {
+    const input = await readJson(request);
+    await maps.reorder(input?.ids, input?.expectedIds);
+    json(response, 200, { ok: true });
+    return true;
+  }
+  const copyId = path.match(/^\/api\/admin\/maps\/([a-z0-9][a-z0-9-]{0,63})\/copy$/)?.[1];
+  if (copyId && request.method === 'POST') {
+    const input = await readJson(request);
+    const map = await maps.copy(copyId, input?.name, input?.sourceRevision);
+    json(response, 201, { map, state: maps.registry().find((entry) => entry.id === map.id) });
+    return true;
+  }
   if (path === '/api/admin/maps/validate-json' && request.method === 'POST') {
     const input = await readJson(request);
     try {

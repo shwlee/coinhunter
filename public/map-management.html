@@ -35,6 +35,10 @@
       </div>
       <p id="feedback" role="status" aria-live="polite"></p>
       <p id="count"></p>
+      <p class="order-help">
+        ↑ ↓로 맵 선택 목록의 순서를 조정합니다. 순서 변경은 검색·필터를 해제한 전체 목록에서
+        가능합니다.
+      </p>
       <div id="maps" role="list" aria-label="맵 목록"></div>
       <p id="empty" hidden></p>
     </main>
@@ -49,6 +53,18 @@
           <button id="reload-options" type="button">최신 옵션 불러오기</button
           ><button id="close-options" type="button">닫기</button
           ><button id="save-options" type="submit">초안 저장</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="copy-dialog" aria-labelledby="copy-title">
+      <form id="copy-form">
+        <h2 id="copy-title">맵 복사</h2>
+        <p id="copy-description"></p>
+        <label>새 맵 이름<input id="copy-name" maxlength="100" required /></label>
+        <p id="copy-error" role="alert"></p>
+        <div class="confirm-actions">
+          <button id="cancel-copy" type="button">취소</button>
+          <button id="confirm-copy" type="submit">새 초안 만들기</button>
         </div>
       </form>
     </dialog>

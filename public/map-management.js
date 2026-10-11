@@ -5,6 +5,7 @@ const $ = (id) => document.getElementById(id);
 let entries = [],
   busy = false,
   pending = null,
+  copyPending = null,
   previews;
 const cache = new Map();
 const openOptions = installMapOptions(async (entry) => {
@@ -132,6 +133,7 @@ function render() {
         'p',
         `${entry.source === 'sample' ? '기본 샘플' : `초안 v${entry.draftRevision}`} · ${entry.publishedRevision === null ? '게시 버전 없음' : `게시 v${entry.publishedRevision}`}`,
       ),
+      node('p', `목록 순서 ${entries.indexOf(entry) + 1}`),
     );
     const controls = node('div', '', 'map-buttons');
     const options = node('button', entry.source === 'sample' ? '옵션 보기' : '게임 옵션');
@@ -140,7 +142,32 @@ function render() {
     options.disabled = busy;
     options.onclick = () => openOptions(entry);
     controls.append(options);
-    if (entry.source === 'sample') controls.append(node('p', '기본 샘플 · 읽기 전용'));
+    const copy = node('button', entry.source === 'sample' ? '샘플 복사' : '복제');
+    copy.type = 'button';
+    copy.dataset.action = 'copy';
+    copy.disabled = busy;
+    copy.onclick = () => openCopy(entry);
+    controls.append(copy);
+    const ordering = node('div', '', 'map-order-actions');
+    for (const [direction, label, offset] of [
+      ['up', '위로', -1],
+      ['down', '아래로', 1],
+    ]) {
+      const move = node('button', offset === -1 ? '↑' : '↓');
+      move.type = 'button';
+      move.dataset.action = direction;
+      move.setAttribute('aria-label', `${entry.name} 순서 ${label}`);
+      const filtered = $('search').value.trim() || $('filter').value !== 'all';
+      move.title = filtered
+        ? '검색·필터를 해제한 전체 목록에서 순서를 조정하세요.'
+        : `목록 순서 ${label}`;
+      const index = entries.indexOf(entry);
+      move.disabled = busy || !!filtered || index + offset < 0 || index + offset >= entries.length;
+      move.onclick = () => void moveMap(entry, offset);
+      ordering.append(move);
+    }
+    controls.append(ordering);
+    if (entry.source === 'sample') controls.append(node('p', '원본 편집은 복사 후 가능합니다.'));
     else {
       const edit = node('a', '편집');
       edit.href = `/admin/maps/editor?mapId=${encodeURIComponent(entry.id)}`;
@@ -173,6 +200,108 @@ function render() {
 async function load() {
   entries = (await api('/api/admin/maps?includeSamples=1')).maps;
   render();
+}
+const normalizedName = (name) => name.trim().normalize('NFC').toLowerCase();
+function suggestedCopyName(entry) {
+  const names = new Set(entries.map((item) => normalizedName(item.name)));
+  for (let number = 1; ; number++) {
+    const suffix = number === 1 ? ' 복사본' : ` 복사본 (${number})`;
+    const name = entry.name.slice(0, 100 - suffix.length) + suffix;
+    if (!names.has(normalizedName(name))) return name;
+  }
+}
+function openCopy(entry) {
+  if (busy) return;
+  copyPending = entry;
+  $('copy-title').textContent = entry.source === 'sample' ? '기본 샘플 복사' : '맵 복제';
+  $('copy-description').textContent =
+    `“${entry.name}”의 ${entry.source === 'sample' ? '기본 샘플' : '최신 초안'} 배치와 옵션을 새 맵으로 복사합니다. 원본과 게시 상태는 유지되며 복사본은 미게시 초안입니다.`;
+  $('copy-name').value = suggestedCopyName(entry);
+  $('copy-error').textContent = '';
+  $('confirm-copy').disabled = false;
+  $('copy-dialog').showModal();
+}
+$('cancel-copy').onclick = () => {
+  if (!busy) $('copy-dialog').close();
+};
+$('copy-dialog').addEventListener('cancel', (event) => {
+  if (busy) event.preventDefault();
+});
+$('copy-name').oninput = () => {
+  $('copy-error').textContent = '';
+};
+$('copy-form').onsubmit = async (event) => {
+  event.preventDefault();
+  if (busy || !copyPending) return;
+  const name = $('copy-name').value.trim();
+  if (!name) {
+    $('copy-error').textContent = '새 맵 이름을 입력하세요.';
+    return;
+  }
+  if (entries.some((entry) => normalizedName(entry.name) === normalizedName(name))) {
+    $('copy-error').textContent = '이미 사용 중인 맵 이름입니다. 다른 이름을 입력하세요.';
+    $('copy-name').focus();
+    return;
+  }
+  busy = true;
+  $('confirm-copy').disabled = $('cancel-copy').disabled = true;
+  $('copy-error').textContent = '';
+  render();
+  let saved = false;
+  try {
+    await api(`/api/admin/maps/${copyPending.id}/copy`, {
+      method: 'POST',
+      body: JSON.stringify({
+        name,
+        sourceRevision: copyPending.draftRevision ?? copyPending.publishedRevision,
+      }),
+    });
+    saved = true;
+    copyPending = null;
+    $('copy-dialog').close();
+    $('search').value = '';
+    $('filter').value = 'all';
+    await load();
+    feedback(`“${name}”을 새 초안으로 만들었습니다. 편집 후 게시할 수 있습니다.`);
+  } catch (error) {
+    if (saved) feedback(`복사본은 저장됐지만 목록 조회에 실패했습니다. ${error.message}`, true);
+    else $('copy-error').textContent = error.message;
+  } finally {
+    busy = false;
+    $('confirm-copy').disabled = !copyPending;
+    $('cancel-copy').disabled = false;
+    render();
+  }
+};
+async function moveMap(entry, offset) {
+  if (busy || $('search').value.trim() || $('filter').value !== 'all') return;
+  const index = entries.indexOf(entry),
+    next = index + offset;
+  if (index < 0 || next < 0 || next >= entries.length) return;
+  const expectedIds = entries.map((item) => item.id),
+    ids = [...expectedIds];
+  [ids[index], ids[next]] = [ids[next], ids[index]];
+  busy = true;
+  render();
+  let saved = false;
+  try {
+    await api('/api/admin/maps/order', {
+      method: 'PUT',
+      body: JSON.stringify({ ids, expectedIds }),
+    });
+    saved = true;
+    await load();
+    feedback('맵 표시 순서를 저장했습니다. 사용자 맵 선택 목록에 바로 적용됩니다.');
+  } catch (error) {
+    await load().catch(() => {});
+    feedback(
+      `${saved ? '순서는 저장됐지만 목록 조회에 실패했습니다. ' : ''}${error.message}`,
+      true,
+    );
+  } finally {
+    busy = false;
+    render();
+  }
 }
 function confirmAction(entry, action) {
   if (busy) return;

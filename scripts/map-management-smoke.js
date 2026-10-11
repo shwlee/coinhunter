@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
 import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { MapRepository, MAPS } from '../src/game/map-repository.js';
+import { MapRepository } from '../src/game/map-repository.js';
 import { createAuthoring } from '../src/authoring-api.js';
 import { createGameServer } from '../src/server.js';
 
@@ -12,8 +12,9 @@ const dir = await mkdtemp(join(tmpdir(), 'coinhunter-maps-ui-'));
 const accounts = new FileAccountRepository(join(dir, 'accounts.json'));
 await accounts.bootstrapAdmin('admin@company.test');
 const maps = new MapRepository({ dataDirectory: join(dir, 'maps') });
-await maps.saveDraft({ ...structuredClone(MAPS[0]), id: 'ui-map', name: '관리 테스트 맵' });
-const invalid = structuredClone(MAPS[0]);
+const sampleMap = maps.getPublished('crossroads');
+await maps.saveDraft({ ...sampleMap, id: 'ui-map', name: '관리 테스트 맵' });
+const invalid = structuredClone(sampleMap);
 invalid.tiles[1] = 0;
 await maps.saveDraft({ ...invalid, id: 'invalid', name: '검사 실패 맵' });
 const { server, close } = createGameServer({ maps, authoring: createAuthoring({ accounts }) });
@@ -161,6 +162,89 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({ path: 'artifacts/map-options-desktop.png', fullPage: true });
   await page.locator('#close-options').click();
+  const sourceBeforeCopy = maps.getPublished('crossroads');
+  await page.locator('.map-card[data-id="crossroads"] [data-action="copy"]').click();
+  await page.locator('#copy-name').fill('샘플 복사 테스트');
+  await page.locator('#confirm-copy').click();
+  await page.locator('#copy-dialog').waitFor({ state: 'hidden' });
+  await page.locator('#refresh:enabled').waitFor();
+  const copiedSample = maps
+    .registry()
+    .find(
+      (entry) =>
+        maps.read(entry, entry.draftRevision ?? entry.publishedRevision, false).name ===
+        '샘플 복사 테스트',
+    );
+  assert.equal(copiedSample.source, 'custom');
+  assert.equal(copiedSample.publishedRevision, null);
+  assert.deepEqual(maps.getDraft(copiedSample.id).tiles, sourceBeforeCopy.tiles);
+  assert.deepEqual(maps.getPublished('crossroads'), sourceBeforeCopy);
+  await card().locator('[data-action="copy"]').click();
+  await page.locator('#copy-name').fill('관리 맵 복제 테스트');
+  await page.locator('#confirm-copy').click();
+  await page.locator('#copy-dialog').waitFor({ state: 'hidden' });
+  await page.locator('#refresh:enabled').waitFor();
+  const cloned = maps
+    .registry()
+    .find(
+      (entry) =>
+        maps.read(entry, entry.draftRevision ?? entry.publishedRevision, false).name ===
+        '관리 맵 복제 테스트',
+    );
+  assert.equal(cloned.draftRevision, 1);
+  assert.equal(maps.getDraft(cloned.id).settings.actionMs, 777);
+  await card().locator('[data-action="copy"]').click();
+  await page.locator('#copy-name').fill('충돌 시 이름 유지');
+  await maps.saveDraft({ ...maps.getDraft('ui-map'), name: '동시 수정' }, { expectedRevision: 5 });
+  await page.locator('#confirm-copy').click();
+  await page.locator('#copy-error').filter({ hasText: '변경되었습니다' }).waitFor();
+  assert.equal(await page.locator('#copy-name').inputValue(), '충돌 시 이름 유지');
+  await page.locator('#cancel-copy').click();
+  await page.locator('#refresh').click();
+  await page.locator('#refresh:enabled').waitFor();
+  await page.locator('#search').fill('동시 수정');
+  assert.equal(await card().locator('[data-action="up"]').isDisabled(), true);
+  await page.locator('#search').fill('');
+  const oldOrder = maps.registry().map((entry) => entry.id);
+  await page.locator(`.map-card[data-id="${oldOrder[0]}"] [data-action="down"]`).click();
+  await page.locator('#refresh:enabled').waitFor();
+  const newOrder = [...oldOrder];
+  [newOrder[0], newOrder[1]] = [newOrder[1], newOrder[0]];
+  assert.deepEqual(
+    maps.registry().map((entry) => entry.id),
+    newOrder,
+  );
+  assert.deepEqual(
+    await page.locator('.map-card').evaluateAll((cards) => cards.map((card) => card.dataset.id)),
+    newOrder,
+  );
+  const gamePage = await browser.newPage();
+  await gamePage.goto(base + '/game');
+  await gamePage.locator('#map-select option').first().waitFor({ state: 'attached' });
+  assert.deepEqual(
+    await gamePage
+      .locator('#map-select option')
+      .evaluateAll((options) => options.map((option) => option.value)),
+    maps.listPublished().map((map) => map.id),
+  );
+  await gamePage.close();
+  await card().locator('[data-action="copy"]').click();
+  const initialCopyName = await page.locator('#copy-name').inputValue();
+  await page.locator('#cancel-copy').click();
+  await maps.copy('ui-map', initialCopyName, 6);
+  await page.locator('#refresh').click();
+  await page.locator('#refresh:enabled').waitFor();
+  await card().locator('[data-action="copy"]').click();
+  assert.equal(await page.locator('#copy-name').inputValue(), '동시 수정 복사본 (2)');
+  const mapCount = maps.registry().length;
+  await page.locator('#copy-name').fill(' 샘플 복사 테스트 ');
+  await page.locator('#confirm-copy').click();
+  await page.locator('#copy-error').filter({ hasText: '이미 사용 중' }).waitFor();
+  assert.equal(maps.registry().length, mapCount);
+  await page.locator('#copy-name').fill('동시 수정 복사본 (2)');
+  await page.locator('#confirm-copy').click();
+  await page.locator('#copy-dialog').waitFor({ state: 'hidden' });
+  assert.equal(maps.registry().length, mapCount + 1);
   assert.deepEqual(errors, []);
   console.log('Map management browser smoke passed');
 } finally {

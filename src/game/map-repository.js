@@ -38,6 +38,13 @@ function readRegistry(path, optional = false) {
   }
   if (registry.schemaVersion !== 1 || !Array.isArray(registry.maps))
     throw new Error('잘못된 맵 등록 파일');
+  if (
+    registry.displayOrder !== undefined &&
+    (!Array.isArray(registry.displayOrder) ||
+      registry.displayOrder.some((id) => !validId(id)) ||
+      new Set(registry.displayOrder).size !== registry.displayOrder.length)
+  )
+    throw new Error('잘못된 맵 표시 순서');
   const ids = new Set();
   for (const entry of registry.maps) {
     if (
@@ -80,13 +87,18 @@ export class MapRepository {
     const samples = readRegistry(join(this.samplesDirectory, 'registry.json')).maps.map(
       (entry) => ({ ...entry, source: 'sample' }),
     );
-    const custom = readRegistry(join(this.dataDirectory, 'registry.json'), true).maps.map(
-      (entry) => ({ ...entry, source: 'custom' }),
-    );
+    const customRegistry = readRegistry(join(this.dataDirectory, 'registry.json'), true);
+    const custom = customRegistry.maps.map((entry) => ({ ...entry, source: 'custom' }));
     const entries = [...samples, ...custom];
     if (new Set(entries.map((entry) => entry.id)).size !== entries.length)
       throw new Error('중복된 맵 ID');
-    return entries.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+    entries.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+    if (customRegistry.displayOrder) {
+      const positions = new Map(customRegistry.displayOrder.map((id, index) => [id, index]));
+      entries.sort((a, b) => (positions.get(a.id) ?? Infinity) - (positions.get(b.id) ?? Infinity));
+      entries.forEach((entry, index) => (entry.order = index + 1));
+    }
+    return entries;
   }
   read(entry, revision, published = true) {
     if (!validId(entry.id) || !validRevision(revision)) throw new Error('잘못된 맵 ID 또는 버전');
@@ -122,36 +134,82 @@ export class MapRepository {
   }
   saveDraft(document, { expectedRevision = 0 } = {}) {
     const input = structuredClone(document);
+    return this.change(() => this.writeDraft(input, expectedRevision));
+  }
+  async writeDraft(input, expectedRevision) {
+    if (!validId(input.id)) throw new Error('잘못된 맵 ID');
+    const existing = this.registry().find((entry) => entry.id === input.id);
+    if (existing?.source === 'sample') throw new Error('샘플맵은 새 ID로 복사해서 편집하세요.');
+    const latest = existing?.draftRevision ?? 0;
+    if (expectedRevision !== latest)
+      throw Object.assign(new Error('맵이 변경되었습니다. 최신 버전을 다시 불러오세요.'), {
+        status: 409,
+      });
+    const revision = latest + 1;
+    const map = { ...input, schemaVersion: 1, revision };
+    validateMapDocument(map, { published: false });
+    const directory = join(this.dataDirectory, map.id);
+    await mkdir(directory, { recursive: true });
+    // Orphan revisions after an interrupted registry update are safe to replace:
+    // no published/draft pointer references them yet.
+    await atomicJson(join(directory, `${revision}.json`), map);
+    const registry = readRegistry(join(this.dataDirectory, 'registry.json'), true);
+    const entry = registry.maps.find((entry) => entry.id === map.id);
+    if (entry) entry.draftRevision = revision;
+    else
+      registry.maps.push({
+        id: map.id,
+        draftRevision: revision,
+        publishedRevision: null,
+        enabled: false,
+        order: this.registry().reduce((max, entry) => Math.max(max, entry.order), 0) + 1,
+      });
+    await atomicJson(join(this.dataDirectory, 'registry.json'), registry);
+    return map;
+  }
+  copy(id, name, sourceRevision) {
     return this.change(async () => {
-      if (!validId(input.id)) throw new Error('잘못된 맵 ID');
-      const existing = this.registry().find((entry) => entry.id === input.id);
-      if (existing?.source === 'sample') throw new Error('샘플맵은 새 ID로 복사해서 편집하세요.');
-      const latest = existing?.draftRevision ?? 0;
-      if (expectedRevision !== latest)
-        throw Object.assign(new Error('맵이 변경되었습니다. 최신 버전을 다시 불러오세요.'), {
-          status: 409,
-        });
-      const revision = latest + 1;
-      const map = { ...input, schemaVersion: 1, revision };
-      validateMapDocument(map, { published: false });
-      const directory = join(this.dataDirectory, map.id);
-      await mkdir(directory, { recursive: true });
-      // Orphan revisions after an interrupted registry update are safe to replace:
-      // no published/draft pointer references them yet.
-      await atomicJson(join(directory, `${revision}.json`), map);
+      const entry = this.registry().find((entry) => entry.id === id);
+      if (!entry) throw fail(404, '복사할 맵을 찾을 수 없습니다.');
+      const revision = entry.draftRevision ?? entry.publishedRevision;
+      if (!validRevision(sourceRevision)) throw fail(400, '복사할 원본 버전을 확인하세요.');
+      if (sourceRevision !== revision)
+        throw fail(409, '원본 맵이 변경되었습니다. 최신 목록을 확인하세요.');
+      if (typeof name !== 'string' || !name.trim() || name.trim().length > 100)
+        throw fail(400, '새 맵 이름은 1~100자로 입력하세요.');
+      const normalizedName = name.trim().normalize('NFC').toLowerCase();
+      const duplicate = this.registry().some((mapEntry) =>
+        [...new Set([mapEntry.draftRevision, mapEntry.publishedRevision])]
+          .filter((value) => value != null)
+          .some(
+            (value) =>
+              this.read(mapEntry, value, false).name.trim().normalize('NFC').toLowerCase() ===
+              normalizedName,
+          ),
+      );
+      if (duplicate) throw fail(409, '이미 사용 중인 맵 이름입니다. 다른 이름을 입력하세요.');
+      const original = this.read(entry, revision, false);
+      return this.writeDraft({ ...original, id: `map-${randomUUID()}`, name: name.trim() }, 0);
+    });
+  }
+  reorder(ids, expectedIds) {
+    const desired = structuredClone(ids),
+      previous = structuredClone(expectedIds);
+    return this.change(async () => {
+      const current = this.registry().map((entry) => entry.id);
+      const isOrder = (values) =>
+        Array.isArray(values) &&
+        values.length === current.length &&
+        new Set(values).size === values.length &&
+        values.every((id) => current.includes(id));
+      if (!Array.isArray(previous)) throw fail(400, '이전 맵 순서가 필요합니다.');
+      if (JSON.stringify(previous) !== JSON.stringify(current))
+        throw fail(409, '맵 목록이나 순서가 변경되었습니다. 최신 목록을 확인하세요.');
+      if (!isOrder(desired)) throw fail(400, '전체 맵을 중복 없이 지정하세요.');
       const registry = readRegistry(join(this.dataDirectory, 'registry.json'), true);
-      const entry = registry.maps.find((entry) => entry.id === map.id);
-      if (entry) entry.draftRevision = revision;
-      else
-        registry.maps.push({
-          id: map.id,
-          draftRevision: revision,
-          publishedRevision: null,
-          enabled: false,
-          order: registry.maps.length + 1,
-        });
+      registry.displayOrder = desired;
+      await mkdir(this.dataDirectory, { recursive: true });
       await atomicJson(join(this.dataDirectory, 'registry.json'), registry);
-      return map;
     });
   }
   publish(id, revision, expected) {
