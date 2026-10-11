@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { copyFile, mkdir, open, readFile, writeFile, rename } from 'node:fs/promises';
+import { copyFile, mkdir, open, readFile, writeFile, rename, unlink } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fail } from './errors.js';
 import { FileSourceStore } from './file-source-store.js';
 import { withCopySpace } from './disk-space.js';
+import { withFileLock } from './file-lock.js';
 
 function identityKey(identity) {
   if (
@@ -35,15 +36,16 @@ function identityAccount(data, key) {
   return user;
 }
 
-// Single local server: serialize read/modify/write and replace the file atomically.
+// One serving process plus local maintenance commands: lock the whole read/modify/write transaction.
 export class FileAccountRepository {
+  #lease = null;
   constructor(
     file = resolve(process.env.ACCOUNTS_FILE || 'data/accounts/store.json'),
     sources = new FileSourceStore(
       process.env.ALGORITHM_SOURCE_DIR || join(dirname(file), 'sources'),
     ),
   ) {
-    this.file = file;
+    this.file = resolve(file);
     this.sources = sources;
     this.queue = Promise.resolve();
     this.migrated = false;
@@ -58,13 +60,20 @@ export class FileAccountRepository {
       return { users: [], algorithms: [], history: [], identities: [] };
     }
   }
-  async write(data) {
+  async #write(data) {
+    if (!this.#lease) throw fail(503, '계정 저장소 잠금 없이 저장할 수 없습니다.');
+    await this.#lease.assertOwned();
     await mkdir(dirname(this.file), { recursive: true });
-    const temporary = this.file + '.tmp';
-    await writeFile(temporary, JSON.stringify(data), 'utf8');
-    await rename(temporary, this.file);
+    const temporary = `${this.file}.${process.pid}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(temporary, JSON.stringify(data), { encoding: 'utf8', flag: 'wx' });
+      await this.#lease.assertOwned();
+      await rename(temporary, this.file);
+    } finally {
+      await unlink(temporary).catch(() => {});
+    }
   }
-  async migrateInlineSources() {
+  async #migrateInlineSources() {
     if (this.migrated) return;
     const data = await this.read();
     const written = [];
@@ -76,7 +85,7 @@ export class FileAccountRepository {
         item.sourceKey = key;
         delete item.source;
       }
-      if (written.length) await this.write(data);
+      if (written.length) await this.#write(data);
       this.migrated = true;
     } catch (error) {
       await Promise.all(written.map((key) => this.sources.delete(key).catch(() => {})));
@@ -84,10 +93,17 @@ export class FileAccountRepository {
     }
   }
   enqueue(operation) {
-    const job = this.queue.then(async () => {
-      await this.migrateInlineSources();
-      return operation();
-    });
+    const job = this.queue.then(() =>
+      withFileLock(this.file, async (lease) => {
+        this.#lease = lease;
+        try {
+          await this.#migrateInlineSources();
+          return await operation();
+        } finally {
+          this.#lease = null;
+        }
+      }),
+    );
     this.queue = job.catch(() => {});
     return job;
   }
@@ -98,7 +114,7 @@ export class FileAccountRepository {
     return this.enqueue(async () => {
       const data = await this.read();
       const result = await update(data);
-      await this.write(data);
+      await this.#write(data);
       return result;
     });
   }
