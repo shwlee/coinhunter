@@ -32,6 +32,7 @@ export function createGoogleProvider({
   }),
 }) {
   const pending = new Map();
+  const latest = new Map();
   const cookie = (value, age) =>
     `coinhunter-oauth=${value}; HttpOnly; SameSite=Lax; Path=/api/auth/google; Max-Age=${age}${config.secure ? '; Secure' : ''}`;
   function checkHost(request) {
@@ -40,6 +41,7 @@ export function createGoogleProvider({
   }
   function prune() {
     for (const [state, flow] of pending) if (flow.expires <= now()) pending.delete(state);
+    for (const [browser, flow] of latest) if (flow.expires <= now()) latest.delete(browser);
   }
   return {
     id: 'google',
@@ -67,12 +69,15 @@ export function createGoogleProvider({
       if (previous)
         for (const [state, flow] of pending)
           if (equal(previous, flow.browser)) pending.delete(state);
-      if (pending.size >= 1000) throw fail(429, '로그인 요청이 많습니다. 잠시 후 다시 시도하세요.');
+      if (pending.size >= 1000 || (!latest.has(previous) && latest.size >= 1000))
+        throw fail(429, '로그인 요청이 많습니다. 잠시 후 다시 시도하세요.');
       const state = random(),
         nonce = random(),
-        browser = random(),
+        browser = previous || random(),
         verifier = random();
-      pending.set(state, { browser, nonce, verifier, next: target, expires: now() + lifetime });
+      const flow = { browser, nonce, verifier, next: target, expires: now() + lifetime };
+      pending.set(state, flow);
+      latest.set(browser, flow);
       const url = client.generateAuthUrl({
         response_type: 'code',
         scope: ['openid', 'email', 'profile'],
@@ -93,12 +98,22 @@ export function createGoogleProvider({
       if (!flow || !equal(browserToken(request), flow.browser))
         throw fail(401, '로그인 요청이 만료되었거나 일치하지 않습니다.');
       pending.delete(state); // Consume before any network request, including denied consent.
-      appendCookie(response, cookie('', 0));
-      if (url.searchParams.has('error')) return { ...flow, cancelled: true };
+      const assertCurrent = () => {
+        if (latest.get(flow.browser) !== flow || flow.expires <= now())
+          throw fail(409, '새 로그인 요청으로 대체된 인증입니다.');
+      };
+      const complete = () => {
+        if (latest.get(flow.browser) === flow) latest.delete(flow.browser);
+      };
+      // Keep the browser cookie across callbacks so a retry can supersede an in-flight exchange.
+      // Late responses must not clear a newer attempt's cookie.
+      if (url.searchParams.has('error')) return { ...flow, cancelled: true, complete };
       const codes = url.searchParams.getAll('code');
-      if (codes.length !== 1 || !codes[0] || codes[0].length > 4096)
+      if (codes.length !== 1 || !codes[0] || codes[0].length > 4096) {
+        complete();
         throw fail(401, '인증 코드를 확인할 수 없습니다.');
-      return { ...flow, code: codes[0] };
+      }
+      return { ...flow, code: codes[0], assertCurrent, complete };
     },
     async authenticate(_request, credentials) {
       // Called only after the server has consumed a browser-bound flow; never expose a raw token login API.

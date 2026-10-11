@@ -12,6 +12,14 @@ import { createAuthoring } from '../src/authoring-api.js';
 import { createGameServer } from '../src/server.js';
 import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
 
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
 const environment = {
   AUTH_MODE: 'google',
   GOOGLE_CLIENT_ID: 'test-client',
@@ -290,7 +298,7 @@ test('HTTP OAuth login preserves cookies, creates sub account, handles cancellat
   assert.equal(client.exchangeCount, 0);
   const loggedIn = await finish(first);
   assert.equal(loggedIn.headers.get('location'), '/editor');
-  assert.match(loggedIn.headers.get('set-cookie'), /coinhunter-oauth=;.*Max-Age=0/);
+  assert.doesNotMatch(loggedIn.headers.get('set-cookie'), /coinhunter-oauth=/);
   const cookie = loggedIn.headers.get('set-cookie').match(/coinhunter-session=[a-f0-9-]+/)[0];
   const user = (await (await get('/api/session', cookie)).json()).user;
   assert.equal(user.role, 'user');
@@ -320,4 +328,132 @@ test('HTTP OAuth login preserves cookies, creates sub account, handles cancellat
   assert.equal(stored.users.length, 1);
   assert.equal(stored.identities[0].subject, 'test-sub');
   assert.equal(JSON.stringify(stored).includes('test-secret'), false);
+});
+
+test('a superseded in-flight OAuth callback never issues or clears browser cookies', async (t) => {
+  for (const scenario of ['token', 'account', 'cancelled', 'failed']) {
+    await t.test(scenario, async (t) => {
+      const dir = await mkdtemp(join(tmpdir(), 'coin-google-order-'));
+      t.after(() => rm(dir, { recursive: true, force: true }));
+      const accounts = new FileAccountRepository(join(dir, 'store.json'));
+      const settings = { ...config };
+      const client = testClient(settings);
+      const entered = deferred(),
+        release = deferred();
+      t.after(() => release.resolve());
+      const nonces = new Map();
+      client.getToken = async ({ code }) => {
+        if (code === 'old' && scenario !== 'account') {
+          entered.resolve();
+          await release.promise;
+        }
+        if (code === 'new' && scenario === 'failed') throw new Error('Exchange failed');
+        const now = Math.floor(Date.now() / 1000);
+        return {
+          tokens: {
+            id_token: jwt({
+              iss: 'https://accounts.google.com',
+              aud: settings.clientId,
+              sub: code,
+              email: code + '@company.test',
+              email_verified: true,
+              iat: now,
+              exp: now + 3600,
+              nonce: nonces.get(code),
+            }),
+          },
+        };
+      };
+      if (scenario === 'account') {
+        const lookup = accounts.user.bind(accounts);
+        accounts.user = async (id) => {
+          const user = await lookup(id);
+          if (user?.email === 'old@company.test') {
+            entered.resolve();
+            await release.promise;
+          }
+          return user;
+        };
+      }
+      const app = createGameServer({
+        authoring: createAuthoring({ accounts, authConfig: settings, googleClient: client }),
+      });
+      await new Promise((done) => app.server.listen(0, '127.0.0.1', done));
+      t.after(app.close);
+      const base = `http://127.0.0.1:${app.server.address().port}`;
+      settings.redirectUri = base + '/api/auth/google/callback';
+      const get = (path, cookie = '') =>
+        fetch(base + path, { redirect: 'manual', headers: { cookie } });
+      const start = async (code, cookie = '') => {
+        const res = await get('/api/auth/google/start?next=%2Feditor', cookie);
+        assert.equal(res.status, 302);
+        const url = new URL(res.headers.get('location'));
+        nonces.set(code, url.searchParams.get('nonce'));
+        return {
+          state: url.searchParams.get('state'),
+          cookie: res.headers.get('set-cookie').match(/coinhunter-oauth=[A-Za-z0-9_-]+/)[0],
+        };
+      };
+      const finish = (flow, code, extra = '') =>
+        get(`/api/auth/google/callback?state=${flow.state}&code=${code}${extra}`, flow.cookie);
+      const first = await start('old');
+      const oldResponse = finish(first, 'old');
+      await entered.promise;
+      // A separate browser remains independent while the first browser's exchange is blocked.
+      const other = await start('other');
+      assert.equal((await finish(other, 'other')).headers.get('location'), '/editor');
+      const second = await start('new', first.cookie);
+      assert.equal(second.cookie, first.cookie);
+      const latestResponse = await finish(
+        second,
+        'new',
+        scenario === 'cancelled' ? '&error=access_denied' : '',
+      );
+      const latestSession = latestResponse.headers
+        .get('set-cookie')
+        ?.match(/coinhunter-session=[a-f0-9-]+/)?.[0];
+      if (['token', 'account'].includes(scenario)) {
+        assert.equal(latestResponse.headers.get('location'), '/editor');
+        assert.ok(latestSession);
+      } else {
+        assert.match(latestResponse.headers.get('location'), /authError=failed/);
+        assert.equal(latestSession, undefined);
+      }
+      release.resolve();
+      const stale = await oldResponse;
+      assert.match(stale.headers.get('location'), /authError=failed/);
+      assert.doesNotMatch(stale.headers.get('set-cookie') || '', /coinhunter-(session|oauth)=/);
+      if (latestSession) {
+        const { user } = await (await get('/api/session', latestSession)).json();
+        assert.equal(user.email, 'new@company.test');
+      }
+    });
+  }
+});
+
+test('a newer pending attempt and expiry invalidate consumed flows before session issuance', () => {
+  let time = Date.now();
+  const provider = createGoogleProvider({ config, client: testClient(), now: () => time });
+  const firstResponse = response();
+  const firstURL = new URL(provider.begin(request(), firstResponse, '/editor'));
+  const cookie = cookieOf(firstResponse);
+  const old = provider.consume(
+    request(cookie),
+    response(),
+    callback(firstURL.searchParams.get('state')),
+  );
+  old.assertCurrent();
+  const nextResponse = response();
+  const nextURL = new URL(provider.begin(request(cookie), nextResponse, '/editor'));
+  assert.throws(old.assertCurrent, { status: 409 });
+  old.complete(); // A stale completion must not invalidate its replacement.
+  const next = provider.consume(
+    request(cookie),
+    response(),
+    callback(nextURL.searchParams.get('state')),
+  );
+  next.assertCurrent();
+  time += 600000;
+  assert.throws(next.assertCurrent, { status: 409 });
+  next.complete();
 });

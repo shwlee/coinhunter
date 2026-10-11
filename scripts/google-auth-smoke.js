@@ -104,10 +104,10 @@ try {
   const authCookie = cookies.find((cookie) => cookie.name === 'coinhunter-session');
   assert.equal(authCookie.httpOnly, true);
   assert.equal(authCookie.sameSite, 'Lax');
-  assert.equal(
-    cookies.some((cookie) => cookie.name === 'coinhunter-oauth'),
-    false,
-  );
+  const flowCookie = cookies.find((cookie) => cookie.name === 'coinhunter-oauth');
+  assert.equal(flowCookie.httpOnly, true);
+  assert.equal(flowCookie.sameSite, 'Lax');
+  assert.equal(flowCookie.path, '/api/auth/google');
   assert.equal(exchanged, 1);
   assert.deepEqual(errors, []);
   await page.screenshot({ path: 'artifacts/google-auth-editor.png', fullPage: true });

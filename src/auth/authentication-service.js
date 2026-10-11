@@ -40,13 +40,17 @@ export function createAuthenticationService({
   async function login(providerId, request, response, credentials) {
     const provider = registered.get(providerId);
     if (!provider) throw fail(403, '지원하지 않는 인증 방식입니다.');
+    if (providerId === 'google') credentials.assertCurrent?.();
     const identity = await provider.authenticate(request, credentials);
+    if (providerId === 'google') credentials.assertCurrent?.();
     if (!identity || typeof identity !== 'object' || Array.isArray(identity))
       throw fail(401, '인증된 사용자 정보를 확인할 수 없습니다.');
     const account = await resolveAccount({ ...identity, provider: provider.id });
     // Read persisted status and role rather than accepting them from authentication credentials.
     const user = account?.id ? await accounts.user(account.id) : null;
     if (!user || !user.active) throw fail(403, '이용이 중지되었거나 사용할 수 없는 계정입니다.');
+    // No await between the final attempt check and issuing its session cookie.
+    if (providerId === 'google') credentials.assertCurrent?.();
     sessions.issue(user.id, request, response);
     return user;
   }
@@ -81,8 +85,9 @@ export function createAuthenticationService({
         const google = registered.get('google');
         if (!google?.enabled) throw fail(403, 'Google 인증이 활성화되지 않았습니다.');
         let destination = '/';
+        let flow;
         try {
-          const flow = google.consume(request, response, url);
+          flow = google.consume(request, response, url);
           destination = flow.next;
           if (flow.cancelled) throw fail(401, 'Google 로그인이 취소되었습니다.');
           const next = await login('google', request, response, flow);
@@ -93,6 +98,8 @@ export function createAuthenticationService({
           response.writeHead(303, {
             Location: `/signin?next=${encodeURIComponent(destination)}&authError=${error.status === 403 ? 'denied' : 'failed'}`,
           });
+        } finally {
+          flow?.complete?.();
         }
         response.end();
         return true;
