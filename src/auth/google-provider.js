@@ -33,6 +33,8 @@ export function createGoogleProvider({
 }) {
   const pending = new Map();
   const latest = new Map();
+  // Reservations track every unfinished callback, including superseded/logged-out attempts.
+  const slots = new Set();
   const starts = new Map();
   const startsPerMinute = config.startsPerMinute ?? 60;
   const flowsPerAddress = config.flowsPerAddress ?? 50;
@@ -52,7 +54,11 @@ export function createGoogleProvider({
       throw fail(400, 'Google 콜백과 같은 주소로 접속하세요.');
   }
   function prune() {
-    for (const [state, flow] of pending) if (flow.expires <= now()) pending.delete(state);
+    for (const [state, flow] of pending)
+      if (flow.expires <= now()) {
+        pending.delete(state);
+        slots.delete(flow);
+      }
     for (const [browser, flow] of latest) if (flow.expires <= now()) latest.delete(browser);
     for (const [address, bucket] of starts) if (bucket.expires <= now()) starts.delete(address);
   }
@@ -67,7 +73,10 @@ export function createGoogleProvider({
       prune();
       const browser = browserToken(request);
       const flow = latest.get(browser);
-      if (flow) pending.delete(flow.state);
+      if (flow) {
+        pending.delete(flow.state);
+        if (!flow.running) slots.delete(flow);
+      }
       latest.delete(browser);
       appendCookie(response, cookie('', 0));
       // Clear cookies issued by older versions with the narrower callback-only path as well.
@@ -106,15 +115,12 @@ export function createGoogleProvider({
       // Check admission before invalidating a pending retry, so a rejected request preserves its flow.
       const previous = browserToken(request);
       const replaced = latest.get(previous);
-      const active = [...latest.values()].filter(
-        (flow) => flow.address === address && flow !== replaced,
+      const reusable = replaced && !replaced.running;
+      const active = [...slots].filter(
+        (flow) => flow.address === address && !(reusable && flow === replaced),
       );
       if (active.length >= flowsPerAddress) reject(response);
-      if (
-        (!replaced && latest.size >= 1000) ||
-        (pending.size >= 1000 && !pending.has(replaced?.state))
-      )
-        reject(response);
+      if (slots.size >= 1000 && !reusable) reject(response);
       const state = random(),
         nonce = random(),
         browser = previous || random(),
@@ -127,10 +133,8 @@ export function createGoogleProvider({
         verifier,
         next: target,
         expires: now() + lifetime,
+        running: false,
       };
-      if (replaced) pending.delete(replaced.state);
-      pending.set(state, flow);
-      latest.set(browser, flow);
       const url = client.generateAuthUrl({
         response_type: 'code',
         scope: ['openid', 'email', 'profile'],
@@ -139,6 +143,13 @@ export function createGoogleProvider({
         code_challenge: createHash('sha256').update(verifier).digest('base64url'),
         code_challenge_method: 'S256',
       });
+      if (replaced) {
+        pending.delete(replaced.state);
+        if (reusable) slots.delete(replaced);
+      }
+      pending.set(state, flow);
+      latest.set(browser, flow);
+      slots.add(flow);
       appendCookie(response, cookie(browser, 600));
       return url;
     },
@@ -151,11 +162,13 @@ export function createGoogleProvider({
       if (!flow || !equal(browserToken(request), flow.browser))
         throw fail(401, '로그인 요청이 만료되었거나 일치하지 않습니다.');
       pending.delete(state); // Consume before any network request, including denied consent.
+      flow.running = true;
       const assertCurrent = () => {
         if (latest.get(flow.browser) !== flow || flow.expires <= now())
           throw fail(409, '새 로그인 요청으로 대체된 인증입니다.');
       };
       const complete = () => {
+        slots.delete(flow);
         if (latest.get(flow.browser) === flow) latest.delete(flow.browser);
       };
       // Keep the browser cookie across callbacks so a retry can supersede an in-flight exchange.

@@ -668,6 +668,188 @@ test('consumed exchanges retain their peer quota until completion, while expiry 
   provider.begin(request(), response(), '/editor');
 });
 
+test('HTTP same-browser retries cannot exceed a one-flow limit during exchange or account lookup', async (t) => {
+  for (const outcome of ['success', 'failure', 'logout', 'account']) {
+    await t.test(outcome, async (t) => {
+      const dir = await mkdtemp(join(tmpdir(), 'coin-google-running-limit-'));
+      t.after(() => rm(dir, { recursive: true, force: true }));
+      const accounts = new FileAccountRepository(join(dir, 'store.json'));
+      const settings = { ...config, flowsPerAddress: 1 };
+      const client = testClient(settings);
+      const entered = deferred(),
+        release = deferred();
+      t.after(() => release.resolve());
+      const nonces = new Map();
+      let calls = 0,
+        active = 0,
+        maximum = 0;
+      client.getToken = async ({ code }) => {
+        calls++;
+        active++;
+        maximum = Math.max(maximum, active);
+        try {
+          if (code === 'held' && outcome !== 'account') {
+            entered.resolve();
+            await release.promise;
+          }
+          if (code === 'held' && outcome === 'failure') throw new Error('Exchange failed');
+          const now = Math.floor(Date.now() / 1000);
+          return {
+            tokens: {
+              id_token: jwt({
+                iss: 'https://accounts.google.com',
+                aud: settings.clientId,
+                sub: code,
+                email: code + '@company.test',
+                email_verified: true,
+                iat: now,
+                exp: now + 3600,
+                nonce: nonces.get(code),
+              }),
+            },
+          };
+        } finally {
+          active--;
+        }
+      };
+      if (outcome === 'account') {
+        const lookup = accounts.user.bind(accounts);
+        accounts.user = async (id) => {
+          const user = await lookup(id);
+          if (user?.email === 'held@company.test') {
+            entered.resolve();
+            await release.promise;
+          }
+          return user;
+        };
+      }
+      const app = createGameServer({
+        authoring: createAuthoring({ accounts, authConfig: settings, googleClient: client }),
+      });
+      await new Promise((done) => app.server.listen(0, '127.0.0.1', done));
+      t.after(app.close);
+      const base = `http://127.0.0.1:${app.server.address().port}`;
+      settings.redirectUri = base + '/api/auth/google/callback';
+      const get = (path, cookie = '') =>
+        fetch(base + path, { redirect: 'manual', headers: { cookie } });
+      const start = async (code, cookie = '') => {
+        const res = await get('/api/auth/google/start?next=%2Feditor', cookie);
+        assert.equal(res.status, 302);
+        const url = new URL(res.headers.get('location'));
+        nonces.set(code, url.searchParams.get('nonce'));
+        return {
+          state: url.searchParams.get('state'),
+          cookie: res.headers.get('set-cookie').match(/coinhunter-oauth=[A-Za-z0-9_-]+/)[0],
+        };
+      };
+      const finish = (flow, code) =>
+        get(`/api/auth/google/callback?state=${flow.state}&code=${code}`, flow.cookie);
+      const held = await start('held');
+      const running = finish(held, 'held');
+      await entered.promise;
+      for (let i = 0; i < 3; i++) {
+        const retry = await get('/api/auth/google/start', held.cookie);
+        assert.equal(retry.status, 429);
+        assert.doesNotMatch(retry.headers.get('set-cookie') || '', /coinhunter-oauth=/);
+      }
+      assert.equal(calls, 1);
+      if (outcome === 'logout') {
+        const logout = await fetch(base + '/api/auth/logout', {
+          method: 'POST',
+          headers: { cookie: held.cookie, origin: base, 'content-type': 'application/json' },
+          body: '{}',
+        });
+        assert.equal(logout.status, 200);
+        assert.equal((await get('/api/auth/google/start')).status, 429);
+      }
+      release.resolve();
+      const done = await running;
+      if (outcome === 'failure' || outcome === 'logout') {
+        assert.match(done.headers.get('location'), /authError=failed/);
+        assert.doesNotMatch(done.headers.get('set-cookie') || '', /coinhunter-session=/);
+      } else assert.equal(done.headers.get('location'), '/editor');
+      const fresh = await start('fresh', outcome === 'logout' ? '' : held.cookie);
+      assert.equal((await finish(fresh, 'fresh')).headers.get('location'), '/editor');
+      assert.equal(calls, 2);
+      assert.equal(maximum, 1);
+    });
+  }
+});
+
+test('superseded and expired running callbacks retain peer and global reservations until completion', () => {
+  let time = Date.now();
+  const provider = createGoogleProvider({
+    config: { ...config, flowsPerAddress: 999 },
+    client: testClient(),
+    now: () => time,
+  });
+  const flows = [];
+  for (let i = 0; i < 1000; i++) {
+    const res = response();
+    const req = { ...request(), socket: { remoteAddress: `2001:db8::${i.toString(16)}` } };
+    const url = new URL(provider.begin(req, res, '/editor'));
+    req.headers.cookie = cookieOf(res);
+    flows.push({
+      req,
+      flow: provider.consume(req, response(), callback(url.searchParams.get('state'))),
+    });
+  }
+  // In-flight attempts cannot reuse a global slot, even with the same browser cookie.
+  assert.throws(() => provider.begin(flows[0].req, response(), '/editor'), { status: 429 });
+  flows[0].flow.assertCurrent();
+  provider.cancel(flows[0].req, response());
+  assert.throws(() => provider.begin(flows[0].req, response(), '/editor'), { status: 429 });
+  time += 600000;
+  assert.throws(flows[1].flow.assertCurrent, { status: 409 });
+  assert.throws(() => provider.begin(flows[1].req, response(), '/editor'), { status: 429 });
+  flows[0].flow.complete();
+  flows[0].flow.complete(); // Repeated cleanup must not free any other callback's reservation.
+  const admitted = new URL(provider.begin(flows[0].req, response(), '/editor'));
+  assert.throws(() => provider.begin(flows[1].req, response(), '/editor'), { status: 429 });
+  provider
+    .consume(flows[0].req, response(), callback(admitted.searchParams.get('state')))
+    .complete();
+  for (const { flow } of flows) flow.complete();
+});
+
+test('a superseded callback completes without releasing the replacement reservation', () => {
+  const provider = createGoogleProvider({
+    config: { ...config, flowsPerAddress: 2 },
+    client: testClient(),
+  });
+  const res = response();
+  const url = new URL(provider.begin(request(), res, '/editor'));
+  const req = request(cookieOf(res));
+  const first = provider.consume(req, response(), callback(url.searchParams.get('state')));
+  const secondURL = new URL(provider.begin(req, response(), '/editor'));
+  const second = provider.consume(req, response(), callback(secondURL.searchParams.get('state')));
+  assert.throws(first.assertCurrent, { status: 409 });
+  assert.throws(() => provider.begin(req, response(), '/editor'), { status: 429 });
+  first.complete();
+  first.complete();
+  second.assertCurrent();
+  provider.begin(request(), response(), '/editor');
+  assert.throws(() => provider.begin(request(), response(), '/editor'), { status: 429 });
+  second.complete();
+  provider.begin(request(), response(), '/editor');
+});
+
+test('a failed authorization URL does not leak a slot or invalidate a pending retry', () => {
+  const client = testClient();
+  const provider = createGoogleProvider({ config: { ...config, flowsPerAddress: 1 }, client });
+  const res = response();
+  const url = new URL(provider.begin(request(), res, '/editor'));
+  const req = request(cookieOf(res));
+  const generate = client.generateAuthUrl;
+  client.generateAuthUrl = () => {
+    throw new Error('URL failure');
+  };
+  assert.throws(() => provider.begin(req, response(), '/editor'), /URL failure/);
+  client.generateAuthUrl = generate;
+  provider.consume(req, response(), callback(url.searchParams.get('state'))).complete();
+  provider.begin(request(), response(), '/editor');
+});
+
 test('global pool exhaustion still allows an admitted browser retry and recovers on callback completion', () => {
   const provider = createGoogleProvider({ config, client: testClient() });
   let admitted;
