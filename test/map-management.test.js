@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MapRepository, MAPS } from '../src/game/map-repository.js';
+import { MapRepository } from '../src/game/map-repository.js';
 import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
 import { createAuthoring } from '../src/authoring-api.js';
 import { createGameServer } from '../src/server.js';
@@ -19,7 +19,7 @@ test('publication preserves hidden state and atomic management rejects stale sta
   t.after(() => rm(dir, { recursive: true, force: true }));
   const maps = new MapRepository({ dataDirectory: dir });
   const state = () => maps.registry().find((entry) => entry.id === 'managed');
-  const draft = await maps.saveDraft({ ...structuredClone(MAPS[0]), id: 'managed' });
+  const draft = await maps.saveDraft({ ...maps.getPublished('crossroads'), id: 'managed' });
   const unposted = expected(state());
   await maps.publish(draft.id, 1, unposted);
   const match = new Match(maps.getPublished(draft.id), ['unused']);
@@ -74,7 +74,8 @@ test('admin management API lists samples, previews explicit revisions and enforc
     (await call('/api/auth/mock', 'POST', { email })).headers.get('set-cookie').split(';')[0];
   const admin = await login('admin@company.test'),
     user = await login('developer@company.test');
-  await maps.saveDraft({ ...structuredClone(MAPS[0]), id: 'api-map' });
+  const sample = maps.getPublished('crossroads');
+  await maps.saveDraft({ ...sample, id: 'api-map' });
   const state = () => maps.registry().find((entry) => entry.id === 'api-map');
   assert.equal((await fetch(base + '/admin/maps', { redirect: 'manual' })).status, 302);
   assert.equal((await call('/admin/maps', 'GET', undefined, user)).status, 403);
@@ -105,7 +106,7 @@ test('admin management API lists samples, previews explicit revisions and enforc
     admin,
   );
   assert.equal(preview.status, 200);
-  assert.deepEqual((await preview.json()).map.tiles, MAPS[0].tiles);
+  assert.deepEqual((await preview.json()).map.tiles, sample.tiles);
   assert.equal(
     (await call('/api/admin/maps/api-map/preview?revision=0', 'GET', undefined, admin)).status,
     400,

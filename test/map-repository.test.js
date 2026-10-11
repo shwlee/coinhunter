@@ -3,10 +3,14 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MapRepository, MAPS } from '../src/game/map-repository.js';
+import { MapRepository } from '../src/game/map-repository.js';
+import { readFileSync } from 'node:fs';
 import { validateMapDocument } from '../src/game/maps.js';
 import { Match } from '../src/game/match.js';
 import { createGameServer } from '../src/server.js';
+const sample = JSON.parse(
+  readFileSync(new URL('../maps/samples/crossroads.json', import.meta.url), 'utf8'),
+);
 
 async function repository(t) {
   const dataDirectory = await mkdtemp(join(tmpdir(), 'coinhunter-maps-'));
@@ -14,14 +18,14 @@ async function repository(t) {
   return new MapRepository({ dataDirectory });
 }
 function custom(id = 'test-map') {
-  return { ...structuredClone(MAPS[0]), id, name: '테스트 맵' };
+  return { ...structuredClone(sample), id, name: '테스트 맵' };
 }
 
 test('file-backed sample preserves 52 coins, dimensions and publication validation', () => {
-  assert.equal(MAPS[0].tiles.filter((tile) => tile > 0).length, 52);
-  assert.equal(MAPS[0].columns, 12);
-  assert.equal(MAPS[0].rows, 10);
-  validateMapDocument(MAPS[0]);
+  assert.equal(sample.tiles.filter((tile) => tile > 0).length, 52);
+  assert.equal(sample.columns, 12);
+  assert.equal(sample.rows, 10);
+  validateMapDocument(sample);
 });
 
 test('draft, publish, revision, disable and restart retain independent map versions', async (t) => {

@@ -1,9 +1,10 @@
-import { randomUUID } from 'node:crypto';
 import { stat, unlink } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
 import { createAccountRepository } from './persistence/account-repository.js';
 import { fail } from './persistence/errors.js';
 import { validateAlgorithm } from './runtime/preflight.js';
+import { createMockProvider } from './auth/mock-provider.js';
+import { createAuthenticationService } from './auth/authentication-service.js';
 
 export function createAuthoring({
   accounts = createAccountRepository(),
@@ -12,77 +13,19 @@ export function createAuthoring({
     : process.env.NODE_ENV !== 'production',
   domain = process.env.MOCK_COMPANY_DOMAIN || 'company.test',
 } = {}) {
-  if (mock && process.env.NODE_ENV === 'production')
-    throw new Error('운영 환경에서는 목업 인증을 사용할 수 없습니다.');
-  const sessions = new Map();
-  const mockIdentities = async () => {
-    const users = (await accounts.listUsers()).filter((account) => account.active);
-    return [
-      ...new Set([
-        ...users.filter((account) => account.role === 'admin').map((account) => account.email),
-        `developer@${domain}`,
-        `tester@${domain}`,
-      ]),
-    ];
-  };
-  const tokenFor = (request) =>
-    request.headers.cookie?.match(/(?:^|;\s*)coinhunter-session=([a-f0-9-]{36})(?:;|$)/)?.[1];
-  async function current(request) {
-    const token = tokenFor(request);
-    const session = sessions.get(token);
-    if (!session) return null;
-    if (session.expires <= Date.now()) {
-      sessions.delete(token);
-      return null;
-    }
-    return (await accounts.user(session.userId)) || null;
-  }
-  const requireUser = (user) => {
-    if (!user) throw fail(401, '로그인이 필요합니다.');
-    return user;
-  };
+  const authentication = createAuthenticationService({
+    accounts,
+    providers: [createMockProvider({ accounts, enabled: mock, domain })],
+  });
+  const { current, requireUser } = authentication;
   return {
     accounts,
     current,
     requireUser,
     async route(request, response, url, user, readJson, json, revoke, readSourceFile) {
+      if (await authentication.route(request, response, url, user, readJson, json, revoke))
+        return true;
       const path = url.pathname;
-      if (path === '/api/session' && request.method === 'GET') {
-        json(response, 200, { user, mock, identities: mock ? await mockIdentities() : [] });
-        return true;
-      }
-      if (path === '/api/auth/mock' && request.method === 'POST') {
-        if (
-          !mock ||
-          !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(request.socket.remoteAddress)
-        )
-          throw fail(403, '로컬 개발에서만 목업 로그인을 사용할 수 있습니다.');
-        const { email } = await readJson(request);
-        if (!(await mockIdentities()).includes(email))
-          throw fail(403, '등록된 개발용 계정을 선택하세요.');
-        const next = await accounts.login(email);
-        sessions.delete(tokenFor(request));
-        for (const [key, session] of sessions)
-          if (session.expires <= Date.now()) sessions.delete(key);
-        const token = randomUUID();
-        sessions.set(token, { userId: next.id, expires: Date.now() + 8 * 3600000 });
-        response.setHeader(
-          'Set-Cookie',
-          `coinhunter-session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800`,
-        );
-        json(response, 200, { user: next });
-        return true;
-      }
-      if (path === '/api/auth/logout' && request.method === 'POST') {
-        sessions.delete(tokenFor(request));
-        response.setHeader(
-          'Set-Cookie',
-          'coinhunter-session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0',
-        );
-        if (user) await revoke(user.id);
-        json(response, 200, { ok: true });
-        return true;
-      }
       if (path.startsWith('/api/admin/')) {
         requireUser(user);
         if (user.role !== 'admin') throw fail(403, '관리자 권한이 필요합니다.');
@@ -97,8 +40,7 @@ export function createAuthoring({
             throw fail(409, '본인 관리자 계정은 중지하거나 강등할 수 없습니다.');
           const updated = await accounts.updateUser(id, input);
           if (!updated.active) {
-            for (const [token, session] of sessions)
-              if (session.userId === id) sessions.delete(token);
+            authentication.revokeUser(id);
             await revoke(id);
           }
           json(response, 200, updated);
