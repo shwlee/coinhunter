@@ -110,6 +110,7 @@ export function createAuthenticationService({
         return true;
       }
       if (url.pathname === '/api/auth/logout' && request.method === 'POST') {
+        registered.get('google')?.cancel?.(request, response);
         sessions.logout(request, response);
         if (user) await revoke(user.id);
         json(response, 200, { ok: true });

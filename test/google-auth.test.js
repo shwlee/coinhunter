@@ -458,6 +458,128 @@ test('a newer pending attempt and expiry invalidate consumed flows before sessio
   next.complete();
 });
 
+test('logout invalidates pending and in-flight OAuth without touching other browsers or a fresh login', async (t) => {
+  for (const phase of ['pending', 'token', 'account']) {
+    await t.test(phase, async (t) => {
+      const dir = await mkdtemp(join(tmpdir(), 'coin-google-logout-'));
+      t.after(() => rm(dir, { recursive: true, force: true }));
+      const accounts = new FileAccountRepository(join(dir, 'store.json'));
+      const settings = { ...config };
+      const client = testClient(settings);
+      const entered = deferred(),
+        release = deferred();
+      t.after(() => release.resolve());
+      const nonces = new Map();
+      let exchanges = 0;
+      client.getToken = async ({ code }) => {
+        exchanges++;
+        if (code === 'held' && phase === 'token') {
+          entered.resolve();
+          await release.promise;
+        }
+        const now = Math.floor(Date.now() / 1000);
+        return {
+          tokens: {
+            id_token: jwt({
+              iss: 'https://accounts.google.com',
+              aud: settings.clientId,
+              sub: code,
+              email: code + '@company.test',
+              email_verified: true,
+              iat: now,
+              exp: now + 3600,
+              nonce: nonces.get(code),
+            }),
+          },
+        };
+      };
+      if (phase === 'account') {
+        const lookup = accounts.user.bind(accounts);
+        accounts.user = async (id) => {
+          const user = await lookup(id);
+          if (user?.email === 'held@company.test') {
+            entered.resolve();
+            await release.promise;
+          }
+          return user;
+        };
+      }
+      const app = createGameServer({
+        authoring: createAuthoring({ accounts, authConfig: settings, googleClient: client }),
+      });
+      await new Promise((done) => app.server.listen(0, '127.0.0.1', done));
+      t.after(app.close);
+      const base = `http://127.0.0.1:${app.server.address().port}`;
+      settings.redirectUri = base + '/api/auth/google/callback';
+      const get = (path, cookie = '') =>
+        fetch(base + path, { redirect: 'manual', headers: { cookie } });
+      const start = async (code, cookie = '') => {
+        const res = await get('/api/auth/google/start?next=%2Feditor', cookie);
+        assert.equal(res.status, 302);
+        const url = new URL(res.headers.get('location'));
+        nonces.set(code, url.searchParams.get('nonce'));
+        assert.match(res.headers.get('set-cookie'), /Path=\/api\/auth;/);
+        return {
+          state: url.searchParams.get('state'),
+          cookie: res.headers.get('set-cookie').match(/coinhunter-oauth=[A-Za-z0-9_-]+/)[0],
+        };
+      };
+      const finish = (flow, code, session = '') =>
+        get(
+          `/api/auth/google/callback?state=${flow.state}&code=${code}`,
+          flow.cookie + '; ' + session,
+        );
+      const initial = await finish(await start('initial'), 'initial');
+      const session = initial.headers.get('set-cookie').match(/coinhunter-session=[a-f0-9-]+/)[0];
+      const old = await start('held', session);
+      let oldResponse;
+      if (phase !== 'pending') {
+        oldResponse = finish(old, 'held', session);
+        await entered.promise;
+      }
+      const other = await start('other');
+      const logout = await fetch(base + '/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          cookie: old.cookie + '; ' + session,
+          origin: base,
+          'content-type': 'application/json',
+        },
+        body: '{}',
+      });
+      assert.equal(logout.status, 200);
+      assert.match(
+        logout.headers.get('set-cookie'),
+        /coinhunter-oauth=;[^,]*Path=\/api\/auth; Max-Age=0/,
+      );
+      assert.match(
+        logout.headers.get('set-cookie'),
+        /coinhunter-oauth=;[^,]*Path=\/api\/auth\/google; Max-Age=0/,
+      );
+      assert.equal((await (await get('/api/session', session)).json()).user, null);
+      // A different browser can still finish, and the logged-out browser may start a fresh login.
+      assert.equal((await finish(other, 'other')).headers.get('location'), '/editor');
+      const fresh = await start('fresh');
+      assert.notEqual(fresh.cookie, old.cookie);
+      const freshResponse = await finish(fresh, 'fresh');
+      const freshSession = freshResponse.headers
+        .get('set-cookie')
+        .match(/coinhunter-session=[a-f0-9-]+/)[0];
+      const before = exchanges;
+      release.resolve();
+      const late = await (oldResponse || finish(old, 'held', session));
+      assert.match(late.headers.get('location'), /authError=failed/);
+      assert.doesNotMatch(late.headers.get('set-cookie') || '', /coinhunter-(session|oauth)=/);
+      if (phase === 'pending') assert.equal(exchanges, before);
+      assert.equal((await (await get('/api/session', session)).json()).user, null);
+      assert.equal(
+        (await (await get('/api/session', freshSession)).json()).user.email,
+        'fresh@company.test',
+      );
+    });
+  }
+});
+
 test('login quotas reject cookie and forwarded-address churn while preserving other peers and pending retries', () => {
   let time = Date.now();
   const client = testClient();

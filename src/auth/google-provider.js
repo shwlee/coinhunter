@@ -45,8 +45,8 @@ export function createGoogleProvider({
     flowsPerAddress >= 1000
   )
     throw new Error('Google 로그인 요청 제한 설정을 확인하세요.');
-  const cookie = (value, age) =>
-    `coinhunter-oauth=${value}; HttpOnly; SameSite=Lax; Path=/api/auth/google; Max-Age=${age}${config.secure ? '; Secure' : ''}`;
+  const cookie = (value, age, path = '/api/auth') =>
+    `coinhunter-oauth=${value}; HttpOnly; SameSite=Lax; Path=${path}; Max-Age=${age}${config.secure ? '; Secure' : ''}`;
   function checkHost(request) {
     if (request.headers.host !== new URL(config.redirectUri).host)
       throw fail(400, 'Google 콜백과 같은 주소로 접속하세요.');
@@ -63,6 +63,16 @@ export function createGoogleProvider({
   return {
     id: 'google',
     enabled: true,
+    cancel(request, response) {
+      prune();
+      const browser = browserToken(request);
+      const flow = latest.get(browser);
+      if (flow) pending.delete(flow.state);
+      latest.delete(browser);
+      appendCookie(response, cookie('', 0));
+      // Clear cookies issued by older versions with the narrower callback-only path as well.
+      appendCookie(response, cookie('', 0, '/api/auth/google'));
+    },
     begin(request, response, next) {
       const callback = new URL(config.redirectUri);
       const target = destinations.has(next) ? next : '/';

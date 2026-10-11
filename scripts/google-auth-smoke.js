@@ -107,7 +107,7 @@ try {
   const flowCookie = cookies.find((cookie) => cookie.name === 'coinhunter-oauth');
   assert.equal(flowCookie.httpOnly, true);
   assert.equal(flowCookie.sameSite, 'Lax');
-  assert.equal(flowCookie.path, '/api/auth/google');
+  assert.equal(flowCookie.path, '/api/auth');
   assert.equal(exchanged, 1);
   assert.deepEqual(errors, []);
   await page.screenshot({ path: 'artifacts/google-auth-editor.png', fullPage: true });
@@ -128,6 +128,34 @@ try {
     1,
   );
   assert.deepEqual(errors, []);
+  // Browser path matching must send the OAuth identifier to logout and remove both old/new paths.
+  await page.context().addCookies([
+    {
+      name: 'coinhunter-oauth',
+      value: flowCookie.value,
+      domain: '127.0.0.1',
+      path: '/api/auth/google',
+      httpOnly: true,
+      sameSite: 'Lax',
+    },
+  ]);
+  const logoutResponse = await page.evaluate(async () => {
+    const res = await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    return res.status;
+  });
+  assert.equal(logoutResponse, 200);
+  const afterLogout = await page.context().cookies();
+  assert.equal(
+    afterLogout.some(
+      (cookie) => cookie.name === 'coinhunter-oauth' || cookie.name === 'coinhunter-session',
+    ),
+    false,
+  );
+  assert.equal((await page.evaluate(async () => (await fetch('/api/session')).json())).user, null);
   console.log(
     'Google OAuth browser smoke passed: cancellation, retry, browser-bound callback, SDK verification, session and editor access. Google network transport was replaced.',
   );
