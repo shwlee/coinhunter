@@ -135,7 +135,7 @@ test(
     const command = run(
       process.execPath,
       [fileURLToPath(new URL('../scripts/bootstrap-admin.js', import.meta.url)), user.email],
-      { env: { ...process.env, ACCOUNTS_FILE: file } },
+      { env: { ...process.env, AUTH_MODE: 'mock', ACCOUNTS_FILE: file } },
     ).then((value) => {
       completed = true;
       return value;

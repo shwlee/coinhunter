@@ -41,7 +41,14 @@ function render() {
     const state = document.createElement('span');
     state.className = `user-state${user.active ? '' : ' inactive'}`;
     state.textContent = `${user.active ? '이용 가능' : '이용 중지'} · ${user.role === 'admin' ? '관리자' : '일반 사용자'}${self ? ' · 내 계정' : ''}`;
-    identity.append(email, state);
+    const providers = (user.authProviders || ['mock'])
+      .map((provider) =>
+        provider === 'google' ? 'Google' : provider === 'mock' ? '목업' : provider,
+      )
+      .join(', ');
+    const accountId = document.createElement('small');
+    accountId.textContent = `${providers} · 계정 ID: ${user.id}`;
+    identity.append(email, state, accountId);
     if (protectedAccount) {
       const reason = document.createElement('small');
       reason.textContent =
@@ -99,7 +106,7 @@ async function update(user, input) {
         : '일반 사용자로 변경';
   if (
     !confirm(
-      `${user.email} 계정의 ${action}하시겠습니까?${!input.active && user.active ? '\n로그인 세션과 진행 중 경기가 종료됩니다.' : ''}`,
+      `${user.email} (${(user.authProviders || ['mock']).join(', ')}, ${user.id}) 계정의 ${action}하시겠습니까?${!input.active && user.active ? '\n로그인 세션과 진행 중 경기가 종료됩니다.' : ''}`,
     )
   )
     return;

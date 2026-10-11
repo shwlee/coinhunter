@@ -18,9 +18,12 @@
 
 ## 어댑터 계약
 
+`listUsers`는 관리자와 유지보수 도구가 계정을 구분할 수 있도록 `authProviders` 이름 배열을 포함한다. 신원 연결이 없으면 `['mock']`, Google 연결이면 `['google']`로 표시한다. 외부 subject·토큰·신원 연결 원문은 포함하지 않는다. 관리자 변경 대상은 이메일이 아닌 내부 사용자 ID로 지정한다. `grantAdmin`은 기존 활성 계정에 관리자 역할만 추가하는 로컬 유지보수 계약이며 인증 없이 호출할 수 있는 HTTP 경로를 만들지 않는다.
+
 | 영역 | 메서드 | 보장할 동작 |
 | --- | --- | --- |
 | 계정 | `login`, `user`, `listUsers`, `updateUser` | 첫 로그인 생성, 활성 상태와 역할 관리, 마지막 활성 관리자 보호 |
+| 관리자 유지보수 | `bootstrapAdmin`, `grantAdmin` | 초기 등록의 로그인 방식 구분·중복 이메일 거부, 명시적 ID의 활성 계정만 승격; `grantAdmin`은 로컬 운영 도구 전용 |
 | 인증 신원 | `findByIdentity`, `loginIdentity`, `linkIdentity` | 제공자·신원으로 내부 사용자 조회, 승인된 신규 생성, 기존 계정의 명시적 연결, 이메일 자동 병합 금지 |
 | 알고리즘 | `list`, `get`, `metadata`, `sourcePath`, `snapshotSource`, `save` | 소유자별 조회·수정, 목록에서 코드·파일 참조 제외, 경기 시작용 코드 사본 생성, 수정 버전 충돌 검사 |
 | 경기 기록 | `history`, `historyEntry`, `historySourcePath`, `recordMatch` | 종료 결과와 당시 코드 파일 참조 저장, 목록에서 코드·파일 참조 제외, 소유자별 코드 조회 |

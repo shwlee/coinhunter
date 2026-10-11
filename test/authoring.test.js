@@ -139,6 +139,15 @@ test('local accounts persist, isolate code, reject conflicts and revoke disabled
   const match = await matchResponse.json();
   assert.equal((await call('/api/matches', 'POST', input, secondLogin.cookie)).status, 409);
   assert.equal((await call('/api/admin/users', 'GET', undefined, a.cookie)).status, 403);
+  const google = await fileAccounts.loginIdentity(
+    { provider: 'google', subject: 'private-admin-sub', email: admin.user.email },
+    { allowCreate: true },
+  );
+  const adminUsers = (await (await call('/api/admin/users', 'GET', undefined, admin.cookie)).json())
+    .users;
+  assert.deepEqual(adminUsers.find((user) => user.id === google.id).authProviders, ['google']);
+  assert.deepEqual(adminUsers.find((user) => user.id === admin.user.id).authProviders, ['mock']);
+  assert.equal(JSON.stringify(adminUsers).includes('private-admin-sub'), false);
   assert.equal(
     (
       await call(

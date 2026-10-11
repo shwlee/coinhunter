@@ -182,17 +182,40 @@ export class FileAccountRepository {
       return user;
     });
   }
-  bootstrapAdmin(email) {
+  bootstrapAdmin(email, { provider } = {}) {
     const normalized = typeof email === 'string' ? email.trim().toLowerCase() : '';
     if (!/^[^\s@]+@[^\s@]+$/.test(normalized) || normalized.length > 320)
       throw fail(400, '관리자 이메일을 확인하세요.');
+    if (provider !== undefined && !['mock', 'google'].includes(provider))
+      throw fail(400, '관리자 로그인 방식은 mock 또는 google이어야 합니다.');
     return this.change((data) => {
+      const matches = data.users.filter((user) => {
+        if (user.email !== normalized) return false;
+        const links = (data.identities || []).filter((link) => link.userId === user.id);
+        return (
+          provider === undefined ||
+          (provider === 'mock' ? !links.length : links.some((link) => link.provider === provider))
+        );
+      });
+      if (matches.length > 1)
+        throw fail(
+          409,
+          '같은 이메일의 계정이 여러 개입니다. 로그인 방식을 지정하거나 admin:grant에서 계정 ID를 선택하세요.',
+        );
+      let user = matches[0];
+      if (!user && provider === 'google')
+        throw fail(
+          404,
+          '등록된 Google 계정이 없습니다. 먼저 Google 로그인 후 계정 ID를 확인하세요.',
+        );
       const current = data.users.find((user) => user.active && user.role === 'admin');
       if (current) {
-        if (current.email === normalized) return current;
-        throw fail(409, '활성 관리자가 이미 있습니다. 관리자 화면에서 권한을 변경하세요.');
+        if (user?.active && user.role === 'admin') return user;
+        throw fail(
+          409,
+          '활성 관리자가 이미 있습니다. 관리자 화면 또는 admin:grant에서 대상 계정 ID를 지정하세요.',
+        );
       }
-      let user = data.users.find((entry) => entry.email === normalized);
       if (!user) {
         user = { id: randomUUID(), email: normalized, role: 'admin', active: true };
         data.users.push(user);
@@ -200,11 +223,33 @@ export class FileAccountRepository {
       return user;
     });
   }
+  grantAdmin(userId) {
+    if (typeof userId !== 'string' || !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(userId))
+      throw fail(400, '관리자 권한을 부여할 계정 ID를 확인하세요.');
+    return this.change((data) => {
+      const user = data.users.find((entry) => entry.id === userId);
+      if (!user) throw fail(404, '대상 계정을 찾을 수 없습니다.');
+      if (!user.active) throw fail(409, '이용 중지 계정은 관리자 화면에서 먼저 이용을 허용하세요.');
+      user.role = 'admin';
+      return user;
+    });
+  }
   user(id) {
     return this.inspect((data) => data.users.find((u) => u.id === id && u.active));
   }
   listUsers() {
-    return this.inspect((data) => data.users);
+    return this.inspect((data) =>
+      data.users.map((user) => {
+        const providers = [
+          ...new Set(
+            (data.identities || [])
+              .filter((link) => link.userId === user.id)
+              .map((link) => link.provider),
+          ),
+        ];
+        return { ...user, authProviders: providers.length ? providers : ['mock'] };
+      }),
+    );
   }
   list(ownerId) {
     return this.inspect((data) =>

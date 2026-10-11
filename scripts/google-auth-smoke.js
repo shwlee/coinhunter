@@ -111,6 +111,23 @@ try {
   assert.equal(exchanged, 1);
   assert.deepEqual(errors, []);
   await page.screenshot({ path: 'artifacts/google-auth-editor.png', fullPage: true });
+  await accounts.bootstrapAdmin('browser@example.test', { provider: 'mock' });
+  await accounts.grantAdmin(session.user.id);
+  await page.goto(base + '/admin');
+  await page.locator('.admin-user-row').filter({ hasText: 'Google · 계정 ID:' }).waitFor();
+  assert.equal(
+    await page.locator('.admin-user-row').filter({ hasText: 'browser@example.test' }).count(),
+    2,
+  );
+  assert.equal(
+    await page.locator('.admin-user-row').filter({ hasText: '목업 · 계정 ID:' }).count(),
+    1,
+  );
+  assert.equal(
+    await page.locator('.admin-user-row').filter({ hasText: 'Google · 계정 ID:' }).count(),
+    1,
+  );
+  assert.deepEqual(errors, []);
   console.log(
     'Google OAuth browser smoke passed: cancellation, retry, browser-bound callback, SDK verification, session and editor access. Google network transport was replaced.',
   );

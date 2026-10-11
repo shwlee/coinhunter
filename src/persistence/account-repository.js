@@ -9,13 +9,14 @@ import { FileAccountRepository } from './file-account-repository.js';
  * checking the owner. File path methods are server-only and never exposed to clients.
  *
  * @typedef {object} AccountRepository
- * @property {(email: string) => Promise<object>} bootstrapAdmin
+ * @property {(email: string, options?: {provider?: 'mock' | 'google'}) => Promise<object>} bootstrapAdmin
+ * @property {(userId: string) => Promise<object>} grantAdmin Offline maintenance only, never an unauthenticated HTTP endpoint.
  * @property {(email: string) => Promise<object>} login
  * @property {(provider: string, subject: string) => Promise<object | null>} findByIdentity
  * @property {(identity: {provider: string, subject: string, email: string}, options?: {allowCreate?: boolean}) => Promise<object>} loginIdentity
  * @property {(userId: string, identity: {provider: string, subject: string}) => Promise<object>} linkIdentity
  * @property {(id: string) => Promise<object | undefined>} user
- * @property {() => Promise<object[]>} listUsers
+ * @property {() => Promise<object[]>} listUsers Includes authProviders names; excludes external subjects and tokens.
  * @property {(id: string, input: object) => Promise<object>} updateUser
  * @property {(ownerId: string) => Promise<object[]>} list
  * @property {(ownerId: string, id: string) => Promise<object>} get

@@ -14,6 +14,7 @@
     "start": "node scripts/start.js",
     "maps": "node scripts/maps.js",
     "admin:bootstrap": "node scripts/bootstrap-admin.js",
+    "admin:grant": "node scripts/grant-admin.js",
     "capture:login": "node scripts/capture-login-gameplay.js",
     "test": "node --test test",
     "test:browser": "node scripts/browser-smoke.js",
