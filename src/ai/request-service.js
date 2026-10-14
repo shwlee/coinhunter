@@ -127,7 +127,7 @@ export function createAiRequestService({
     if (allowed.length && !allowed.includes(r.input.modelId))
       throw aiError('model_unavailable', 422);
     if (requireCatalog) {
-      const models = await catalog.cached(r.scope, connection.id);
+      const models = await catalog.ensure(r.scope, connection.id);
       if (models.state !== 'ready' || !models.models.some((model) => model.id === r.input.modelId))
         throw aiError('model_unavailable', 422);
     }
@@ -285,7 +285,7 @@ export function createAiRequestService({
       const input = validateGenerationInput(data);
       const connection = await storage.get(scope, input.connectionId);
       if (!providers[connection.provider]?.generate) throw aiError('unavailable', 503);
-      const models = await catalog.cached(scope, input.connectionId);
+      const models = await catalog.ensure(scope, input.connectionId);
       if (models.state !== 'ready' || !models.models.some((model) => model.id === input.modelId))
         throw aiError('model_unavailable', 422);
       await ready;

@@ -22,7 +22,13 @@ const deferred = () => {
 };
 async function fixture(
   t,
-  { transport, enabled = true, connectionLimit = 20, generationTransport } = {},
+  {
+    transport,
+    enabled = true,
+    connectionLimit = 20,
+    generationTransport,
+    modelCacheTtlMs = 300000,
+  } = {},
 ) {
   const dir = await mkdtemp(join(tmpdir(), 'coin-ai-api-'));
   const providers = createAiProviders({
@@ -61,6 +67,7 @@ async function fixture(
       AI_CONNECTION_COOLDOWN_MS: '1',
       AI_CONNECTION_TIMEOUT_MS: '1000',
       AI_MAX_CONNECTIONS_PER_USER: String(connectionLimit),
+      AI_MODEL_CACHE_TTL_MS: String(modelCacheTtlMs),
     }),
     aiEnv: {
       AI_DATA_DIR: join(dir, 'ai'),
@@ -211,6 +218,97 @@ test('AI HTTP routes verify, manage, select and delete without exposing keys or 
   );
 });
 const loginScope = (f, cookie) => f.authoring.aiScope({ headers: { cookie } });
+
+test('unchanged connection can select and generate after its model cache expires without re-registering', async (t) => {
+  let lookups = 0;
+  let generated = 0,
+    removed = false;
+  const source = `module.exports = class Player { initialize(n,c,r){} getName(){return 'renewed';} moveNext(map,p,items){return -1;} };`;
+  const f = await fixture(t, {
+    modelCacheTtlMs: 30,
+    transport: async () => {
+      lookups++;
+      return new Response(JSON.stringify({ data: [{ id: removed ? 'gpt-5-mini' : 'gpt-5' }] }));
+    },
+    generationTransport: async () => {
+      generated++;
+      return openAiStreamResponse({
+        status: 'completed',
+        output: [
+          {
+            type: 'message',
+            role: 'assistant',
+            content: [
+              { type: 'output_text', text: JSON.stringify({ source, explanation: 'renewed' }) },
+            ],
+          },
+        ],
+      });
+    },
+  });
+  const cookie = await f.login('developer@company.test');
+  const connection = (await (await f.call('/api/ai/connections', 'POST', add(), cookie)).json())
+    .connection;
+  const scope = await loginScope(f, cookie);
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.equal((await f.authoring.aiCatalog.cached(scope, connection.id)).state, 'not_loaded');
+  const input = {
+    connectionId: connection.id,
+    modelId: 'gpt-5',
+    intent: 'generate',
+    prompt: '가까운 코인을 수집하세요.',
+    priorities: [],
+  };
+  const prepared = await f.call('/api/ai/requests', 'POST', input, cookie);
+  assert.equal(prepared.status, 201);
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  const models = await f.call(
+    `/api/ai/connections/${connection.id}/models`,
+    'GET',
+    undefined,
+    cookie,
+  );
+  assert.equal(models.status, 200);
+  assert.equal((await models.json()).state, 'ready');
+  assert.equal(
+    (await f.authoring.aiStorage.get(scope, connection.id)).revision,
+    connection.revision,
+  );
+  assert.ok(lookups >= 3);
+  const request = await prepared.json();
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.equal(
+    (
+      await f.call(
+        '/api/ai/preferences',
+        'PUT',
+        { connectionId: connection.id, modelId: 'gpt-5' },
+        cookie,
+      )
+    ).status,
+    200,
+  );
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.equal(
+    (await f.call(`/api/ai/requests/${request.id}/start`, 'POST', {}, cookie)).status,
+    202,
+  );
+  const events = await f.call(`/api/ai/requests/${request.id}/events`, 'GET', undefined, cookie);
+  assert.match(await events.text(), /"state":"completed"/);
+  assert.equal(generated, 1);
+  assert.equal(
+    (await f.authoring.aiStorage.get(scope, connection.id)).revision,
+    connection.revision,
+  );
+  f.authoring.aiCatalog.cancelConnection(connection.id);
+  removed = true;
+  assert.equal((await f.call('/api/ai/requests', 'POST', input, cookie)).status, 422);
+  assert.equal(
+    generated,
+    1,
+    'A genuinely unavailable model must not invoke generation or switch models',
+  );
+});
 
 test('generation HTTP preserves ownership, streams terminal snapshots and exposes only inspected source files', async (t) => {
   const source = `module.exports = class Player { initialize(n,c,r){} getName(){ return 'HTTP AI'; } moveNext(map,p,items){return -1;} };`;

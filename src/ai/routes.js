@@ -172,7 +172,7 @@ export function createAiRoutes({ config, storage, catalog, authentication, reque
             throw fail(400, '연결과 모델을 함께 선택하세요.');
           const selected = await storage.get(scope, input.connectionId);
           revision = selected.revision;
-          modelAvailable(await catalog.cached(scope, input.connectionId), input.modelId);
+          modelAvailable(await catalog.ensure(scope, input.connectionId), input.modelId);
         }
         await storage.setPreference(scope, input, revision);
         json(response, 200, { preference: await storage.preference(scope) });
@@ -184,7 +184,13 @@ export function createAiRoutes({ config, storage, catalog, authentication, reque
         const [, id, action] = match;
         const previous = await storage.get(scope, id);
         if (action === 'models' && request.method === 'GET') {
-          json(response, 200, await catalog.cached(scope, id));
+          json(
+            response,
+            200,
+            url.searchParams.get('cacheOnly') === '1'
+              ? await catalog.cached(scope, id)
+              : await catalog.ensure(scope, id),
+          );
         } else if (['check', 'models/refresh'].includes(action) && request.method === 'POST') {
           fields(await readJson(request), []);
           const result = await catalog.refresh(scope, id);
@@ -223,7 +229,9 @@ export function createAiRoutes({ config, storage, catalog, authentication, reque
             json(response, 200, { connection, catalog: result });
           } else {
             const { revision: _, ...changes } = input;
-            const result = await catalog.cached(scope, id);
+            const result = Object.hasOwn(changes, 'defaultModelId')
+              ? await catalog.ensure(scope, id)
+              : await catalog.cached(scope, id);
             if (Object.hasOwn(changes, 'defaultModelId'))
               modelAvailable(result, changes.defaultModelId);
             const connection = await storage.update(scope, id, revision, changes);

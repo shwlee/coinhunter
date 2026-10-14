@@ -240,7 +240,13 @@ export async function initializeAiConnections() {
         AI_CONNECTION_ERROR_HELP[error.code] ||
         '입력과 제공자 계정 상태를 확인하세요. 반복되면 운영자에게 문의하세요.';
       $('ai-error-help').hidden = false;
-      if (refreshAfterError && selected) await choose(selected, preferredModel);
+      if (refreshAfterError && selected) {
+        // Inspect failure state without immediately repeating a failed provider lookup.
+        const cached = await api(`/api/ai/connections/${selected}/models?cacheOnly=1`).catch(
+          () => ({ state: 'not_loaded', models: [], checkedAt: null }),
+        );
+        await choose(selected, preferredModel, cached);
+      }
       status(error.message);
     } finally {
       $('ai-api-key').value = '';

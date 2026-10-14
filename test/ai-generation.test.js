@@ -344,7 +344,7 @@ async function fixture(t, options = {}) {
       get: async () => ({ id: 'connection', provider: 'openai', revision }),
       credential: async () => ({ connection: { revision }, secret: 'fixture-secret' }),
     },
-    catalog: { cached: async () => ({ state: 'ready', models: [{ id: input.modelId }] }) },
+    catalog: { ensure: async () => ({ state: 'ready', models: [{ id: input.modelId }] }) },
     providers: {
       openai: {
         generate: async (args) => {

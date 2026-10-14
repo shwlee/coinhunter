@@ -96,6 +96,7 @@ const authoring = createAuthoring({
     AI_ENABLED: 'true',
     AI_ALLOW_STORED_CREDENTIALS: 'true',
     AI_CONNECTION_COOLDOWN_MS: '1',
+    AI_MODEL_CACHE_TTL_MS: '1000',
   }),
   aiEnv: {
     AI_DATA_DIR: join(dir, 'ai'),
@@ -236,6 +237,22 @@ try {
   assert.equal(await page.locator('#code').inputValue(), generatedSource);
   await page.locator('#undo').click();
   assert.equal(await page.locator('#code').inputValue(), original);
+  await page.locator('#ai-modify:enabled').waitFor();
+  const revisionBeforeRepeat = (
+    await (await context.request.get(base + '/api/ai/connections')).json()
+  ).connections.find((item) => item.id === id).revision;
+  await page.goto(base + '/');
+  await page.waitForTimeout(1100);
+  await page.goto(base + '/editor');
+  await wait(page, () => document.getElementById('ai-model').value === 'gpt-5-mini');
+  assert.equal(await page.locator('#ai-connection').inputValue(), id);
+  assert.equal(
+    (await (await context.request.get(base + '/api/ai/connections')).json()).connections.find(
+      (item) => item.id === id,
+    ).revision,
+    revisionBeforeRepeat,
+  );
+  await page.locator('#prompt').fill('가까운 코인을 우선하도록 수정하세요.');
   await page.locator('#ai-modify:enabled').waitFor();
   await page.locator('#ai-modify').click();
   await wait(page, () =>

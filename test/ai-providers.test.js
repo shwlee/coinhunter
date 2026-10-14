@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createAiProviders } from '../src/ai/providers.js';
+import { createAiProviders, aiError } from '../src/ai/providers.js';
 import { createAiModelCatalog } from '../src/ai/model-catalog.js';
 import { readAiConfig } from '../src/ai/config.js';
 import { createAiStorage } from '../src/ai/storage-service.js';
@@ -252,6 +252,48 @@ test('catalog discovers all pages, deduplicates and applies allowlist without in
     f.catalog.cached({ ownerId: 'foreign', sessionId: 'foreign' }, 'connection'),
     { code: 'unauthenticated' },
   );
+});
+
+test('catalog transparently renews expired lists and shares concurrent lookups without changing selection', async (t) => {
+  const f = fixture(t);
+  const first = await Promise.all([
+    f.catalog.ensure(f.scope, 'connection'),
+    f.catalog.ensure(f.scope, 'connection'),
+  ]);
+  assert.equal(f.calls(), 1);
+  assert.equal(first[0].models[0].id, 'gpt-5');
+  first[0].models[0].name = 'changed';
+  assert.equal(first[1].models[0].name, 'GPT-5');
+  await f.catalog.ensure(f.scope, 'connection');
+  assert.equal(f.calls(), 1);
+  f.tick(300001);
+  assert.equal((await f.catalog.cached(f.scope, 'connection')).state, 'not_loaded');
+  const refreshed = await Promise.all([
+    f.catalog.ensure(f.scope, 'connection'),
+    f.catalog.ensure(f.scope, 'connection'),
+  ]);
+  assert.equal(f.calls(), 2);
+  assert.equal(refreshed[0].models[0].id, 'gpt-5');
+  await assert.rejects(
+    f.catalog.ensure({ ownerId: 'foreign', sessionId: 'foreign' }, 'connection'),
+    { code: 'unauthenticated' },
+  );
+  assert.equal(f.calls(), 2);
+});
+
+test('automatic renewal exposes real provider failures and never returns an expired permission list', async (t) => {
+  let failing = false;
+  const f = fixture(t, {
+    list: async () => {
+      if (failing) throw aiError('network_error');
+      return { models: [{ id: 'gpt-5', name: 'GPT-5' }], nextCursor: null };
+    },
+  });
+  await f.catalog.ensure(f.scope, 'connection');
+  f.tick(300001);
+  failing = true;
+  await assert.rejects(f.catalog.ensure(f.scope, 'connection'), { code: 'network_error' });
+  assert.equal((await f.catalog.cached(f.scope, 'connection')).state, 'not_loaded');
 });
 
 test('catalog discards late results on logout, key revision or connection cancellation', async (t) => {

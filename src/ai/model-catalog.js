@@ -12,6 +12,7 @@ export function createAiModelCatalog({
   const cache = new Map();
   const running = new Set();
   const lastStart = new Map();
+  const pending = new Map();
   let closed = false;
   function guard(scope) {
     if (
@@ -38,6 +39,27 @@ export function createAiModelCatalog({
     return value;
   }
   return {
+    async ensure(scope, id) {
+      const selected = await connection(scope, id);
+      const previous = await this.cached(scope, id);
+      if (previous.state === 'ready') return previous;
+      const key = keyFor(scope, selected);
+      // Navigation and generation may need the same expired catalog at once.
+      // Share only within the same owner, session, connection and revision.
+      let job = pending.get(key);
+      if (!job) {
+        job = this.refresh(scope, id);
+        pending.set(key, job);
+      }
+      try {
+        const result = await job;
+        const current = await connection(scope, id);
+        if (current.revision !== selected.revision) throw aiError('revision_conflict', 409);
+        return { ...result, models: result.models.map((model) => ({ ...model })) };
+      } finally {
+        if (pending.get(key) === job) pending.delete(key);
+      }
+    },
     async cached(scope, id) {
       const selected = await connection(scope, id);
       const key = keyFor(scope, selected);
@@ -181,6 +203,7 @@ export function createAiModelCatalog({
       detach();
       for (const job of running) job.controller.abort();
       cache.clear();
+      pending.clear();
       lastStart.clear();
       await Promise.allSettled([...running].map((job) => job.work));
     },
