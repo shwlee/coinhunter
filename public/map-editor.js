@@ -1,6 +1,14 @@
 import { api, accountBar } from './account.js';
 import { loadCoins, drawCoinSample } from './coin-renderer.js';
-import { COIN_VALUES, starts, placementIndices, applyTile, inspectMap } from './map-editing.js';
+import {
+  COIN_VALUES,
+  RANDOM_MAP_TEMPLATES,
+  starts,
+  placementIndices,
+  applyTile,
+  inspectMap,
+  generateSymmetricMap,
+} from './map-editing.js';
 import { mapStatus } from './map-status.js';
 import { installMapOptions } from './map-options.js';
 
@@ -17,6 +25,7 @@ let cells = [],
   savedMaps = [];
 const coinImages = new Map();
 let publication = null;
+let publishPending = null;
 let optionDefaults = null;
 const openOptions = installMapOptions(
   () => {
@@ -82,6 +91,26 @@ function updateControls() {
     ? `${mapStatus(publication)}${publication?.publishedRevision ? ` · 게시 v${publication.publishedRevision}` : ''}`
     : '';
   $('save-map').disabled = !map || busy;
+  const alreadyPublished = map?.id && publication?.publishedRevision === map.revision;
+  $('publish-map').textContent = alreadyPublished
+    ? '게시 완료'
+    : publication?.publishedRevision
+      ? '게시 갱신'
+      : '맵 게시';
+  const publishHelp = !map?.id
+    ? '게시하려면 맵을 먼저 저장하세요.'
+    : dirty()
+      ? '미저장 변경이 있습니다. 맵을 저장한 뒤 게시하세요.'
+      : alreadyPublished
+        ? publication.enabled
+          ? '현재 저장된 버전이 사용자에게 노출 중입니다.'
+          : '현재 버전은 게시됐지만 비노출 상태입니다. 다시 노출은 맵 관리에서 진행하세요.'
+        : publication?.publishedRevision && !publication.enabled
+          ? '저장된 초안을 게시합니다. 비노출 상태는 유지됩니다.'
+          : '저장된 초안을 게시하면 사용자 맵 목록에 노출됩니다.';
+  $('publish-map').disabled = busy || !map?.id || dirty() || alreadyPublished || !publication;
+  $('publish-map').title = publishHelp;
+  $('publish-help').textContent = publishHelp;
   $('edit-options').disabled = !map || busy;
   $('tools').disabled = !map || busy;
   $('undo').disabled = !undo.length || busy;
@@ -156,7 +185,7 @@ function renderTiles() {
     : '게시 검사 통과. 저장은 초안으로 이루어집니다.';
   updateControls();
 }
-function openMap(document, saved = false, state = null) {
+function openMap(document, saved = false, state = null, editBaseline = '') {
   map = structuredClone(document);
   publication = state;
   window.history.replaceState(
@@ -168,7 +197,7 @@ function openMap(document, saved = false, state = null) {
   redo = [];
   selected = 0;
   zoom = null;
-  baseline = saved ? snapshot() : '';
+  baseline = saved ? snapshot() : editBaseline;
   $('columns').value = map.columns;
   $('rows').value = map.rows;
   $('board').hidden = false;
@@ -220,7 +249,7 @@ $('map-json-file').onchange = async () => {
     // Import as a new editable map, never overwrite a file's original identity.
     const { id, revision, ...content } = imported;
     openMap(content);
-    feedback('JSON을 새 맵으로 가져왔습니다. 맵 저장 후 맵 관리에서 게시할 수 있습니다.');
+    feedback('JSON을 새 맵으로 가져왔습니다. 맵 저장 후 맵 게시를 진행하세요.');
   } catch (error) {
     feedback(`가져오기 실패: ${error.message}`, true);
   } finally {
@@ -282,6 +311,70 @@ $('create-map').onsubmit = (event) => {
     return;
   openMap({ columns, rows, tiles: Array(columns * rows).fill(0), name: '', description: '' });
   feedback('빈 게임판을 만들었습니다. 도구를 선택하고 바닥을 클릭하세요.');
+};
+for (const preset of [...RANDOM_MAP_TEMPLATES, { id: 'custom', name: '직접 설정' }]) {
+  const option = document.createElement('option');
+  option.value = preset.id;
+  option.textContent = preset.name;
+  $('random-template').append(option);
+}
+$('random-template').onchange = () => {
+  const preset = RANDOM_MAP_TEMPLATES.find((entry) => entry.id === $('random-template').value);
+  if (!preset) return;
+  $('wall-density').value = preset.wallDensity;
+  $('coin-density').value = preset.coinDensity;
+  $('random-coin-value').value = preset.coinValue;
+  $('random-error').textContent = '';
+};
+for (const id of ['wall-density', 'coin-density', 'random-coin-value']) {
+  $(id).addEventListener('input', () => {
+    $('random-template').value = 'custom';
+  });
+}
+$('open-random').onclick = () => {
+  if (busy) return;
+  $('random-columns').value = $('columns').value;
+  $('random-rows').value = $('rows').value;
+  $('random-error').textContent = '';
+  $('random-save-note').textContent = map?.id
+    ? '현재 맵의 배치를 다시 생성합니다. 이름·경기 옵션을 유지하며 저장할 때 덮어쓰기 또는 새로 저장을 선택합니다.'
+    : '새 맵의 배치를 생성합니다. 경기 옵션은 기본값을 사용하며 저장·게시는 별도로 진행합니다.';
+  $('random-dialog').showModal();
+};
+$('random-form').onsubmit = (event) => {
+  event.preventDefault();
+  if (busy) return;
+  try {
+    // Finish construction before asking to discard or replacing the active draft.
+    const generated = generateSymmetricMap({
+      columns: Number($('random-columns').value),
+      rows: Number($('random-rows').value),
+      wallDensity: Number($('wall-density').value),
+      coinDensity: Number($('coin-density').value),
+      coinValue: $('random-coin-value').value.startsWith('mixed')
+        ? $('random-coin-value').value
+        : Number($('random-coin-value').value),
+    });
+    if (!mayReplace()) return;
+    const existing = map?.id ? map : null;
+    openMap(
+      existing
+        ? { ...existing, ...generated, name: existing.name, description: existing.description }
+        : generated,
+      false,
+      existing ? publication : null,
+      existing ? baseline : '',
+    );
+    $('symmetry').checked = true;
+    $('random-dialog').close();
+    const report = inspectMap(generated);
+    const eligible = generated.tiles.length - 4;
+    feedback(
+      `대칭 랜덤 맵을 만들었습니다. 실제 벽 밀도 ${Math.round((report.walls / eligible) * 100)}% · 코인 밀도 ${Math.round((report.coins / (eligible - report.walls)) * 100)}%. 편집 후 초안으로 저장하세요.`,
+    );
+  } catch (error) {
+    $('random-error').textContent = error.message;
+  }
 };
 function selectCell(index) {
   cells[selected].tabIndex = -1;
@@ -395,10 +488,23 @@ for (const button of document.querySelectorAll('[data-close]'))
 $('save-dialog').addEventListener('cancel', (event) => {
   if (busy) event.preventDefault();
 });
+function updateSaveMode() {
+  const overwrite = map?.id && $('save-form').querySelector('input[value="overwrite"]').checked;
+  $('map-save-note').textContent = overwrite
+    ? '현재 맵의 초안을 갱신합니다. 게시 중인 버전은 유지되며 저장 후 게시 갱신을 진행합니다.'
+    : '현재 배치와 경기 옵션을 별도 맵의 초안으로 저장합니다. 저장 후 새 맵을 계속 편집하며 맵 게시를 진행할 수 있습니다.';
+}
+for (const radio of $('save-form').querySelectorAll('[name="map-save-kind"]'))
+  radio.onchange = updateSaveMode;
 $('save-map').onclick = () => {
+  $('map-save-mode').hidden = !map.id;
+  $('save-form').querySelector('input[value="overwrite"]').checked = Boolean(map.id);
+  $('save-form').querySelector('input[value="new"]').checked = !map.id;
+  $('map-overwrite-label').textContent = `“${map.name}” 덮어쓰기`;
   $('map-name').value = map.name;
   $('map-description').value = map.description;
   $('save-error').textContent = '';
+  updateSaveMode();
   $('save-dialog').showModal();
 };
 $('save-form').onsubmit = async (event) => {
@@ -409,21 +515,24 @@ $('save-form').onsubmit = async (event) => {
     $('save-error').textContent = '맵 이름을 입력하세요.';
     return;
   }
+  const overwrite = Boolean(
+    map.id && $('save-form').querySelector('input[value="overwrite"]').checked,
+  );
   busy = true;
   renderTiles();
-  $('confirm-save').disabled = true;
+  for (const control of $('save-form').elements) control.disabled = true;
   const input = {
     name,
     description: $('map-description').value,
     columns: map.columns,
     rows: map.rows,
     tiles: [...map.tiles],
-    expectedRevision: map.revision,
+    ...(overwrite ? { expectedRevision: map.revision } : {}),
     ...(map.settings ? { settings: map.settings } : {}),
   };
   try {
-    const result = await api(map.id ? `/api/admin/maps/${map.id}/draft` : '/api/admin/maps', {
-      method: map.id ? 'PUT' : 'POST',
+    const result = await api(overwrite ? `/api/admin/maps/${map.id}/draft` : '/api/admin/maps', {
+      method: overwrite ? 'PUT' : 'POST',
       body: JSON.stringify(input),
     });
     map = result.map;
@@ -431,12 +540,76 @@ $('save-form').onsubmit = async (event) => {
     window.history.replaceState(null, '', `/admin/maps/editor?mapId=${encodeURIComponent(map.id)}`);
     baseline = snapshot();
     $('save-dialog').close();
-    feedback('맵을 초안으로 저장했습니다.');
+    feedback(overwrite ? '현재 맵의 초안을 갱신했습니다.' : '새 맵의 초안으로 저장했습니다.');
   } catch (error) {
     $('save-error').textContent = error.message;
   } finally {
     busy = false;
-    $('confirm-save').disabled = false;
+    for (const control of $('save-form').elements) control.disabled = false;
+    renderTiles();
+  }
+};
+$('publish-dialog').addEventListener('cancel', (event) => {
+  if (busy) event.preventDefault();
+});
+$('publish-dialog').addEventListener('close', () => {
+  publishPending = null;
+});
+$('publish-map').onclick = () => {
+  if (busy || !map?.id || dirty() || !publication || publication.publishedRevision === map.revision)
+    return;
+  publishPending = {
+    id: map.id,
+    revision: map.revision,
+    expected: {
+      draftRevision: publication.draftRevision,
+      publishedRevision: publication.publishedRevision,
+      enabled: publication.enabled,
+    },
+  };
+  const updating = publication.publishedRevision !== null;
+  $('publish-title').textContent = updating ? '게시 버전 갱신' : '맵 게시';
+  $('publish-description').textContent =
+    `“${map.name}”의 저장된 초안 v${map.revision}을 게시합니다. ${!updating || publication.enabled ? '사용자 맵 목록에 노출됩니다.' : '비노출 상태는 유지됩니다. 다시 노출은 맵 관리에서 진행하세요.'}`;
+  $('confirm-publish').textContent = updating ? '게시 갱신' : '게시';
+  $('publish-error').textContent = '';
+  $('publish-dialog').showModal();
+};
+$('publish-form').onsubmit = async (event) => {
+  event.preventDefault();
+  if (
+    busy ||
+    !publishPending ||
+    dirty() ||
+    map?.id !== publishPending.id ||
+    map.revision !== publishPending.revision
+  )
+    return;
+  const pending = publishPending;
+  busy = true;
+  renderTiles();
+  for (const control of $('publish-form').elements) control.disabled = true;
+  try {
+    const result = await api(`/api/admin/maps/${pending.id}/publish`, {
+      method: 'POST',
+      body: JSON.stringify({ revision: pending.revision, expected: pending.expected }),
+    });
+    publication = result.state;
+    $('publish-dialog').close();
+    feedback(
+      publication.enabled
+        ? `초안 v${pending.revision}을 게시했습니다. 사용자 맵 목록에 노출됩니다.`
+        : `게시 버전을 v${pending.revision}으로 갱신했습니다. 비노출 상태는 유지됩니다.`,
+    );
+  } catch (error) {
+    $('publish-error').textContent =
+      error.status === 409
+        ? `${error.message} 저장된 맵을 다시 불러온 뒤 확인하세요.`
+        : error.message;
+    $('show-issues').checked = true;
+  } finally {
+    busy = false;
+    for (const control of $('publish-form').elements) control.disabled = false;
     renderTiles();
   }
 };

@@ -29,7 +29,11 @@
         <button id="export-json" type="button" disabled>JSON 내보내기</button>
         <button id="edit-options" type="button" disabled>게임 옵션</button>
         <button id="save-map" type="button" disabled>맵 저장</button>
+        <button id="publish-map" type="button" disabled aria-describedby="publish-help">
+          맵 게시
+        </button>
       </div>
+      <p id="publish-help" class="publish-help">게시하려면 맵을 먼저 저장하세요.</p>
       <form id="create-map" class="size-form">
         <label
           >열 (col)<input id="columns" type="number" min="4" max="40" value="12" required
@@ -39,6 +43,7 @@
           >행 (row)<input id="rows" type="number" min="4" max="30" value="10" required
         /></label>
         <button type="submit">빈 게임판 생성</button>
+        <button id="open-random" type="button">대칭 랜덤 생성</button>
       </form>
       <div class="map-workspace">
         <fieldset id="tools" disabled>
@@ -107,18 +112,97 @@
       </div>
       <p id="map-feedback" role="status" aria-live="polite"></p>
     </main>
+    <dialog id="random-dialog" aria-labelledby="random-title">
+      <form id="random-form">
+        <h2 id="random-title">대칭 랜덤 맵 생성</h2>
+        <p>
+          네 시작 칸을 비우고 모든 이동 가능 공간을 연결합니다. 생성 후 직접 편집할 수 있습니다.
+        </p>
+        <label
+          >혼합 템플릿<select id="random-template" aria-describedby="random-template-help"></select
+        ></label>
+        <p id="random-template-help" class="random-help">
+          템플릿 선택 후 밀도와 점수를 직접 조정할 수 있습니다. 혼합에는 블랙매터를 넣지 않습니다.
+        </p>
+        <div class="random-fields">
+          <label
+            >열 (col)<input id="random-columns" type="number" min="4" max="40" required
+          /></label>
+          <label>행 (row)<input id="random-rows" type="number" min="4" max="30" required /></label>
+          <label
+            >벽 밀도 (%)<input id="wall-density" type="number" min="0" max="60" value="25" required
+          /></label>
+          <label
+            >코인 밀도 (%)<input
+              id="coin-density"
+              type="number"
+              min="1"
+              max="100"
+              value="50"
+              required
+          /></label>
+        </div>
+        <label
+          >코인 점수<select id="random-coin-value">
+            <option value="mixed">혼합 · 낮은 점수 위주</option>
+            <option value="mixed-high">혼합 · 높은 점수 위주</option>
+            <option value="10">10</option>
+            <option value="30">30</option>
+            <option value="100">100</option>
+            <option value="200">200</option>
+            <option value="500">500</option>
+          </select></label
+        >
+        <p class="random-help">
+          벽 밀도는 시작 칸을 제외한 전체 공간, 코인 밀도는 벽과 시작 칸을 제외한 공간 기준입니다.
+          대칭·통로 보호로 실제 밀도는 달라질 수 있습니다.
+        </p>
+        <p id="random-save-note" class="random-help">
+          새 맵으로 생성하며 경기 옵션은 기본값을 사용합니다. 저장·게시는 별도로 진행합니다.
+        </p>
+        <p id="random-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" data-close="random-dialog">취소</button>
+          <button id="confirm-random" type="submit">생성</button>
+        </div>
+      </form>
+    </dialog>
     <dialog id="save-dialog" aria-labelledby="save-title">
       <form id="save-form">
         <h2 id="save-title">맵 저장</h2>
+        <fieldset id="map-save-mode" hidden>
+          <legend>저장 방식</legend>
+          <label
+            ><input type="radio" name="map-save-kind" value="overwrite" checked /><span
+              id="map-overwrite-label"
+              >덮어쓰기</span
+            ></label
+          >
+          <label><input type="radio" name="map-save-kind" value="new" />새로 저장</label>
+        </fieldset>
         <label>맵 이름<input id="map-name" maxlength="100" required /></label
         ><label
           >설명 (선택)<textarea id="map-description" maxlength="2000" rows="3"></textarea>
         </label>
-        <p>배치와 경기 옵션을 함께 초안으로 저장합니다. 게시·노출은 맵 관리에서 변경합니다.</p>
+        <p id="map-save-note">
+          배치와 경기 옵션을 함께 초안으로 저장합니다. 게시·노출은 맵 관리에서 변경합니다.
+        </p>
         <p id="save-error" role="alert"></p>
         <div class="dialog-actions">
           <button type="button" data-close="save-dialog">취소</button
           ><button id="confirm-save" type="submit">저장</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="publish-dialog" aria-labelledby="publish-title">
+      <form id="publish-form">
+        <h2 id="publish-title">맵 게시</h2>
+        <p id="publish-description"></p>
+        <p>대칭·시작 칸·코인·통로 연결을 검사합니다. 진행 중인 경기는 기존 맵을 유지합니다.</p>
+        <p id="publish-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" data-close="publish-dialog">취소</button>
+          <button id="confirm-publish" type="submit">게시</button>
         </div>
       </form>
     </dialog>

@@ -193,8 +193,17 @@ dialog p {
   z-index: 2;
 }
 #map-feedback.error,
-#save-error {
+#save-error,
+#publish-error,
+#random-error {
   color: #ffaaa4;
+}
+.publish-help {
+  color: #b6c2d2;
+  min-height: 1.6em;
+  line-height: 1.6;
+  font-size: 13px;
+  margin: 8px 0 0;
 }
 #map-feedback {
   min-height: 1.5em;
@@ -218,6 +227,48 @@ dialog::backdrop {
 }
 dialog label {
   margin: 14px 0;
+}
+.random-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+#random-dialog {
+  box-sizing: border-box;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+.random-fields input {
+  width: 100%;
+  box-sizing: border-box;
+}
+#random-coin-value,
+#random-template {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #46536a;
+  border-radius: 8px;
+  background: #101722;
+  color: #e8eef7;
+  font: inherit;
+}
+.random-help {
+  color: #b6c2d2;
+  font-size: 13px;
+  line-height: 1.6;
+}
+#map-save-mode {
+  border: 1px solid #46536a;
+  border-radius: 8px;
+  min-width: 0;
+}
+#map-save-mode label {
+  flex-direction: row;
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+#map-save-mode input {
+  flex-shrink: 0;
 }
 .dialog-actions {
   justify-content: end;
@@ -273,7 +324,14 @@ dialog label {
     padding: 0 12px;
   }
   .map-actions button {
-    flex: 1;
+    flex: 1 1 140px;
+    white-space: nowrap;
+  }
+  #map-identity {
+    flex-basis: 100%;
+  }
+  .publish-help {
+    min-height: 4.8em;
   }
   #board-viewport {
     height: 420px;
