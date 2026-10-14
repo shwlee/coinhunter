@@ -2,6 +2,7 @@ import { api, accountBar } from './account.js';
 import { createCodeEditor } from '/code-editor.js';
 import { PRIORITY_WEIGHTS, STRATEGY_TEMPLATES, buildTemplateSource } from './strategy-templates.js';
 import { initializeAiConnections } from './ai-connections.js';
+import { initializeAiScripting } from './ai-scripting.js';
 const $ = (id) => document.getElementById(id);
 const editor = createCodeEditor($('code'), $('code-editor'), $('cursor'));
 const emptyAlgorithm = `module.exports = class Player {
@@ -30,6 +31,7 @@ let documentId = null,
   testRequestId = 0;
 let validationRequestId = 0;
 let generating = false;
+let aiScripting = null;
 const templateControls = new Map();
 const priorityIds = [];
 function refreshTemplates() {
@@ -109,8 +111,10 @@ function refreshTemplates() {
     list.append(row);
   });
   $('generate').disabled = generating || count === 0;
+  document.dispatchEvent(new Event('ai-priorities-changed'));
 }
 function invalidateTemplateCandidate() {
+  aiScripting?.cancel(false);
   generation++;
   generating = false;
   $('cancel-ai').disabled = true;
@@ -336,6 +340,7 @@ function replaceCode(text) {
   refreshState();
 }
 function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name || '') {
+  aiScripting?.cancel(false);
   validationRequestId++;
   documentId = item?.id || null;
   revision = item?.revision || null;
@@ -614,6 +619,7 @@ $('validate').onclick = run(async () => {
   notice('실행 전 검사를 통과했습니다. 실제 전략과 장시간 동작은 테스트 플레이에서 확인하세요.');
 });
 $('generate').onclick = run(async () => {
+  aiScripting?.cancel(false);
   const priorities = [...priorityIds];
   if (!priorities.length) return;
   const token = ++generation,
@@ -635,6 +641,7 @@ $('generate').onclick = run(async () => {
     });
     if (generation !== token) return;
     candidate = { source, baseline };
+    $('apply').disabled = false;
     $('candidate-code').textContent = source;
     $('candidate').hidden = false;
     $('candidate-info').textContent =
@@ -648,6 +655,10 @@ $('generate').onclick = run(async () => {
   }
 });
 $('cancel-ai').onclick = () => {
+  if (aiScripting?.isBusy()) {
+    aiScripting.cancel();
+    return;
+  }
   generation++;
   generating = false;
   refreshTemplates();
@@ -655,14 +666,15 @@ $('cancel-ai').onclick = () => {
   notice('생성을 취소했습니다. 편집 코드는 유지됩니다.');
 };
 $('apply').onclick = () => {
-  if (!candidate) return;
+  if (!candidate || candidate.valid === false) return;
   if (
     candidate.baseline !== contents() &&
     !confirm('요청 이후 편집 내용이 변경되었습니다. 생성 코드로 교체할까요?')
   )
     return;
   replaceCode(candidate.source);
-  notice('템플릿 코드를 적용했습니다. 실행 취소로 되돌릴 수 있습니다.');
+  void aiScripting?.discard(candidate.requestId);
+  notice('후보 코드를 적용했습니다. 실행 취소로 되돌릴 수 있습니다.');
 };
 async function prepareTest() {
   if (testing) throw new Error('진행 중인 경기를 종료한 뒤 다시 테스트하세요.');
@@ -725,6 +737,27 @@ try {
     reset({ source: emptyAlgorithm });
     await library();
     $('workbench').hidden = false;
+    aiScripting = initializeAiScripting({
+      contents,
+      source: () => $('code').value,
+      priorities: () => [...priorityIds],
+      notice,
+      onBusy: (value) => {
+        generating = value;
+        refreshTemplates();
+        $('cancel-ai').disabled = !value;
+      },
+      onCandidate: (value) => {
+        candidate = value;
+        $('candidate').hidden = !value;
+        $('apply').disabled = !value?.valid;
+        if (!value) return;
+        $('candidate-code').textContent = value.source;
+        $('candidate-info').textContent =
+          `${value.explanation}\n${value.valid ? '실행 검사 통과' : value.validation?.error || '실행 검사 실패'}${value.usage.total_tokens != null ? ` · 사용 토큰 ${value.usage.total_tokens}` : ''}`;
+        $('apply').disabled = !value.valid;
+      },
+    });
     void initializeAiConnections();
     applyAiWidth();
     new ResizeObserver(applyAiWidth).observe(aiLayout);
@@ -735,8 +768,9 @@ try {
       notice('선택한 저장 알고리즘을 열었습니다.');
     } else
       notice(
-        '전략 템플릿으로 코드를 만들거나 직접 편집하세요. AI 연결과 모델 선택을 준비할 수 있으며 실제 AI 생성은 아직 연결되지 않았습니다.',
+        '직접 편집하거나 OpenAI 연결과 모델을 선택해 코드를 생성하세요. 템플릿 코드 생성은 API 연결 없이 사용할 수 있습니다.',
       );
+    void aiScripting.restore();
   }
 } catch (error) {
   notice(error.message);

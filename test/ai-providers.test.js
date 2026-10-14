@@ -86,7 +86,11 @@ test('provider errors exclude response bodies, transport errors and key material
     for (const provider of Object.values(providers))
       await assert.rejects(
         provider.checkConnection({ credential: 'fixture-secret' }),
-        (e) => e.code === code && !e.message.includes('fixture-secret') && !e.cause,
+        (e) =>
+          e.code ===
+            (status === 429 && provider.id === 'openai' ? 'provider_limit_unknown' : code) &&
+          !e.message.includes('fixture-secret') &&
+          !e.cause,
       );
   }
   const providers = createAiProviders({

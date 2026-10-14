@@ -32,6 +32,21 @@ export async function initializeAiConnections() {
     $('ai-connection').disabled = busy || !connections.length;
     $('ai-model').disabled = busy || !modelReady || $('ai-model').options.length < 2;
     $('ai-refresh-models').disabled = busy || !selected;
+    const connection = connections.find((item) => item.id === selected);
+    document.dispatchEvent(
+      new CustomEvent('ai-selection', {
+        detail: {
+          connectionId: selected,
+          modelId: $('ai-model').value,
+          provider: connection?.provider || '',
+          ready:
+            !busy &&
+            modelReady &&
+            !!$('ai-model').value &&
+            !!policy?.generationProviders?.includes(connection?.provider),
+        },
+      }),
+    );
   };
   function setBusy(value) {
     busy = value;
@@ -99,7 +114,11 @@ export async function initializeAiConnections() {
     } else {
       status(
         result.models.length
-          ? '모델 조회 완료 · 실제 코드 생성은 다음 단계에서 연결됩니다.'
+          ? policy.generationProviders?.includes(
+              connections.find((item) => item.id === selected)?.provider,
+            )
+            ? '모델 조회 완료 · AI 생성 또는 현재 코드 수정을 선택하세요.'
+            : '모델 조회 완료 · 이 제공자의 실제 생성 연결은 준비 중입니다.'
           : '조회는 성공했지만 선택 가능한 모델이 없습니다.',
       );
     }
@@ -126,10 +145,23 @@ export async function initializeAiConnections() {
   }
   function guide() {
     const data = AI_PROVIDER_GUIDES[$('ai-provider').value];
+    const openai = $('ai-provider').value === 'openai';
+    $('ai-openai-notice').hidden = !openai;
+    $('ai-openai-billing-step').hidden = !openai;
+    $('ai-openai-key-title').hidden = !openai;
+    $('ai-openai-key-help').hidden = !openai;
+    $('ai-key-preparation').classList.toggle('ai-preparation-card', openai);
+    $('ai-billing-guide').hidden = openai;
+    $('ai-openai-billing').href = data.billingUrl;
+    $('ai-key-label').textContent = managedId
+      ? `새 ${openai ? 'OpenAI ' : ''}API 키 (교체할 때만 입력)`
+      : `${openai ? 'OpenAI ' : ''}API 키`;
     $('ai-provider-guide').href = data.documentationUrl;
     $('ai-key-console').href = data.consoleUrl;
     $('ai-billing-guide').href = data.billingUrl;
-    $('ai-guide-title').textContent = `${data.name} API 키 발급하기`;
+    $('ai-guide-title').textContent = openai
+      ? '두 단계로 OpenAI 연결 준비'
+      : `${data.name} API 키 발급하기`;
     $('ai-guide-preparation').textContent = data.preparation;
     $('ai-guide-trouble').textContent = data.trouble;
     $('ai-guide-instructions').replaceChildren(
@@ -156,7 +188,14 @@ export async function initializeAiConnections() {
     $('ai-submit-connection').hidden = wizard && step !== 3;
     $('ai-wizard-actions').hidden = !wizard;
     $('ai-setup-next').hidden = step >= 3;
-    $('ai-setup-next').textContent = step === 2 ? '키를 준비했어요' : '다음';
+    $('ai-setup-next').textContent =
+      step === 2
+        ? $('ai-provider').value === 'openai'
+          ? 'API 키 입력으로'
+          : '키를 준비했어요'
+        : '다음';
+    $('ai-documentation-link').hidden = wizard && step !== 3;
+    $('ai-auth-help').hidden = wizard && step !== 3;
     $('ai-setup-back').hidden = step === 1 || step === 4;
     $('ai-setup-finish').hidden = step !== 4;
     $('ai-setup-finish').disabled = busy || !$('ai-setup-model').value;
@@ -296,6 +335,7 @@ export async function initializeAiConnections() {
     $('ai-model').onchange = async () => {
       const model = $('ai-model').value;
       preferredModel = model;
+      controls();
       if (selected && model) await rememberSelection(selected, model);
       else await rememberSelection(null, null);
     };

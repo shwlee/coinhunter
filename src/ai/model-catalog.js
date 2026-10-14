@@ -84,11 +84,11 @@ export function createAiModelCatalog({
         [...running].filter((job) => job.scope.ownerId === scope.ownerId).length >=
           config.maxConnectionRunningPerUser
       )
-        throw aiError('rate_limited', 429);
+        throw aiError('rate_limited', 429, 'service');
       for (const [owner, time] of lastStart)
         if (time + config.connectionCooldownMs <= now()) lastStart.delete(owner);
       if (lastStart.has(scope.ownerId) || lastStart.size >= 1000)
-        throw aiError('rate_limited', 429);
+        throw aiError('rate_limited', 429, 'service');
       lastStart.set(scope.ownerId, now());
       const job = { scope: { ...scope }, id, controller: new AbortController() };
       running.add(job);

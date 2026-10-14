@@ -1,6 +1,8 @@
 import { AI_PROVIDERS, validateConnectionMetadata, validModelId } from './contracts.js';
 import { aiError } from './providers.js';
 import { fail } from '../persistence/errors.js';
+import { unlink } from 'node:fs/promises';
+import { pipeline } from 'node:stream/promises';
 
 function fields(input, allowed) {
   if (
@@ -27,8 +29,8 @@ function modelAvailable(result, id) {
     throw aiError('model_unavailable', 422);
 }
 
-export function createAiRoutes({ config, storage, catalog, authentication }) {
-  return async (request, response, url, user, readJson, json) => {
+export function createAiRoutes({ config, storage, catalog, authentication, requests }) {
+  return async (request, response, url, user, readJson, json, readSourceFile) => {
     if (!url.pathname.startsWith('/api/ai/')) return false;
     try {
       authentication.requireUser(user);
@@ -47,11 +49,94 @@ export function createAiRoutes({ config, storage, catalog, authentication }) {
           providers: AI_PROVIDERS.filter((provider) =>
             config.allowedProviders.includes(provider.id),
           ),
-          generationAvailable: false,
+          generationAvailable: !!requests,
+          generationProviders: requests?.providers || [],
         });
         return true;
       }
       if (!storage || !catalog) throw aiError('unavailable', 503);
+      if (path.startsWith('/api/ai/requests')) {
+        if (!requests) throw aiError('unavailable', 503);
+        if (path === '/api/ai/requests' && request.method === 'POST') {
+          json(response, 201, await requests.prepare(scope, await readJson(request)));
+          return true;
+        }
+        const match = path.match(/^\/api\/ai\/requests\/([a-f0-9-]+)(?:\/(source|start|events))?$/);
+        if (!match) throw fail(404, 'AI 요청을 찾을 수 없습니다.');
+        const [, id, action] = match;
+        requests.status(scope, id); // Check ownership before uploads or opening streams.
+        if (!action && request.method === 'GET') json(response, 200, requests.status(scope, id));
+        else if (!action && request.method === 'DELETE')
+          json(response, 200, await requests.cancel(scope, id));
+        else if (action === 'start' && request.method === 'POST') {
+          fields(await readJson(request), []);
+          json(response, 202, await requests.start(scope, id));
+        } else if (action === 'source' && request.method === 'PUT') {
+          const uploaded = await readSourceFile(request);
+          try {
+            await requests.attachSource(scope, id, uploaded);
+            json(response, 200, requests.status(scope, id));
+          } finally {
+            await unlink(uploaded).catch(() => {});
+          }
+        } else if (action === 'source' && request.method === 'GET') {
+          const opened = await requests.openCandidate(scope, id);
+          try {
+            response.writeHead(200, {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'Cache-Control': 'no-store',
+            });
+            await pipeline(opened.handle.createReadStream({ autoClose: false }), response);
+          } finally {
+            await opened.release();
+          }
+        } else if (action === 'events' && request.method === 'GET') {
+          let detach, heartbeat;
+          const stop = () => {
+            clearInterval(heartbeat);
+            detach?.();
+            if (!response.writableEnded) response.end();
+          };
+          const send = (value) => {
+            if (response.destroyed || response.writableEnded) {
+              stop();
+              return;
+            }
+            if (response.writableLength > 128 * 1024) {
+              stop();
+              return;
+            }
+            response.write(
+              `id: ${value.sequence}\nevent: state\ndata: ${JSON.stringify(value)}\n\n`,
+            );
+            if (
+              ['completed', 'validation_failed', 'failed', 'cancelled', 'expired'].includes(
+                value.state,
+              )
+            )
+              stop();
+          };
+          detach = requests.subscribe(scope, id, send);
+          response.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-store',
+            Connection: 'keep-alive',
+            'X-Accel-Buffering': 'no',
+          });
+          response.on('close', stop);
+          heartbeat = setInterval(() => {
+            try {
+              requests.status(scope, id);
+              response.write(': heartbeat\n\n');
+            } catch {
+              stop();
+            }
+          }, 15000);
+          heartbeat.unref();
+          send(requests.status(scope, id)); // Snapshot on every reconnect, no source or credentials.
+        } else throw fail(405, '지원하지 않는 AI 생성 요청입니다.');
+        return true;
+      }
       if (path === '/api/ai/connections' && request.method === 'GET') {
         json(response, 200, {
           connections: await storage.list(scope),
@@ -152,10 +237,15 @@ export function createAiRoutes({ config, storage, catalog, authentication }) {
         } else throw fail(405, '지원하지 않는 AI 요청입니다.');
       }
     } catch (error) {
+      if (response.headersSent) {
+        if (!response.writableEnded) response.end();
+        return true;
+      }
       const known = Number.isInteger(error.status) && error.status >= 400 && error.status <= 599;
       json(response, known ? error.status : 503, {
         error: known ? error.message : 'AI 연결 처리에 실패했습니다.',
         code: error.code || (known ? 'invalid_input' : 'unavailable'),
+        ...(error.source ? { source: error.source } : {}),
       });
     }
     return true;

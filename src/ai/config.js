@@ -73,5 +73,8 @@ export function readAiConfig(env = process.env) {
     maxConnectionsPerUser: integer('AI_MAX_CONNECTIONS_PER_USER', 20, 1000),
     preparedTtlMs: integer('AI_PREPARED_TTL_MS', 120000, 600000),
     candidateTtlMs: integer('AI_CANDIDATE_TTL_MS', 900000, 86400000),
+    // AI transport limits are separate from algorithm file storage limits.
+    maxInputBytes: integer('AI_MAX_INPUT_BYTES', 131072, 1048576),
+    maxOutputTokens: integer('AI_MAX_OUTPUT_TOKENS', 8192, 32768),
   });
 }

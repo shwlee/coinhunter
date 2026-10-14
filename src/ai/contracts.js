@@ -34,7 +34,7 @@
  * @property {AiProviderId} id
  * @property {(input: {credential: string, signal: AbortSignal}) => Promise<void>} checkConnection Does not imply generation permission for every listed model.
  * @property {(input: {credential: string, signal: AbortSignal, cursor?: string}) => Promise<{models: AiModel[], nextCursor: string | null}>} listModels
- * @property {(input: {credential: string, modelId: string, instructions: string, sourcePath: string | null, signal: AbortSignal, outputPath: string}) => Promise<{explanation: string, usage: object, finishReason: 'complete' | 'truncated' | 'refused'}>} generate Writes candidate code to outputPath; never executes or saves account code.
+ * @property {(input: {credential: string, modelId: string, instructions: string, input: string, signal: AbortSignal, outputPath: string, onProgress?: (value: {phase: string, receivedChars: number}) => void}) => Promise<{explanation: string, usage: object, finishReason: 'complete' | 'truncated' | 'refused'}>} generate Writes candidate code to outputPath; progress contains no source or reasoning; never executes or saves account code.
  *
  * @typedef {object} AiRequestService
  * @property {(scope: AiScope, input: {connectionId: string, modelId: string, intent: 'generate' | 'modify', prompt: string, priorities: string[]}) => Promise<object>} prepare Reserves a bounded, expiring input slot; model and connection checked server side.
@@ -73,11 +73,20 @@ export const AI_ERROR_CODES = Object.freeze([
   'revision_conflict',
   'network_error',
   'rate_limited',
+  'quota_exceeded',
+  'credit_exhausted',
+  'spend_limit_exceeded',
+  'usage_limit_exceeded',
+  'provider_rate_limited',
+  'provider_limit_unknown',
   'input_too_large',
   'invalid_response',
   'validation_failed',
   'timeout',
   'cancelled',
+  'truncated',
+  'refused',
+  'stream_interrupted',
 ]);
 export const AI_REQUEST_STATES = Object.freeze([
   'prepared',

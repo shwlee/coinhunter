@@ -488,6 +488,67 @@ section {
   font-size: 12px;
   line-height: 1.5;
 }
+.ai-generation-progress {
+  padding: 12px;
+  margin: 8px 0 14px;
+  border: 1px solid #46536a;
+  border-radius: 8px;
+  background: #202b3a;
+}
+.ai-generation-stages {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 0;
+  margin: 0 0 12px;
+  list-style: none;
+  gap: 6px;
+  font-size: 12px;
+}
+.ai-generation-stages li {
+  padding: 6px 0;
+  border-bottom: 2px solid #46536a;
+  text-align: center;
+  color: #bdcbdc;
+}
+.ai-generation-stages li.done,
+.ai-generation-stages li[aria-current='step'] {
+  border-color: #b6f36e;
+  color: #c9e7a7;
+}
+.ai-generation-progress[data-active='true'] li[aria-current='step']::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: ai-working-pulse 1.2s ease-in-out infinite;
+}
+.ai-generation-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 5px 12px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+#ai-generation-last-response {
+  color: #bdcbdc;
+  font-size: 12px;
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+@keyframes ai-working-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-generation-progress[data-active='true'] li[aria-current='step']::before {
+    animation: none;
+  }
+}
 #ai-panel button {
   margin: 4px 6px 4px 0;
 }
@@ -692,6 +753,70 @@ details {
 #ai-dialog {
   width: min(560px, calc(100vw - 32px));
   overscroll-behavior: contain;
+}
+.ai-openai-notice {
+  flex-shrink: 0;
+  margin: 4px 0 12px;
+  padding: 12px 14px;
+  border: 1px solid #b88945;
+  border-left: 4px solid #ffc773;
+  border-radius: 8px;
+  background: #352a20;
+  color: #f8e6cc;
+}
+.ai-openai-notice > strong {
+  display: block;
+  color: #ffd28c;
+  font-size: 15px;
+}
+.ai-openai-notice p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.ai-preparation-card {
+  margin: 12px 0;
+  padding: 13px;
+  border: 1px solid #46536a;
+  border-radius: 8px;
+  background: #202b3a;
+}
+.ai-preparation-card h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 9px;
+  font-size: 15px;
+}
+.ai-preparation-number {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #b6f36e;
+  color: #14200b;
+  font-size: 12px;
+}
+.ai-preparation-card p {
+  margin: 8px 0 12px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+#ai-openai-billing {
+  display: inline-block;
+  padding: 9px 12px;
+  border: 1px solid #ffc773;
+  border-radius: 6px;
+  color: #ffdcaa;
+  text-decoration: none;
+  font-size: 13px;
+}
+.ai-preparation-card small {
+  display: block;
+  margin-top: 10px;
+  line-height: 1.5;
+  color: #bdcbdc;
 }
 #ai-connection-form > label,
 #ai-storage-options > label {

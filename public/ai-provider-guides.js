@@ -1,19 +1,18 @@
 // Instructions are data so provider console changes do not require wizard changes.
-// Official documentation checked 2026-10-11; menu labels may vary by account/language.
+// OpenAI billing guidance checked 2026-10-14; menu labels may vary by account/language.
 export const AI_PROVIDER_GUIDES = {
   openai: {
     name: 'OpenAI',
     consoleUrl: 'https://platform.openai.com/api-keys',
     documentationUrl: 'https://developers.openai.com/api/docs/quickstart',
-    billingUrl: 'https://platform.openai.com/account/billing/overview',
-    preparation:
-      'OpenAI API 플랫폼에 로그인합니다. 채팅 서비스 로그인만으로 이 게임에 API가 연결되는 것은 아닙니다. API의 결제·사용량 설정은 플랫폼에서 확인하세요.',
+    billingUrl: 'https://platform.openai.com/settings/organization/billing/overview',
+    preparation: '결제에 사용한 조직·프로젝트에서 API 키를 발급하세요.',
     steps: [
       '「키 발급 화면 열기」를 눌러 OpenAI API 플랫폼에 로그인하세요.',
-      'API keys 화면에서 사용할 프로젝트를 확인하세요. 키 생성 메뉴(예: Create new secret key)를 선택하세요.',
-      '키 이름은 coin-hunter처럼 알아보기 쉽게 입력하세요. 프로젝트를 고르는 항목이 있으면 사용할 프로젝트를 선택하세요.',
-      '생성된 비밀 키 전체를 복사하세요. 키 이름이나 프로젝트 ID가 아닌 키 원문을 가져와야 합니다.',
-      '이 창으로 돌아와 「키를 준비했어요」를 누르고 다음 화면에 붙여 넣으세요.',
+      'API keys에서 사용할 프로젝트를 고르고 Create new secret key를 누르세요.',
+      '키 이름은 coin-hunter처럼 알아보기 쉽게 입력하세요.',
+      '발급된 비밀 키 전체를 복사하세요. 키 이름·프로젝트 ID는 사용할 수 없습니다.',
+      '이 창으로 돌아와 「API 키 입력으로」를 눌러 붙여 넣으세요.',
     ],
     trouble:
       '키 생성 메뉴가 없으면 프로젝트와 계정 권한을 확인하세요. 모델 조회 권한이 제한된 키는 확인에 실패할 수 있습니다. 키 원문을 다시 볼 수 없다면 새 키를 발급하세요.',
@@ -63,6 +62,16 @@ export const AI_CONNECTION_ERROR_HELP = {
     '제공자 응답이 지연됐습니다. 잠시 후 다시 확인하고, 반복되면 운영자에게 서버의 외부 연결을 확인해 달라고 요청하세요.',
   rate_limited:
     '짧은 시간에 확인 요청이 많거나 제공자의 이용 한도에 도달했습니다. 잠시 기다린 뒤 다시 시도하세요.',
+  quota_exceeded:
+    'OpenAI API 결제 설정에서 크레딧 잔액과 사용 한도를 확인하세요. ChatGPT 구독료와 별개입니다.',
+  credit_exhausted:
+    'API 결제 설정에서 크레딧을 구매하거나 충전하세요. 기존 ChatGPT 구독만으로는 API 잔액이 생기지 않습니다.',
+  spend_limit_exceeded: 'API 결제 조직·프로젝트의 지출 한도 설정을 확인하세요.',
+  usage_limit_exceeded: 'OpenAI API 조직의 사용 한도를 확인하세요.',
+  provider_rate_limited:
+    '선택한 모델의 요청·토큰 한도 문제입니다. 잠시 후 다시 시도하거나 요청 길이를 줄이세요.',
+  provider_limit_unknown:
+    'OpenAI API 결제 잔액과 이용 한도를 확인하세요. API 키 재발급만으로 해결되지 않을 수 있습니다.',
   model_unavailable: '목록을 새로고침한 뒤 현재 연결에서 제공되는 모델을 다시 선택하세요.',
   revision_conflict:
     '다른 작업에서 연결이 변경됐습니다. 연결 관리 화면을 다시 열어 최신 상태를 확인하세요.',

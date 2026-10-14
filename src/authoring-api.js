@@ -12,6 +12,9 @@ import { readAiConfig } from './ai/config.js';
 import { createAiStorage } from './ai/storage-service.js';
 import { createAiModelCatalog } from './ai/model-catalog.js';
 import { createAiRoutes } from './ai/routes.js';
+import { createAiRequestService } from './ai/request-service.js';
+import { createOpenAiGeneration } from './ai/openai-generation.js';
+import { join } from 'node:path';
 
 export function createAuthoring({
   accounts = createAccountRepository(),
@@ -22,6 +25,8 @@ export function createAuthoring({
   aiConfig = readAiConfig(),
   aiEnv = process.env,
   aiProviders,
+  aiGenerationProviders,
+  aiDiagnostics,
 } = {}) {
   const google =
     authConfig.mode === 'google'
@@ -42,19 +47,32 @@ export function createAuthoring({
   });
   let aiStorage = null;
   let aiCatalog = null;
+  let aiRequests = null;
   try {
     if (aiConfig.enabled) {
       aiStorage = createAiStorage({
         sessions,
         config: aiConfig,
         env: aiEnv,
-        beforeConnectionChange: async (id) => aiCatalog?.cancelConnection(id),
+        beforeConnectionChange: async (id) => {
+          aiCatalog?.cancelConnection(id);
+          aiRequests?.cancelConnection(id);
+        },
       });
       aiCatalog = createAiModelCatalog({
         storage: aiStorage,
         sessions,
         config: aiConfig,
         providers: aiProviders,
+      });
+      aiRequests = createAiRequestService({
+        storage: aiStorage,
+        catalog: aiCatalog,
+        sessions,
+        config: aiConfig,
+        providers: aiGenerationProviders || { openai: createOpenAiGeneration(aiConfig) },
+        directory: join(aiEnv.AI_DATA_DIR || 'data/ai', 'requests'),
+        onError: aiDiagnostics,
       });
     }
   } catch (error) {
@@ -67,6 +85,7 @@ export function createAuthoring({
     storage: aiStorage,
     catalog: aiCatalog,
     authentication,
+    requests: aiRequests,
   });
   return {
     accounts,
@@ -74,9 +93,11 @@ export function createAuthoring({
     requireUser,
     aiStorage,
     aiCatalog,
+    aiRequests,
     aiScope: authentication.scope,
     async close() {
       authentication.close();
+      await aiRequests?.close();
       await aiCatalog?.close();
       await aiStorage?.close();
     },
@@ -84,7 +105,7 @@ export function createAuthoring({
       if (await authentication.route(request, response, url, user, readJson, json, revoke))
         return true;
       const path = url.pathname;
-      if (await aiRoute(request, response, url, user, readJson, json)) return true;
+      if (await aiRoute(request, response, url, user, readJson, json, readSourceFile)) return true;
       if (path.startsWith('/api/admin/')) {
         requireUser(user);
         if (user.role !== 'admin') throw fail(403, '관리자 권한이 필요합니다.');

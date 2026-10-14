@@ -10,6 +10,8 @@ import { FileAccountRepository } from '../src/persistence/file-account-repositor
 import { readAiConfig } from '../src/ai/config.js';
 import { createAiProviders } from '../src/ai/providers.js';
 import { readAuthConfig } from '../src/auth/config.js';
+import { createOpenAiGeneration } from '../src/ai/openai-generation.js';
+import { openAiStreamResponse } from '../scripts/fixtures/openai-stream.js';
 
 const deferred = () => {
   let resolve;
@@ -18,7 +20,10 @@ const deferred = () => {
   });
   return { promise, resolve };
 };
-async function fixture(t, { transport, enabled = true, connectionLimit = 20 } = {}) {
+async function fixture(
+  t,
+  { transport, enabled = true, connectionLimit = 20, generationTransport } = {},
+) {
   const dir = await mkdtemp(join(tmpdir(), 'coin-ai-api-'));
   const providers = createAiProviders({
     fetchImpl:
@@ -63,6 +68,13 @@ async function fixture(t, { transport, enabled = true, connectionLimit = 20 } = 
       AI_CREDENTIAL_KEY_ID: 'test-v1',
     },
     aiProviders: providers,
+    ...(generationTransport
+      ? {
+          aiGenerationProviders: {
+            openai: createOpenAiGeneration({ fetchImpl: generationTransport }),
+          },
+        }
+      : {}),
   });
   const { server, close } = createGameServer({ authoring });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -199,6 +211,80 @@ test('AI HTTP routes verify, manage, select and delete without exposing keys or 
   );
 });
 const loginScope = (f, cookie) => f.authoring.aiScope({ headers: { cookie } });
+
+test('generation HTTP preserves ownership, streams terminal snapshots and exposes only inspected source files', async (t) => {
+  const source = `module.exports = class Player { initialize(n,c,r){} getName(){ return 'HTTP AI'; } moveNext(map,p,items){return -1;} };`;
+  const f = await fixture(t, {
+    generationTransport: async () =>
+      openAiStreamResponse({
+        status: 'completed',
+        output: [
+          {
+            type: 'message',
+            role: 'assistant',
+            content: [
+              {
+                type: 'output_text',
+                text: JSON.stringify({ source, explanation: 'HTTP strategy' }),
+              },
+            ],
+          },
+        ],
+        usage: { total_tokens: 50 },
+      }),
+  });
+  const cookie = await f.login('developer@company.test');
+  const connection = (await (await f.call('/api/ai/connections', 'POST', add(), cookie)).json())
+    .connection;
+  const input = {
+    connectionId: connection.id,
+    modelId: 'gpt-5',
+    intent: 'generate',
+    prompt: '코인 수집',
+    priorities: [],
+  };
+  assert.equal((await f.call('/api/ai/requests', 'POST', input)).status, 401);
+  assert.equal((await f.call('/api/ai/requests', 'POST', input, cookie, '')).status, 403);
+  assert.equal(
+    (await f.call('/api/ai/requests', 'POST', { ...input, modelId: 'gpt-image-1' }, cookie)).status,
+    422,
+  );
+  const prepared = await f.call('/api/ai/requests', 'POST', input, cookie);
+  assert.equal(prepared.status, 201);
+  const record = await prepared.json();
+  const foreign = await f.login('tester@company.test');
+  for (const suffix of ['', '/source', '/events'])
+    assert.equal(
+      (await f.call(`/api/ai/requests/${record.id}${suffix}`, 'GET', undefined, foreign)).status,
+      404,
+    );
+  assert.equal(
+    (await f.call(`/api/ai/requests/${record.id}/source`, 'GET', undefined, cookie)).status,
+    409,
+  );
+  assert.equal(
+    (await f.call(`/api/ai/requests/${record.id}/start`, 'POST', {}, cookie)).status,
+    202,
+  );
+  const events = await f.call(`/api/ai/requests/${record.id}/events`, 'GET', undefined, cookie);
+  assert.match(events.headers.get('content-type'), /text\/event-stream/);
+  const text = await events.text();
+  assert.match(text, /"state":"completed"/);
+  assert.equal(text.includes('valid-fixture'), false);
+  assert.equal(text.includes('ownerId'), false);
+  assert.equal(text.includes('module.exports'), false);
+  assert.match(text, /"receivedChars":\d+/);
+  const downloaded = await f.call(`/api/ai/requests/${record.id}/source`, 'GET', undefined, cookie);
+  assert.equal(await downloaded.text(), source);
+  assert.equal(
+    (await f.call(`/api/ai/requests/${record.id}`, 'DELETE', undefined, cookie)).status,
+    200,
+  );
+  assert.equal(
+    (await f.call(`/api/ai/requests/${record.id}/source`, 'GET', undefined, cookie)).status,
+    409,
+  );
+});
 
 test('provider choices share verification quotas and session-only connections cannot cross logins', async (t) => {
   const f = await fixture(t),
