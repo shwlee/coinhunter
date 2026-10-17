@@ -38,6 +38,8 @@
 
 `POST /api/admin/maps/validate-json`는 관리자에게 전체 맵 JSON의 초안 규칙 검증을 제공한다. 통과 시 `{map}`으로 지원 필드만 반환하며 저장소를 수정하지 않는다. 실패는 400이다. 편집기의 가져오기·내보내기가 같은 검증을 사용한다.
 
+`POST /api/admin/maps/validate-array`는 관리자에게 JSON `{columns,rows,source}`를 받아 정수 배열과 초안 규칙을 검증한다. `source`는 숫자 배열 또는 C# 배열 텍스트이며 실행하지 않는다. 통과 시 `{map}`의 columns·rows·tiles·기본 name/description/settings를 반환하고 ID·리비전·게시 상태는 포함하지 않는다. 길이·타일·시작점 오류는 400, 미인증은 401, 일반 사용자는 403이다. 비대칭·고립 구역·코인 없는 초안은 허용하며 게시 시 별도 검사한다. 저장소를 수정하지 않고 편집기에서 새 맵으로 열어 명시적으로 저장한다.
+
 `POST /api/admin/maps/:id/copy`는 관리자에게 `{name,sourceRevision}`을 받아 새 미게시 초안을 생성하고 201 `{map,state}`를 반환한다. 샘플은 게시 원본, 관리자 맵은 최신 초안을 복사한다. 원본 버전 불일치는 409다. `PUT /api/admin/maps/order`는 `{ids,expectedIds}`로 전체 맵 순서를 저장하고 `{ok:true}`를 반환한다. 이전 순서·목록 불일치는 409, 중복·누락·존재하지 않는 ID는 400이다. 두 API는 저장소 쓰기 구간에서 충돌을 검사한다.
 
 옵션 조회는 누락된 Hurry Up 점수별 간격을 기본값으로 채운다. 저장은 필드·정수 범위·점수 키를 검사하며 샘플 변경은 403이다. 변경은 게시 버전 갱신 후 새 경기에 적용한다.

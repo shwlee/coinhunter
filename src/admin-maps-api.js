@@ -6,6 +6,7 @@ import {
   validateMapDocument,
 } from './game/maps.js';
 import { fail } from './persistence/errors.js';
+import { parseMapArray } from '../public/map-array.js';
 
 function checkSettings(settings) {
   const allowed = [...Object.keys(MAP_SETTING_LIMITS), 'hurryUpRemovalIntervalMs'];
@@ -22,6 +23,47 @@ export async function adminMapsRoute(request, response, url, user, maps, readJso
   if (user.role !== 'admin') throw fail(403, '관리자 권한이 필요합니다.');
   if (path === '/api/admin/maps/default-settings' && request.method === 'GET') {
     json(response, 200, { settings: DEFAULT_MAP_SETTINGS, limits: MAP_SETTING_LIMITS });
+    return true;
+  }
+  if (path === '/api/admin/maps/validate-array' && request.method === 'POST') {
+    const input = await readJson(request);
+    try {
+      if (
+        !input ||
+        typeof input !== 'object' ||
+        Array.isArray(input) ||
+        Object.keys(input).some((key) => !['source', 'columns', 'rows'].includes(key))
+      )
+        throw new Error('맵 배열과 열·행을 확인하세요.');
+      const document = {
+        schemaVersion: 1,
+        id: 'array-import',
+        revision: 1,
+        name: '가져온 배열 맵',
+        description: '',
+        columns: input.columns,
+        rows: input.rows,
+        tiles: parseMapArray(input.source),
+        settings: structuredClone(DEFAULT_MAP_SETTINGS),
+      };
+      if (
+        Number.isInteger(input.columns) &&
+        input.columns >= 4 &&
+        input.columns <= 40 &&
+        Number.isInteger(input.rows) &&
+        input.rows >= 4 &&
+        input.rows <= 30 &&
+        document.tiles.length !== input.columns * input.rows
+      )
+        throw new Error(
+          `배열 길이(${document.tiles.length})가 ${input.columns} × ${input.rows}(${input.columns * input.rows})와 일치하지 않습니다.`,
+        );
+      validateMapDocument(document, { published: false });
+      const { id, revision, schemaVersion, ...map } = document;
+      json(response, 200, { map });
+    } catch (error) {
+      throw fail(400, error.message);
+    }
     return true;
   }
   if (path === '/api/admin/maps/order' && request.method === 'PUT') {

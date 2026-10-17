@@ -11,6 +11,7 @@ import {
 } from './map-editing.js';
 import { mapStatus } from './map-status.js';
 import { installMapOptions } from './map-options.js';
+import { initializeMapArrayTransfer } from './map-array-transfer.js';
 
 const $ = (id) => document.getElementById(id);
 let map = null,
@@ -119,6 +120,8 @@ function updateControls() {
   $('open-maps').disabled = busy;
   $('import-json').disabled = busy;
   $('export-json').disabled = !map || busy;
+  $('import-array').disabled = busy;
+  $('export-array').disabled = !map || busy;
   for (const element of $('create-map').elements) element.disabled = busy;
   $('coin-value').disabled = !map || tool !== 'coin' || busy;
 }
@@ -258,23 +261,42 @@ $('map-json-file').onchange = async () => {
     else updateControls();
   }
 };
+async function transferDocument() {
+  optionDefaults ??= await api('/api/admin/maps/default-settings');
+  return validateJson({
+    schemaVersion: 1,
+    id: map.id ?? `map-${crypto.randomUUID()}`,
+    revision: map.revision ?? 1,
+    name: map.name || '새 맵',
+    description: map.description || '',
+    columns: map.columns,
+    rows: map.rows,
+    tiles: map.tiles,
+    settings: map.settings ?? optionDefaults.settings,
+  });
+}
+initializeMapArrayTransfer({
+  currentMap: () => map,
+  transferDocument,
+  replaceMap: (document) => {
+    $('show-issues').checked = true;
+    openMap(document);
+  },
+  mayReplace,
+  isBusy: () => busy,
+  setBusy: (value) => {
+    busy = value;
+    if (map) renderTiles();
+    else updateControls();
+  },
+  feedback,
+});
 $('export-json').onclick = async () => {
   if (!map || busy) return;
   busy = true;
   updateControls();
   try {
-    optionDefaults ??= await api('/api/admin/maps/default-settings');
-    const document = await validateJson({
-      schemaVersion: 1,
-      id: map.id ?? `map-${crypto.randomUUID()}`,
-      revision: map.revision ?? 1,
-      name: map.name || '새 맵',
-      description: map.description || '',
-      columns: map.columns,
-      rows: map.rows,
-      tiles: map.tiles,
-      settings: map.settings ?? optionDefaults.settings,
-    });
+    const document = await transferDocument();
     const url = URL.createObjectURL(
       new Blob([JSON.stringify(document, null, 2) + '\n'], {
         type: 'application/json;charset=utf-8',

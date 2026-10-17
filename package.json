@@ -27,6 +27,7 @@
     "test:code-import": "node scripts/code-import-smoke.js",
     "test:prompt-workflow": "node scripts/prompt-workflow-smoke.js",
     "test:maps": "node scripts/map-editor-smoke.js",
+    "test:map-array": "node scripts/map-array-smoke.js",
     "test:map-management": "node scripts/map-management-smoke.js",
     "format:check": "prettier --check src public scripts test examples maps package.json .prettierrc.json .github",
     "verify:runtime": "node scripts/verify-runtime.js",

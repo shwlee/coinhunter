@@ -198,6 +198,66 @@ dialog p {
 #random-error {
   color: #ffaaa4;
 }
+#array-import-error {
+  color: #ffaaa4;
+}
+#array-import-dialog,
+#array-export-dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+}
+#array-import-dialog[open],
+#array-export-dialog[open],
+#array-import-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+#array-import-form {
+  max-height: calc(100dvh - 82px);
+}
+.array-transfer-fields {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  padding-right: 4px;
+}
+#array-import-dialog h2,
+#array-export-dialog h2 {
+  margin: 0;
+}
+#array-import-dialog .dialog-actions,
+#array-export-dialog .dialog-actions {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding-top: 12px;
+  border-top: 1px solid #46536a;
+}
+#array-input,
+#array-output,
+#array-file,
+#array-format {
+  width: 100%;
+}
+#array-input,
+#array-output {
+  display: block;
+  font:
+    13px/1.5 ui-monospace,
+    Consolas,
+    monospace;
+}
+#array-format {
+  padding: 10px;
+  background: #101722;
+  color: #e8eef7;
+  border: 1px solid #46536a;
+  border-radius: 8px;
+}
 .publish-help {
   color: #b6c2d2;
   min-height: 1.6em;

@@ -27,6 +27,8 @@
         <button id="import-json" type="button">JSON 가져오기</button>
         <input id="map-json-file" type="file" accept=".json,application/json" hidden />
         <button id="export-json" type="button" disabled>JSON 내보내기</button>
+        <button id="import-array" type="button">int[] 가져오기</button>
+        <button id="export-array" type="button" disabled>int[] 내보내기</button>
         <button id="edit-options" type="button" disabled>게임 옵션</button>
         <button id="save-map" type="button" disabled>맵 저장</button>
         <button id="publish-map" type="button" disabled aria-describedby="publish-help">
@@ -112,6 +114,71 @@
       </div>
       <p id="map-feedback" role="status" aria-live="polite"></p>
     </main>
+    <dialog id="array-import-dialog" aria-labelledby="array-import-title">
+      <form id="array-import-form">
+        <h2 id="array-import-title">int[] 맵 가져오기</h2>
+        <div class="array-transfer-fields">
+          <p>왼쪽 위부터 행 순서로 입력합니다. -1: 벽, 0: 빈칸, 10·30·100·200·500: 코인.</p>
+          <div class="random-fields">
+            <label
+              >열 (col)<input id="array-columns" type="number" min="4" max="40" required
+            /></label>
+            <label>행 (row)<input id="array-rows" type="number" min="4" max="30" required /></label>
+          </div>
+          <label
+            >배열 파일 (선택)<input
+              id="array-file"
+              type="file"
+              accept=".txt,.json,.cs,text/plain,application/json"
+          /></label>
+          <label for="array-input">맵 배열</label>
+          <textarea
+            id="array-input"
+            rows="9"
+            spellcheck="false"
+            required
+            placeholder="[0, 10, ...] 또는 new int[] { 0, 10, ... }"
+          ></textarea>
+          <p>
+            파일을 선택하거나 배열을 붙여 넣으세요. 파일은 64 KiB 이하이며 코드 주석·수식은 지원하지
+            않습니다.
+          </p>
+          <p>
+            기본 게임 옵션을 가진 새 미저장 맵으로 가져옵니다. 이름·옵션은 가져온 뒤 변경할 수
+            있으며 저장·게시는 별도로 진행합니다.
+          </p>
+          <p id="array-import-error" role="alert"></p>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" data-close="array-import-dialog">취소</button>
+          <button id="confirm-array-import" type="submit">검사 후 가져오기</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="array-export-dialog" aria-labelledby="array-export-title">
+      <h2 id="array-export-title">int[] 맵 내보내기</h2>
+      <div class="array-transfer-fields">
+        <p id="array-export-info"></p>
+        <p>
+          현재 배치만 내보냅니다. 이름·게임 옵션·게시 상태를 함께 보관하려면 JSON 내보내기를
+          사용하세요.
+        </p>
+        <label
+          >출력 형식<select id="array-format">
+            <option value="array">숫자 배열 [ ... ]</option>
+            <option value="csharp">C# new int[] { ... }</option>
+          </select></label
+        >
+        <label for="array-output">맵 배열</label>
+        <textarea id="array-output" rows="10" readonly spellcheck="false"></textarea>
+        <p id="array-export-status" role="status" aria-live="polite"></p>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" data-close="array-export-dialog">닫기</button>
+        <button id="copy-array" type="button">복사</button>
+        <button id="download-array" type="button">파일 내보내기</button>
+      </div>
+    </dialog>
     <dialog id="random-dialog" aria-labelledby="random-title">
       <form id="random-form">
         <h2 id="random-title">대칭 랜덤 맵 생성</h2>
