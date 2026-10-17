@@ -362,6 +362,62 @@ section {
 }
 #ai-panel h2 {
   margin-top: 0;
+  font-size: 18px;
+}
+.assistant-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #101722;
+}
+#ai-panel .assistant-tabs button {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 9px 6px;
+  background: transparent;
+  color: #b3c0d0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+#ai-panel .assistant-tabs [aria-selected='true'] {
+  background: #34445a;
+  border-color: #5c728c;
+  color: #e4eaf2;
+}
+.assistant-tabs .has-activity::after {
+  content: ' •';
+  color: #b6f36e;
+}
+.assistant-strategy-title {
+  margin: 18px 0 12px;
+  font-size: 15px;
+}
+.assistant-method,
+.assistant-local-actions {
+  border-top: 1px solid #46536a;
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.assistant-method h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.assistant-method > p,
+#assistant-activity-text {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.assistant-activity {
+  padding: 8px 12px;
+  margin-top: 12px;
+  border: 1px solid #779251;
+  border-radius: 8px;
+  background: #b6f36e0d;
+}
+#assistant-activity-text {
+  margin: 0 0 4px;
 }
 #ai-panel p {
   color: #b3c0d0;

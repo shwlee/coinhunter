@@ -3,6 +3,7 @@ import { createCodeEditor } from '/code-editor.js';
 import { PRIORITY_WEIGHTS, STRATEGY_TEMPLATES, buildTemplateSource } from './strategy-templates.js';
 import { initializeAiConnections } from './ai-connections.js';
 import { initializeAiScripting } from './ai-scripting.js';
+import { initializeAssistantPanel } from './assistant-panel.js';
 const $ = (id) => document.getElementById(id);
 const editor = createCodeEditor($('code'), $('code-editor'), $('cursor'));
 const emptyAlgorithm = `module.exports = class Player {
@@ -32,6 +33,7 @@ let documentId = null,
 let validationRequestId = 0;
 let generating = false;
 let aiScripting = null;
+let assistantPanel = null;
 const templateControls = new Map();
 const priorityIds = [];
 function refreshTemplates() {
@@ -119,6 +121,7 @@ function invalidateTemplateCandidate() {
   generating = false;
   $('cancel-ai').disabled = true;
   candidate = null;
+  assistantPanel?.setApiCandidate(false);
   $('candidate').hidden = true;
   refreshTemplates();
 }
@@ -310,7 +313,7 @@ function setAiOpen(open) {
   $('ai-panel').hidden = !open;
   aiLayout.classList.toggle('ai-open', open);
   $('toggle-ai').setAttribute('aria-expanded', String(open));
-  const label = `AI 스크립팅 사이드바 ${open ? '접기' : '펼치기'}`;
+  const label = `알고리즘 작성 도우미 ${open ? '접기' : '펼치기'}`;
   $('toggle-ai').setAttribute('aria-label', label);
   $('toggle-ai').dataset.tooltip = label;
   $('ai-arrow').textContent = open ? '›' : '‹';
@@ -353,6 +356,7 @@ function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name 
   setValidationBusy(false);
   saved = contents();
   candidate = null;
+  assistantPanel?.setApiCandidate(false);
   $('candidate').hidden = true;
   if (!testing) {
     testSource = null;
@@ -628,6 +632,7 @@ $('generate').onclick = run(async () => {
   refreshTemplates();
   $('cancel-ai').disabled = false;
   candidate = null;
+  assistantPanel?.setApiCandidate(false);
   $('candidate').hidden = true;
   try {
     await api('/api/algorithms');
@@ -673,6 +678,7 @@ $('apply').onclick = () => {
   )
     return;
   replaceCode(candidate.source);
+  assistantPanel?.setApiCandidate(false);
   void aiScripting?.discard(candidate.requestId);
   notice('후보 코드를 적용했습니다. 실행 취소로 되돌릴 수 있습니다.');
 };
@@ -743,11 +749,13 @@ try {
       priorities: () => [...priorityIds],
       notice,
       onBusy: (value) => {
+        assistantPanel?.setApiBusy(value);
         generating = value;
         refreshTemplates();
         $('cancel-ai').disabled = !value;
       },
       onCandidate: (value) => {
+        assistantPanel?.setApiCandidate(Boolean(value?.requestId));
         candidate = value;
         $('candidate').hidden = !value;
         $('apply').disabled = !value?.valid;
@@ -758,7 +766,7 @@ try {
         $('apply').disabled = !value.valid;
       },
     });
-    void initializeAiConnections();
+    assistantPanel = initializeAssistantPanel({ openConnections: initializeAiConnections });
     applyAiWidth();
     new ResizeObserver(applyAiWidth).observe(aiLayout);
     const selectedId = new URLSearchParams(location.search).get('algorithmId');
@@ -768,7 +776,7 @@ try {
       notice('선택한 저장 알고리즘을 열었습니다.');
     } else
       notice(
-        '직접 편집하거나 OpenAI 연결과 모델을 선택해 코드를 생성하세요. 템플릿 코드 생성은 API 연결 없이 사용할 수 있습니다.',
+        '코드를 직접 편집하거나 전략 템플릿으로 시작하세요. AI 직접 생성은 작성 도우미의 AI 연결 탭에서 사용할 수 있습니다.',
       );
     void aiScripting.restore();
   }

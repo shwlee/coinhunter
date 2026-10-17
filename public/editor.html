@@ -258,7 +258,7 @@
                   tabindex="0"
                   aria-orientation="vertical"
                   aria-controls="code-panel ai-panel"
-                  aria-label="AI 스크립팅 너비 조절"
+                  aria-label="알고리즘 작성 도우미 너비 조절"
                   title="드래그하거나 좌우 방향키로 너비 조절"
                 ></div>
                 <button
@@ -267,49 +267,42 @@
                   type="button"
                   aria-controls="ai-panel"
                   aria-expanded="true"
-                  aria-label="AI 스크립팅 사이드바 접기"
-                  data-tooltip="AI 스크립팅 사이드바 접기"
+                  aria-label="알고리즘 작성 도우미 접기"
+                  data-tooltip="알고리즘 작성 도우미 접기"
                 >
                   <svg aria-hidden="true"><use href="#icon-ai" /></svg>
                   <span id="ai-arrow" aria-hidden="true">›</span>
                 </button>
-                <aside id="ai-panel" aria-label="AI 스크립팅">
-                  <section class="ai-connection-controls" aria-label="AI 연결과 모델">
-                    <div class="ai-select-row">
-                      <select id="ai-connection" aria-label="AI 연결" disabled>
-                        <option value="">AI 연결 선택</option>
-                      </select>
-                      <button
-                        id="ai-manage"
-                        class="icon-button"
-                        type="button"
-                        aria-label="AI 연결 관리"
-                        data-tooltip="AI 연결 관리"
-                        disabled
-                      >
-                        <svg aria-hidden="true"><use href="#icon-connections" /></svg>
-                      </button>
-                    </div>
-                    <div class="ai-select-row">
-                      <select id="ai-model" aria-label="AI 모델" disabled>
-                        <option value="">모델 선택</option>
-                      </select>
-                      <button
-                        id="ai-refresh-models"
-                        class="icon-button"
-                        type="button"
-                        aria-label="모델 목록 새로고침"
-                        data-tooltip="모델 목록 새로고침"
-                        disabled
-                      >
-                        <svg aria-hidden="true"><use href="#icon-refresh" /></svg>
-                      </button>
-                    </div>
-                    <p id="ai-connection-status" role="status" aria-live="polite">
-                      AI 연결 상태를 확인하고 있습니다.
-                    </p>
-                  </section>
-                  <h2>어떤 전략으로 움직일까요?</h2>
+                <aside id="ai-panel" aria-label="알고리즘 작성 도우미">
+                  <h2>알고리즘 작성 도우미</h2>
+                  <div class="assistant-tabs" role="tablist" aria-label="작성 방식">
+                    <button
+                      id="assistant-prompt-tab"
+                      type="button"
+                      role="tab"
+                      aria-selected="true"
+                      aria-controls="assistant-prompt-panel"
+                      disabled
+                    >
+                      프롬프트
+                    </button>
+                    <button
+                      id="assistant-api-tab"
+                      type="button"
+                      role="tab"
+                      aria-selected="false"
+                      aria-controls="assistant-api-panel"
+                      tabindex="-1"
+                      disabled
+                    >
+                      AI 연결
+                    </button>
+                  </div>
+                  <div id="assistant-activity" class="assistant-activity" hidden>
+                    <p id="assistant-activity-text" role="status"></p>
+                    <button id="assistant-show-api" type="button">AI 연결 보기</button>
+                  </div>
+                  <h3 class="assistant-strategy-title">어떤 전략으로 움직일까요?</h3>
                   <fieldset id="strategy-templates">
                     <legend>전략 템플릿 <span id="template-count">0 / 3</span></legend>
                     <p>
@@ -328,37 +321,96 @@
                     id="prompt"
                     rows="5"
                     placeholder="원하는 전략이나 현재 코드에서 바꿀 점을 적어 주세요."
-                    aria-label="AI 전략 요청"
+                    aria-label="전략 추가 요청"
                   ></textarea>
-                  <p id="ai-limit-note">
-                    AI 요청 시 전략·요청문을 선택한 제공자에 전송합니다. 현재 코드 수정은 편집
-                    코드도 전송합니다. 생성 결과는 검사 후 직접 적용하며 API 사용료가 발생할 수
-                    있습니다.
-                  </p>
-                  <button id="ai-generate" disabled>AI 코드 생성</button>
-                  <button id="ai-modify" disabled>현재 코드 수정</button>
-                  <p id="ai-generation-status" role="status">AI 연결과 모델을 선택하세요.</p>
                   <section
-                    id="ai-generation-progress"
-                    class="ai-generation-progress"
-                    aria-label="AI 생성 진행 상태"
-                    hidden
+                    id="assistant-prompt-panel"
+                    class="assistant-method"
+                    role="tabpanel"
+                    aria-labelledby="assistant-prompt-tab"
+                    tabindex="0"
                   >
-                    <ol class="ai-generation-stages" aria-label="처리 단계">
-                      <li data-stage="request">요청</li>
-                      <li data-stage="receive">응답 수신</li>
-                      <li data-stage="validate">코드 검사</li>
-                    </ol>
-                    <div class="ai-generation-metrics" aria-live="off">
-                      <span id="ai-generation-elapsed">경과 0초</span>
-                      <span id="ai-generation-received">응답 0자 수신</span>
-                    </div>
-                    <p id="ai-generation-last-response" aria-live="off">
-                      첫 응답을 기다리고 있습니다.
+                    <h3>프롬프트로 작성</h3>
+                    <p>
+                      선택한 전략과 추가 요청을 외부 AI에 전달할 프롬프트로 구성하는 방식입니다. API
+                      키 연결 없이 사용할 수 있습니다.
                     </p>
                   </section>
-                  <button id="generate" disabled>템플릿 코드 생성</button
-                  ><button id="cancel-ai" disabled>취소</button>
+                  <section
+                    id="assistant-api-panel"
+                    class="assistant-method"
+                    role="tabpanel"
+                    aria-labelledby="assistant-api-tab"
+                    tabindex="0"
+                    hidden
+                  >
+                    <section class="ai-connection-controls" aria-label="AI 연결과 모델">
+                      <div class="ai-select-row">
+                        <select id="ai-connection" aria-label="AI 연결" disabled>
+                          <option value="">AI 연결 선택</option>
+                        </select>
+                        <button
+                          id="ai-manage"
+                          class="icon-button"
+                          type="button"
+                          aria-label="AI 연결 관리"
+                          data-tooltip="AI 연결 관리"
+                          disabled
+                        >
+                          <svg aria-hidden="true"><use href="#icon-connections" /></svg>
+                        </button>
+                      </div>
+                      <div class="ai-select-row">
+                        <select id="ai-model" aria-label="AI 모델" disabled>
+                          <option value="">모델 선택</option>
+                        </select>
+                        <button
+                          id="ai-refresh-models"
+                          class="icon-button"
+                          type="button"
+                          aria-label="모델 목록 새로고침"
+                          data-tooltip="모델 목록 새로고침"
+                          disabled
+                        >
+                          <svg aria-hidden="true"><use href="#icon-refresh" /></svg>
+                        </button>
+                      </div>
+                      <p id="ai-connection-status" role="status" aria-live="polite">
+                        AI 연결 탭을 열면 연결 상태를 확인합니다.
+                      </p>
+                    </section>
+                    <p id="ai-limit-note">
+                      AI 요청 시 전략·요청문을 선택한 제공자에 전송합니다. 현재 코드 수정은 편집
+                      코드도 전송합니다. 생성 결과는 검사 후 직접 적용하며 API 사용료가 발생할 수
+                      있습니다.
+                    </p>
+                    <button id="ai-generate" disabled>AI 코드 생성</button>
+                    <button id="ai-modify" disabled>현재 코드 수정</button>
+                    <p id="ai-generation-status" role="status">AI 연결과 모델을 선택하세요.</p>
+                    <section
+                      id="ai-generation-progress"
+                      class="ai-generation-progress"
+                      aria-label="AI 생성 진행 상태"
+                      hidden
+                    >
+                      <ol class="ai-generation-stages" aria-label="처리 단계">
+                        <li data-stage="request">요청</li>
+                        <li data-stage="receive">응답 수신</li>
+                        <li data-stage="validate">코드 검사</li>
+                      </ol>
+                      <div class="ai-generation-metrics" aria-live="off">
+                        <span id="ai-generation-elapsed">경과 0초</span>
+                        <span id="ai-generation-received">응답 0자 수신</span>
+                      </div>
+                      <p id="ai-generation-last-response" aria-live="off">
+                        첫 응답을 기다리고 있습니다.
+                      </p>
+                    </section>
+                  </section>
+                  <div class="assistant-local-actions">
+                    <button id="generate" disabled>템플릿 코드 생성</button
+                    ><button id="cancel-ai" disabled>취소</button>
+                  </div>
                   <div id="candidate" hidden>
                     <p id="candidate-info"></p>
                     <pre id="candidate-code"></pre>

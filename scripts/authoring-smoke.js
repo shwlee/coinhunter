@@ -6,6 +6,7 @@ import { chromium } from 'playwright-core';
 import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
 import { createAuthoring } from '../src/authoring-api.js';
 import { createGameServer } from '../src/server.js';
+import { readAiConfig } from '../src/ai/config.js';
 
 const dir = await mkdtemp(join(tmpdir(), 'coinhunter-editor-'));
 const accounts = new FileAccountRepository(join(dir, 'store.json'));
@@ -13,6 +14,7 @@ await accounts.bootstrapAdmin('admin@company.test');
 const { server, close } = createGameServer({
   authoring: createAuthoring({
     accounts,
+    aiConfig: readAiConfig({ AI_ENABLED: 'false' }),
   }),
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -26,6 +28,10 @@ const browser = await chromium.launch({
 try {
   const page = await browser.newPage({ viewport: { width: 1550, height: 1100 } });
   const errors = [];
+  const aiRequests = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.startsWith('/api/ai/')) aiRequests.push(request.url());
+  });
   page.on('pageerror', (error) => errors.push(error.message));
   const warnsOnExit = () =>
     page.evaluate(() => {
@@ -213,6 +219,20 @@ try {
   await page.screenshot({ path: 'artifacts/entry-desktop.png', fullPage: true });
   await page.click('#go-editor');
   await page.waitForSelector('#workbench', { state: 'visible' });
+  assert.deepEqual(aiRequests, [], 'Offline workbench entry does not initialize API connections');
+  assert.equal(await page.locator('#assistant-prompt-tab').getAttribute('aria-selected'), 'true');
+  await page.locator('#assistant-api-tab').click();
+  await page.locator('#ai-connection-status').filter({ hasText: '활성화하지' }).waitFor();
+  assert.equal(await page.locator('#ai-manage').isDisabled(), true);
+  await page.locator('#assistant-api-tab').focus();
+  await page.keyboard.press('Home');
+  assert.equal(await page.locator('#assistant-prompt-tab').getAttribute('aria-selected'), 'true');
+  assert.equal(
+    await page
+      .locator('#assistant-prompt-tab')
+      .evaluate((button) => button === document.activeElement),
+    true,
+  );
   assert.equal(await page.locator('#admin').count(), 0);
   await page.locator('#account-bar .admin-link[href="/admin"]').waitFor({ state: 'visible' });
   assert.equal(await warnsOnExit(), false, 'The new document does not warn on exit');
@@ -316,11 +336,11 @@ try {
   assert.equal(await page.locator('#toggle-ai').getAttribute('aria-expanded'), 'true');
   assert.equal(
     await page.locator('#toggle-ai').getAttribute('aria-label'),
-    'AI 스크립팅 사이드바 접기',
+    '알고리즘 작성 도우미 접기',
   );
   assert.equal(
     await page.locator('#toggle-ai').getAttribute('data-tooltip'),
-    'AI 스크립팅 사이드바 접기',
+    '알고리즘 작성 도우미 접기',
   );
   assert.equal(await page.locator('#toggle-ai svg use').getAttribute('href'), '#icon-ai');
   assert.equal((await page.locator('#toggle-ai').textContent()).trim(), '›');
@@ -415,7 +435,7 @@ try {
   assert.equal(await page.locator('#toggle-ai').getAttribute('aria-expanded'), 'false');
   assert.equal(
     await page.locator('#toggle-ai').getAttribute('data-tooltip'),
-    'AI 스크립팅 사이드바 펼치기',
+    '알고리즘 작성 도우미 펼치기',
   );
   assert.equal((await page.locator('#toggle-ai').textContent()).trim(), '‹');
   await page.waitForTimeout(220);

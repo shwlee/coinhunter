@@ -263,7 +263,6 @@ export async function initializeAiConnections() {
     }
     $('ai-provider').replaceChildren(...policy.providers.map((item) => option(item.name, item.id)));
     const data = await reload();
-    $('ai-manage').disabled = false;
     await choose(data.preference.connectionId || '', data.preference.modelId || '');
     $('ai-manage').onclick = async () => {
       try {
@@ -436,6 +435,7 @@ export async function initializeAiConnections() {
         feedback('연결과 API 키를 삭제했습니다.');
       });
     };
+    $('ai-manage').disabled = false;
   } catch (error) {
     status(`AI 연결 준비 실패: ${error.message}`);
   }

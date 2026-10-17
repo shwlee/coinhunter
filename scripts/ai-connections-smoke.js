@@ -27,6 +27,7 @@ const generatedSource = await readFile(
   'utf8',
 );
 let generationCalls = 0,
+  modelCalls = 0,
   badCandidate = false,
   heldGeneration = null,
   lastGenerationInput;
@@ -62,6 +63,7 @@ const generationProvider = createOpenAiGeneration({
 });
 const providers = createAiProviders({
   fetchImpl: async (_, options) => {
+    modelCalls++;
     const key =
       options.headers.Authorization?.replace('Bearer ', '') ||
       options.headers['x-api-key'] ||
@@ -123,9 +125,37 @@ try {
   assert.equal(login.status(), 200);
   const page = await context.newPage();
   const errors = [];
+  const aiRequests = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.startsWith('/api/ai/'))
+      aiRequests.push(request.method() + ' ' + new URL(request.url()).pathname);
+  });
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(base + '/editor');
+  await page.locator('#workbench:not([hidden])').waitFor();
+  assert.equal(await page.locator('#assistant-prompt-tab').getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('#assistant-api-panel').isVisible(), false);
+  assert.deepEqual(aiRequests, [], 'Prompt entry never initializes AI connections');
+  assert.equal(modelCalls, 0);
+  await page.locator('#prompt').fill('탭 전환 전 추가 요청');
+  await page.locator('[name="strategy-template"][value="nearestCoin"]').check();
+  await page.locator('#assistant-prompt-tab').focus();
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await page.locator('#assistant-api-tab').getAttribute('aria-selected'), 'true');
   await page.locator('#ai-manage:enabled').waitFor();
+  await page.locator('#assistant-prompt-tab').click();
+  const initializedRequests = aiRequests.length;
+  await page.locator('#assistant-api-tab').click();
+  assert.equal(
+    aiRequests.length,
+    initializedRequests,
+    'Returning to the tab reuses initialization',
+  );
+  assert.equal(await page.locator('#prompt').inputValue(), '탭 전환 전 추가 요청');
+  assert.equal(
+    await page.locator('[name="strategy-template"][value="nearestCoin"]').isChecked(),
+    true,
+  );
   const original = await page.locator('#code').inputValue();
   await page.locator('#ai-manage').click();
   await page.locator('#ai-dialog[open]').waitFor();
@@ -193,13 +223,24 @@ try {
       (await (await fetch('/api/ai/connections')).json()).preference.modelId === 'gpt-5-mini',
   );
   const id = await page.locator('#ai-connection').inputValue();
+  const callsBeforeReload = modelCalls;
+  const requestsBeforeReload = aiRequests.length;
   await page.reload();
+  await page.locator('#workbench:not([hidden])').waitFor();
+  assert.equal(await page.locator('#assistant-prompt-tab').getAttribute('aria-selected'), 'true');
+  assert.equal(modelCalls, callsBeforeReload, 'Saved connections are not queried on prompt entry');
+  assert.equal(aiRequests.length, requestsBeforeReload);
+  await page.locator('#assistant-api-tab').click();
   await wait(page, () => document.getElementById('ai-model').value === 'gpt-5-mini');
   assert.equal(await page.locator('#ai-connection').inputValue(), id);
   await page
     .locator('#prompt')
     .fill('가까운 코인을 우선해서 길을 찾고 debug.print로 목표를 표시하세요.');
   await page.locator('#ai-generate:enabled').waitFor();
+  let releaseFirstGeneration;
+  heldGeneration = new Promise((resolve) => {
+    releaseFirstGeneration = resolve;
+  });
   await page.locator('#ai-generate').click();
   await wait(page, () =>
     document.getElementById('ai-generation-status').textContent.includes('수신하고 있습니다'),
@@ -217,7 +258,22 @@ try {
     () => document.getElementById('ai-generation-elapsed').textContent !== '경과 0초',
   );
   await page.screenshot({ path: 'artifacts/ai-streaming-progress-desktop.png', fullPage: true });
+  const modelsBeforeSwitch = modelCalls;
+  await page.locator('#assistant-prompt-tab').click();
+  assert.equal(await page.locator('#assistant-activity').isVisible(), true);
+  assert.match(await page.locator('#assistant-activity-text').textContent(), /진행/);
+  assert.equal(await page.locator('#assistant-api-panel').isVisible(), false);
+  assert.equal(generationCalls, 1);
+  await page.screenshot({ path: 'artifacts/assistant-prompt-busy-desktop.png', fullPage: true });
+  releaseFirstGeneration();
+  heldGeneration = null;
   await page.locator('#candidate').waitFor({ state: 'visible' });
+  await page.locator('#cancel-ai:disabled').waitFor();
+  assert.match(await page.locator('#assistant-activity-text').textContent(), /후보 코드/);
+  assert.equal(generationCalls, 1, 'Switching tabs does not restart generation');
+  await page.locator('#assistant-show-api').click();
+  assert.equal(await page.locator('#ai-model').inputValue(), 'gpt-5-mini');
+  assert.equal(modelCalls, modelsBeforeSwitch, 'Returning to API does not reload models');
   assert.equal(await page.locator('#ai-generation-progress').getAttribute('data-active'), 'false');
   const elapsedAfterFinish = await page.locator('#ai-generation-elapsed').textContent();
   await page.waitForTimeout(1100);
@@ -244,6 +300,7 @@ try {
   await page.goto(base + '/');
   await page.waitForTimeout(1100);
   await page.goto(base + '/editor');
+  await page.locator('#assistant-api-tab').click();
   await wait(page, () => document.getElementById('ai-model').value === 'gpt-5-mini');
   assert.equal(await page.locator('#ai-connection').inputValue(), id);
   assert.equal(
@@ -262,6 +319,7 @@ try {
   assert.equal(lastGenerationInput.intent, 'modify');
   assert.equal(await page.locator('#code').inputValue(), original);
   await page.reload();
+  await page.locator('#assistant-api-tab').click();
   await wait(page, () => document.getElementById('ai-model').value === 'gpt-5-mini');
   await page.locator('#candidate').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#candidate-code').textContent(), generatedSource);
@@ -287,6 +345,8 @@ try {
   await wait(page, () =>
     document.getElementById('ai-generation-status').textContent.includes('수신하고 있습니다'),
   );
+  await page.locator('#assistant-prompt-tab').click();
+  assert.equal(await page.locator('#assistant-activity').isVisible(), true);
   await page.locator('#cancel-ai').click();
   releaseGeneration();
   heldGeneration = null;
@@ -298,6 +358,8 @@ try {
   );
   assert.equal(await page.locator('#ai-generation-progress').isVisible(), false);
   assert.equal(await page.locator('#code').inputValue(), original);
+  assert.equal(await page.locator('#assistant-activity').isVisible(), false);
+  await page.locator('#assistant-api-tab').click();
   assert.equal(generationCalls, 4);
   await page.locator('#ai-manage').click();
   await page.locator('#ai-dialog[open]').waitFor();
@@ -358,6 +420,7 @@ try {
   );
   const mobile = await second.newPage();
   await mobile.goto(base + '/editor');
+  await mobile.locator('#assistant-api-tab').click();
   await mobile.locator('#ai-manage:enabled').waitFor();
   assert.equal(
     await mobile.locator('#ai-connection option').count(),
