@@ -4,6 +4,7 @@ import { PRIORITY_WEIGHTS, STRATEGY_TEMPLATES, buildTemplateSource } from './str
 import { initializeAiConnections } from './ai-connections.js';
 import { initializeAiScripting } from './ai-scripting.js';
 import { initializeAssistantPanel } from './assistant-panel.js';
+import { initializePromptAssistant } from './prompt-assistant.js';
 const $ = (id) => document.getElementById(id);
 const editor = createCodeEditor($('code'), $('code-editor'), $('cursor'));
 const emptyAlgorithm = `module.exports = class Player {
@@ -34,6 +35,7 @@ let validationRequestId = 0;
 let generating = false;
 let aiScripting = null;
 let assistantPanel = null;
+let promptAssistant = null;
 const templateControls = new Map();
 const priorityIds = [];
 function refreshTemplates() {
@@ -355,6 +357,7 @@ function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name 
   $('validation-status').hidden = true;
   setValidationBusy(false);
   saved = contents();
+  promptAssistant?.reset();
   candidate = null;
   assistantPanel?.setApiCandidate(false);
   $('candidate').hidden = true;
@@ -767,6 +770,11 @@ try {
       },
     });
     assistantPanel = initializeAssistantPanel({ openConnections: initializeAiConnections });
+    promptAssistant = initializePromptAssistant({
+      source: () => $('code').value,
+      priorities: () => [...priorityIds],
+      emptyAlgorithm,
+    });
     applyAiWidth();
     new ResizeObserver(applyAiWidth).observe(aiLayout);
     const selectedId = new URLSearchParams(location.search).get('algorithmId');
@@ -776,7 +784,7 @@ try {
       notice('선택한 저장 알고리즘을 열었습니다.');
     } else
       notice(
-        '코드를 직접 편집하거나 전략 템플릿으로 시작하세요. AI 직접 생성은 작성 도우미의 AI 연결 탭에서 사용할 수 있습니다.',
+        '전략과 추가 요청으로 프롬프트를 복사하거나 코드를 직접 편집하세요. AI 직접 생성은 AI 연결 탭에서 사용할 수 있습니다.',
       );
     void aiScripting.restore();
   }

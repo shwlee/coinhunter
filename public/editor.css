@@ -419,6 +419,53 @@ section {
 #assistant-activity-text {
   margin: 0 0 4px;
 }
+.prompt-source-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+#prompt-include-source {
+  width: auto;
+  margin: 0;
+}
+#prompt-summary,
+#prompt-contract-status,
+#prompt-copy-status,
+.prompt-copy-help {
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+#prompt-copy-status {
+  min-height: 1.6em;
+}
+#ai-panel #copy-prompt {
+  width: 100%;
+  background: #b6f36e;
+  color: #16211a;
+  font-weight: 700;
+}
+#ai-panel #copy-prompt:disabled {
+  opacity: 0.45;
+}
+#prompt-preview {
+  margin-top: 12px;
+}
+#prompt-preview summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+#prompt-preview-text {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+  max-height: 400px;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
 #ai-panel p {
   color: #b3c0d0;
 }
