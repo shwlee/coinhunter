@@ -14,6 +14,7 @@ import { createAiModelCatalog } from './ai/model-catalog.js';
 import { createAiRoutes } from './ai/routes.js';
 import { createAiRequestService } from './ai/request-service.js';
 import { createOpenAiGeneration } from './ai/openai-generation.js';
+import { loadAlgorithmContract } from './algorithm-assistant/contract.js';
 import { join } from 'node:path';
 
 export function createAuthoring({
@@ -105,6 +106,21 @@ export function createAuthoring({
       if (await authentication.route(request, response, url, user, readJson, json, revoke))
         return true;
       const path = url.pathname;
+      if (path === '/api/algorithm-assistant/contract') {
+        requireUser(user);
+        if (request.method !== 'GET') {
+          response.setHeader('Allow', 'GET');
+          throw fail(405, 'GET 요청만 사용할 수 있습니다.');
+        }
+        let contract;
+        try {
+          contract = await loadAlgorithmContract();
+        } catch {
+          throw fail(503, '알고리즘 규약을 불러오지 못했습니다. 잠시 후 다시 시도하세요.');
+        }
+        json(response, 200, contract);
+        return true;
+      }
       if (await aiRoute(request, response, url, user, readJson, json, readSourceFile)) return true;
       if (path.startsWith('/api/admin/')) {
         requireUser(user);

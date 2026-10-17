@@ -1,6 +1,7 @@
 import { parse } from 'acorn';
 
 export const TURN_LIMIT_MS = 500;
+export const ALGORITHM_MEMORY_LIMIT_BYTES = 32 * 1024 * 1024;
 
 export function validateSource(source) {
   if (typeof source !== 'string') throw new Error('코드는 문자열이어야 합니다.');

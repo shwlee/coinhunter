@@ -1,6 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import { getQuickJS } from 'quickjs-emscripten';
-import { TURN_LIMIT_MS, validateSource } from './policy.js';
+import { TURN_LIMIT_MS, ALGORITHM_MEMORY_LIMIT_BYTES, validateSource } from './policy.js';
 
 // Prototype only exposes synchronous language built-ins, never Node host objects.
 // All user property access and conversions stay inside the interruptible runtime.
@@ -25,7 +25,7 @@ export class AlgorithmSandbox {
 
   constructor(module) {
     this.runtime = module.newRuntime();
-    this.runtime.setMemoryLimit(32 * 1024 * 1024);
+    this.runtime.setMemoryLimit(ALGORITHM_MEMORY_LIMIT_BYTES);
     this.runtime.setMaxStackSize(512 * 1024);
     this.context = this.runtime.newContext();
     this.deadline = Infinity;

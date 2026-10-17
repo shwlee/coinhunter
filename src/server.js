@@ -50,6 +50,7 @@ const assets = new Map([
   ['/ai-scripting.js', ['ai-scripting.js', 'text/javascript; charset=utf-8']],
   ['/code-editor.js', ['generated/code-editor.js', 'text/javascript; charset=utf-8']],
   ['/strategy-templates.js', ['strategy-templates.js', 'text/javascript; charset=utf-8']],
+  ['/algorithm-strategy.js', ['algorithm-strategy.js', 'text/javascript; charset=utf-8']],
   ['/editor.css', ['editor.css', 'text/css; charset=utf-8']],
   ['/account.js', ['account.js', 'text/javascript; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
