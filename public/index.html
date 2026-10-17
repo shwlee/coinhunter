@@ -47,7 +47,19 @@
                 <h2 id="arena-title">대칭 정원</h2>
                 <span id="game-status" class="status">준비</span>
               </div>
-              <div class="timer" id="timer">02:00</div>
+              <div class="arena-metrics">
+                <div
+                  id="test-score"
+                  class="test-score"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  hidden
+                >
+                  <span>획득 점수</span><strong id="test-score-value">0</strong><span>점</span>
+                </div>
+                <div class="timer" id="timer">02:00</div>
+              </div>
             </div>
             <div class="canvas-wrap">
               <canvas

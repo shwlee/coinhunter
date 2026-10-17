@@ -619,6 +619,7 @@ try {
   const game = page.frameLocator('#game');
   await page.click('#testing-view');
   await page.locator('.testing').waitFor({ state: 'visible' });
+  await page.locator('#game').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#test').count(), 0);
   assert.equal(await page.locator('.writing').isVisible(), false);
   assert.equal(await page.locator('.testing h2').count(), 0);

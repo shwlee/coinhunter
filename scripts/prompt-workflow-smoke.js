@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, readFile, readdir } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
@@ -24,7 +24,7 @@ const map = await maps.saveDraft({
   columns: 4,
   rows: 4,
   tiles: [0, 0, 0, 0, 0, 10, 10, 0, 0, 10, 10, 0, 0, 0, 0, 0],
-  settings: { ...DEFAULT_MAP_SETTINGS, actionMs: 100, itemFirstMs: 60000 },
+  settings: { ...DEFAULT_MAP_SETTINGS, actionMs: 400, itemFirstMs: 60000 },
 });
 await maps.publish(map.id, map.revision);
 const { server, close } = createGameServer({
@@ -103,6 +103,7 @@ try {
   assert.equal(await page.locator('#assistant-prompt-tab').getAttribute('aria-selected'), 'true');
   await page.locator('[name="strategy-template"][value="nearestCoin"]').check();
   await page.locator('#prompt').fill('벽을 피해 코인을 모두 수집하세요.');
+  await page.locator('#generate-prompt:enabled').click();
   await page.locator('#copy-prompt:enabled').click();
   await page.locator('#prompt-copy-status').filter({ hasText: '복사했습니다' }).waitFor();
   let request = parseRequest(await page.evaluate(() => window.__copiedText));
@@ -130,9 +131,34 @@ try {
   };
   await importSource(returned);
   assert.equal(writes.length, 0, 'Import and apply must not save');
+  let releaseGame;
+  const gameScript = new Promise((resolve) => {
+    releaseGame = resolve;
+  });
+  await page.route('**/app.js', async (route) => {
+    await gameScript;
+    await route.continue();
+  });
   await page.locator('#testing-view').click();
   const game = page.frameLocator('#game');
+  try {
+    await game.locator('#file-step').waitFor({ state: 'attached' });
+    assert.equal(
+      await page.locator('#game').isVisible(),
+      false,
+      'Initial file-selection markup cannot flash while the game script loads',
+    );
+    assert.equal(await page.locator('#test-preparing').isVisible(), true);
+  } finally {
+    releaseGame();
+  }
+  await page.locator('#game').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#test-preparing').isVisible(), false);
+  assert.equal(await game.locator('#file-step').isVisible(), false);
+  assert.equal(await game.locator('#character-step').isVisible(), false);
   await game.locator('#settings-step').waitFor({ state: 'visible' });
+  assert.equal(await game.locator('#test-score').isVisible(), true);
+  assert.equal(await game.locator('#test-score-value').textContent(), '0');
   await game.locator('#map-select').selectOption(map.id);
   await game.locator('input[name="start-slot"][value="3"]').check();
   const created = page.waitForResponse(
@@ -148,6 +174,11 @@ try {
   assert.equal(options.dummyCount, 0);
   assert.equal(options.mode, 'practice');
   assert.equal(response.request().postData(), returned, 'The imported source is actually played');
+  await game
+    .locator('#test-score-value')
+    .filter({ hasText: /^(10|20|30)$/ })
+    .waitFor();
+  assert.equal(await game.locator('#rank-panel').isVisible(), false);
   await game.locator('#arena-message strong').filter({ hasText: '테스트 종료' }).waitFor();
   const match = await (await context.request.get(`${base}/api/matches/${matchId}`)).json();
   assert.equal(match.game.status, 'finished');
@@ -158,8 +189,63 @@ try {
   assert.equal(player.stats.penalties, 0);
   assert.equal(player.stats.timeouts, 0);
   assert.equal(player.stats.exceptions, 0);
+  assert.equal(await game.locator('#test-score-value').textContent(), String(player.score));
+  await mkdir('artifacts', { recursive: true });
+  const headerLayout = () =>
+    game.locator('.arena-heading').evaluate((heading) => {
+      const header = heading.getBoundingClientRect();
+      const score = document.getElementById('test-score').getBoundingClientRect();
+      const title = document.getElementById('arena-title').getBoundingClientRect();
+      const status = document.getElementById('game-status').getBoundingClientRect();
+      return (
+        score.left >= header.left &&
+        score.right <= header.right &&
+        score.top >= header.top &&
+        score.bottom <= header.bottom &&
+        title.right <= score.left &&
+        title.bottom <= status.top &&
+        status.height < 30 &&
+        document.documentElement.scrollWidth <= innerWidth
+      );
+    });
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    assert.equal(await headerLayout(), true, `Test score fits beside the title at ${width}px`);
+    await game.locator('#test-score-value').evaluate((value) => {
+      value.textContent = '1,200,000';
+    });
+    assert.equal(await headerLayout(), true, `Large scores fit without overflow at ${width}px`);
+    await game.locator('#test-score-value').evaluate((value) => {
+      value.textContent = '40';
+    });
+    await game
+      .locator('.arena-heading')
+      .screenshot({ path: `artifacts/test-score-header-${width}.png` });
+  }
+  await page.screenshot({ path: 'artifacts/test-score-mobile.png' });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.locator('#back-to-editor').click();
   assert.equal(await page.locator('#code').inputValue(), returned);
+  const expiredTestSession = async (route) => {
+    if (route.request().frame().parentFrame())
+      await route.fulfill({ status: 401, json: { error: '다시 로그인하세요.' } });
+    else await route.continue();
+  };
+  await page.route('**/api/session', expiredTestSession);
+  await page.locator('#testing-view').click();
+  await page
+    .locator('#test-preparing')
+    .filter({ hasText: '테스트를 준비하지 못했습니다.' })
+    .waitFor();
+  assert.equal(await page.locator('#game').isVisible(), false);
+  assert.equal(await page.locator('.testing').getAttribute('aria-busy'), 'false');
+  assert.equal(await page.locator('#code').inputValue(), returned);
+  await page.unroute('**/api/session', expiredTestSession);
+  await page.locator('#back-to-editor').click();
+  await page.locator('#testing-view').click();
+  await page.locator('#game').waitFor({ state: 'visible' });
+  await game.locator('#test-score-value').filter({ hasText: /^0$/ }).waitFor();
+  await page.locator('#back-to-editor').click();
   assert.equal((await accounts.list(user.id)).length, 0, 'Test play must not save the document');
   await page.locator('#save').click();
   assert.equal(await page.locator('#save-options').isVisible(), false);
@@ -176,6 +262,7 @@ try {
   assert.equal(await page.locator('#code').inputValue(), returned);
   await page.locator('#prompt').fill('코인 수집을 유지하며 이름을 변경하세요.');
   await page.locator('#prompt-include-source:enabled').check();
+  await page.locator('#generate-prompt:enabled').click();
   await page.locator('#copy-prompt:enabled').click();
   await page.locator('#prompt-copy-status').filter({ hasText: '복사했습니다' }).waitFor();
   request = parseRequest(await page.evaluate(() => window.__copiedText));
@@ -219,7 +306,8 @@ try {
   assert.equal(await mobile.locator('#code').inputValue(), modified);
   assert.equal(await mobile.locator('#save-state').textContent(), '저장됨');
   assert.equal(await mobile.locator('#prompt-include-source').isChecked(), false);
-  assert.equal(await mobile.locator('#prompt-preview').getAttribute('open'), null);
+  assert.equal(await mobile.locator('#prompt-preview-text').isVisible(), true);
+  assert.equal(await mobile.locator('#prompt-preview-text').inputValue(), '');
   assert.equal(
     await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
     true,

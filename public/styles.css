@@ -400,6 +400,28 @@ select {
   align-items: center;
   gap: 10px;
 }
+.arena-metrics {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+.test-score {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+  color: var(--accent);
+  font-size: 12px;
+}
+.test-score > span:first-child {
+  color: var(--muted);
+  font-size: 11px;
+}
+.test-score strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
 .live-dot {
   width: 6px;
   height: 6px;
@@ -1240,8 +1262,45 @@ footer > span:last-child {
 .embedded-game .rank-panel {
   min-height: 0;
 }
+.test-game .arena-heading {
+  gap: 12px;
+}
+.test-game .arena-heading > div:first-child {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr);
+  gap: 4px 8px;
+}
+.test-game #arena-title {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.test-game .live-dot {
+  grid-column: 1;
+  grid-row: 2;
+}
+.test-game .status {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: start;
+  white-space: nowrap;
+}
+.test-game .arena-heading .arena-metrics {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.test-game .timer {
+  font-size: 13px;
+}
 .test-game #rank-panel,
 .test-game .legend,
+.test-game #file-step,
+.test-game #character-step,
+.test-game #setup-progress,
 .test-game #settings-step > :not(.settings-fields),
 .test-game .settings-fields > div:nth-child(2),
 .test-game #position-step > .help:not(#position-summary),

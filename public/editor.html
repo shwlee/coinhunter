@@ -46,6 +46,10 @@
       <symbol id="icon-download" viewBox="0 0 24 24">
         <path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4" />
       </symbol>
+      <symbol id="icon-copy" viewBox="0 0 24 24">
+        <rect x="9" y="9" width="11" height="12" rx="2" />
+        <path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" />
+      </symbol>
       <symbol id="icon-close" viewBox="0 0 24 24">
         <path d="M5 5 19 19M19 5 5 19" />
       </symbol>
@@ -343,7 +347,7 @@
                     <p id="prompt-summary" role="status">
                       전략을 선택하거나 추가 요청을 입력하세요.
                     </p>
-                    <button id="copy-prompt" type="button" disabled>프롬프트 복사</button>
+                    <button id="generate-prompt" type="button" disabled>프롬프트 생성</button>
                     <button id="open-code-import" type="button" disabled>
                       생성된 코드 가져오기
                     </button>
@@ -351,18 +355,32 @@
                       사용하는 AI에 붙여 넣은 후 생성된 코드를 가져오세요. 이 복사 기능은 API 키나
                       API 사용료가 필요하지 않습니다.
                     </p>
-                    <p id="prompt-copy-status" role="status" aria-live="polite"></p>
-                    <details id="prompt-preview">
-                      <summary>프롬프트 미리보기</summary>
+                    <div id="prompt-preview">
+                      <div class="prompt-preview-header">
+                        <label for="prompt-preview-text">프롬프트 미리보기</label>
+                        <button
+                          id="copy-prompt"
+                          type="button"
+                          aria-label="생성된 프롬프트 복사"
+                          aria-controls="prompt-preview-text"
+                          title="미리보기에 표시된 프롬프트를 복사합니다."
+                          disabled
+                        >
+                          <svg aria-hidden="true"><use href="#icon-copy" /></svg>
+                          <span id="copy-prompt-label">복사</span>
+                        </button>
+                      </div>
                       <textarea
                         id="prompt-preview-text"
                         rows="12"
                         readonly
                         aria-label="프롬프트 미리보기"
                         spellcheck="false"
+                        placeholder="전략을 선택하거나 추가 요청을 입력한 뒤 프롬프트 생성을 누르세요."
                       ></textarea>
+                      <p id="prompt-copy-status" role="status" aria-live="polite"></p>
                       <button id="select-prompt" type="button" disabled>본문 전체 선택</button>
-                    </details>
+                    </div>
                     <p id="prompt-size-note" class="prompt-copy-help" hidden>
                       본문이 깁니다. 사용하는 AI의 입력 한도를 확인하세요. 코드를 자동으로 줄이거나
                       생략하지 않았습니다.
@@ -484,7 +502,8 @@
                 배정됩니다.
               </p>
             </div>
-            <iframe id="game" title="알고리즘 테스트 게임"></iframe>
+            <p id="test-preparing" role="status" hidden></p>
+            <iframe id="game" title="알고리즘 테스트 게임" hidden></iframe>
           </section>
         </div>
       </div>

@@ -690,6 +690,12 @@ $('apply').onclick = () => {
   void aiScripting?.discard(candidate.requestId);
   notice('후보 코드를 적용했습니다. 실행 취소로 되돌릴 수 있습니다.');
 };
+function testPreparation(message = '', busy = Boolean(message)) {
+  $('test-preparing').textContent = message;
+  $('test-preparing').hidden = !message;
+  $('game').hidden = Boolean(message);
+  document.querySelector('.testing').setAttribute('aria-busy', String(busy));
+}
 async function prepareTest() {
   if (testing) throw new Error('진행 중인 경기를 종료한 뒤 다시 테스트하세요.');
   const source = await validateEditorSource();
@@ -700,6 +706,7 @@ async function prepareTest() {
     requestId: ++testRequestId,
   };
   preparedRequest = payload;
+  testPreparation('현재 편집 코드로 테스트를 준비하고 있습니다…');
   showPanel('testing');
   if (testReady) $('game').contentWindow.postMessage(payload, location.origin);
   else {
@@ -726,7 +733,17 @@ window.addEventListener('message', (event) => {
   ) {
     testSource = preparedRequest.source;
     preparedRequest = null;
+    testPreparation();
     refreshTestCodeState();
+  }
+  if (
+    event.data.type === 'editor-prepare-failed' &&
+    event.data.requestId === preparedRequest?.requestId
+  ) {
+    preparedRequest = null;
+    pendingTest = null;
+    testPreparation(`테스트를 준비하지 못했습니다. ${event.data.message}`, false);
+    notice(event.data.message);
   }
   if (event.data.type === 'editor-ready') {
     testReady = true;
@@ -795,7 +812,7 @@ try {
       notice('선택한 저장 알고리즘을 열었습니다.');
     } else
       notice(
-        '전략과 추가 요청으로 프롬프트를 복사하거나 코드를 직접 편집하세요. AI 직접 생성은 AI 연결 탭에서 사용할 수 있습니다.',
+        '전략과 추가 요청으로 프롬프트를 생성한 뒤 복사하거나 코드를 직접 편집하세요. AI 직접 생성은 AI 연결 탭에서 사용할 수 있습니다.',
       );
     void aiScripting.restore();
   }

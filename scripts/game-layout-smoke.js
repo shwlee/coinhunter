@@ -29,6 +29,7 @@ try {
   await page.route('**/api/matches/layout-fixture', (route) => route.fulfill({ json: {} }));
   await page.goto(`http://127.0.0.1:${server.address().port}/game`);
   await page.locator('#map-select option').first().waitFor({ state: 'attached' });
+  assert.equal(await page.locator('#test-score').isVisible(), false);
   await page.waitForTimeout(300);
   const game = new GameState(MAPS[0], ['User', 'Dummy', 'Dummy', 'Dummy']);
   game.start(0);

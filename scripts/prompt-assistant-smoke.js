@@ -90,6 +90,8 @@ try {
   );
   await page.goto(base + '/editor');
   await page.locator('#retry-prompt-contract').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#generate-prompt').isDisabled(), true);
+  assert.equal(await page.locator('#prompt-preview-text').isVisible(), true);
   assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
   assert.equal(await page.locator('#prompt-include-source').isDisabled(), true);
   const blank = await page.locator('#code').inputValue();
@@ -103,12 +105,29 @@ try {
   await wait(page, () => document.getElementById('prompt-contract-status').textContent === '');
   assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
   await page.locator('[name="strategy-template"][value="nearestCoin"]').check();
+  assert.equal(await page.locator('#generate-prompt').isEnabled(), true);
+  assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
+  assert.equal(await page.locator('#prompt-preview-text').inputValue(), '');
+  await page.locator('#generate-prompt').click();
+  const strategyOnly = await page.locator('#prompt-preview-text').inputValue();
+  assert.equal(parseRequest(strategyOnly).request, '');
+  assert.equal(parseRequest(strategyOnly).priorities[0].name, '근처 코인');
+  assert.equal(await page.locator('#copy-prompt').isEnabled(), true);
   await page.locator('[name="strategy-template"][value="valuableCoin"]').check();
   await page.getByRole('button', { name: '고액 코인 우선순위 올리기' }).click();
   await page.locator('#prompt').fill('코인 요청 <img src=x onerror=alert(1)>');
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('#prompt-preview-text').inputValue(), strategyOnly);
+  assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
+  assert.equal(await page.locator('#select-prompt').isDisabled(), true);
+  assert.match(await page.locator('#prompt-summary').textContent(), /다시 생성/);
+  await page.locator('#generate-prompt').click();
   await page.locator('#copy-prompt:enabled').click();
   await page.locator('#prompt-copy-status').filter({ hasText: '복사했습니다' }).waitFor();
   let copied = await page.evaluate(() => window.__copiedText);
+  assert.equal(copied, await page.locator('#prompt-preview-text').inputValue());
+  assert.equal(await page.locator('#copy-prompt-label').textContent(), '복사 완료');
+  assert.equal(await page.locator('#prompt-preview #copy-prompt').count(), 1);
   let request = parseRequest(copied);
   assert.equal(request.intent, 'generate');
   assert.equal(Object.hasOwn(request, 'source'), false);
@@ -122,7 +141,7 @@ try {
   );
   assert.equal(copied.includes('developer@company.test'), false);
   assert.equal(copied.includes('Return JSON with source'), false);
-  assert.equal(await page.locator('#prompt-preview').getAttribute('open'), null);
+  assert.equal(await page.locator('#prompt-preview-text').isVisible(), true);
   const code =
     (await readFile(new URL('../examples/nearest-coin.js', import.meta.url), 'utf8')) +
     '\n// source-ONLY-MARKER';
@@ -136,6 +155,8 @@ try {
     false,
   );
   await page.locator('#prompt-include-source').check();
+  assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
+  await page.locator('#generate-prompt').click();
   await page.locator('#copy-prompt:enabled').click();
   await page.locator('#prompt-copy-status').filter({ hasText: '복사했습니다' }).waitFor();
   request = parseRequest(await page.evaluate(() => window.__copiedText));
@@ -144,6 +165,11 @@ try {
   assert.equal(await page.locator('#code').inputValue(), code);
   await page.locator('#code-editor .cm-content').fill(code + '\n// latest-code');
   await page.locator('#prompt').fill('최신 요청');
+  assert.equal(
+    parseRequest(await page.locator('#prompt-preview-text').inputValue()).request,
+    '코인 요청 <img src=x onerror=alert(1)>',
+  );
+  await page.locator('#generate-prompt').click();
   await page.locator('#copy-prompt:enabled').click();
   await page.locator('#prompt-copy-status').filter({ hasText: '복사했습니다' }).waitFor();
   request = parseRequest(await page.evaluate(() => window.__copiedText));
@@ -158,7 +184,7 @@ try {
     .filter({ hasText: '자동 복사를 사용할 수 없습니다' })
     .waitFor();
   assert.equal(await page.locator('#prompt-preview-text').getAttribute('readonly'), '');
-  assert.equal(await page.locator('#prompt-preview').evaluate((node) => node.open), true);
+  assert.equal(await page.locator('#prompt-preview-text').isVisible(), true);
   assert.equal(
     await page
       .locator('#prompt-preview-text')
@@ -166,6 +192,8 @@ try {
     true,
   );
   await page.locator('#prompt').fill('수동 복사도 최신 요청');
+  assert.equal(await page.locator('#select-prompt').isDisabled(), true);
+  await page.locator('#generate-prompt').click();
   await page.locator('#select-prompt:enabled').click();
   assert.equal(
     parseRequest(await page.locator('#prompt-preview-text').inputValue()).request,
@@ -183,6 +211,12 @@ try {
   await page.evaluate(() =>
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined }),
   );
+  assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
+  assert.equal(
+    parseRequest(await page.locator('#prompt-preview-text').inputValue()).request,
+    '수동 복사도 최신 요청',
+  );
+  await page.locator('#generate-prompt').click();
   await page.locator('#copy-prompt:enabled').click();
   await page
     .locator('#prompt-copy-status')
@@ -196,6 +230,14 @@ try {
   await page.screenshot({ path: 'artifacts/prompt-assistant-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  assert.equal(
+    await page.locator('#copy-prompt').evaluate((button) => {
+      const bounds = button.getBoundingClientRect();
+      const preview = document.getElementById('prompt-preview').getBoundingClientRect();
+      return bounds.left >= preview.left && bounds.right <= preview.right;
+    }),
+    true,
+  );
   await page.locator('#select-prompt').click();
   assert.equal(
     await page
@@ -208,8 +250,10 @@ try {
   await page.locator('[name="strategy-template"][value="hammer"]').check();
   await page.locator('[name="strategy-template"][value="avoidHammer"]').check();
   assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
+  assert.equal(await page.locator('#generate-prompt').isDisabled(), true);
   assert.match(await page.locator('#prompt-summary').textContent(), /획득과 회피/);
   await page.locator('[name="strategy-template"][value="avoidHammer"]').uncheck();
+  await page.locator('#generate-prompt').click();
   await page.evaluate(() => {
     window.__releaseCopy = null;
     Object.defineProperty(navigator, 'clipboard', {
@@ -233,7 +277,7 @@ try {
   assert.equal(await page.locator('#code').inputValue(), blank);
   assert.equal(await page.locator('#prompt-include-source').isChecked(), false);
   assert.equal(await page.locator('#prompt-include-source').isDisabled(), true);
-  assert.equal(await page.locator('#prompt-preview').evaluate((node) => node.open), false);
+  assert.equal(await page.locator('#prompt-preview-text').isVisible(), true);
   assert.equal(await page.locator('#prompt-preview-text').inputValue(), '');
   assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
   assert.equal(await page.locator('#prompt-copy-status').textContent(), '');
@@ -245,7 +289,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    'Prompt assistant smoke passed: no API connection, retries, current input, code opt-in, clipboard fallback, stale copy, mobile and reset. Clipboard writes were replaced.',
+    'Prompt assistant smoke passed: explicit generation, stable visible preview, strategy-only, stale input guards, code opt-in, clipboard fallback, delayed copy, mobile and reset. Clipboard writes were replaced.',
   );
 } finally {
   if (browser) await browser.close();

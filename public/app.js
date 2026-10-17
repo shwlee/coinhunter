@@ -460,6 +460,11 @@ function renderInfo() {
   const seconds = Math.ceil(game.remainingMs / 1000);
   $('timer').textContent =
     `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  $('test-score').hidden = !testMode;
+  if (testMode) {
+    const score = (game.players[0]?.score ?? 0).toLocaleString('ko-KR');
+    if ($('test-score-value').textContent !== score) $('test-score-value').textContent = score;
+  }
   const overlay = $('arena-overlay');
   overlay.hidden = active();
   if (testMode) {
@@ -872,7 +877,10 @@ window.addEventListener('message', async (event) => {
     );
     feedback('코드를 전달했습니다. 맵과 시작 위치를 선택한 뒤 테스트를 시작하세요.');
   } catch (error) {
-    feedback(error.message);
+    window.parent.postMessage(
+      { type: 'editor-prepare-failed', requestId: event.data.requestId, message: error.message },
+      location.origin,
+    );
   }
 });
 if (window.parent !== window) {

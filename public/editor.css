@@ -440,21 +440,52 @@ section {
 #prompt-copy-status {
   min-height: 1.6em;
 }
-#ai-panel #copy-prompt {
+#ai-panel #generate-prompt {
   width: 100%;
   background: #b6f36e;
   color: #16211a;
   font-weight: 700;
 }
-#ai-panel #copy-prompt:disabled {
+#ai-panel #generate-prompt:disabled {
   opacity: 0.45;
 }
 #prompt-preview {
   margin-top: 12px;
 }
-#prompt-preview summary {
-  cursor: pointer;
+#prompt-preview label {
+  display: block;
   font-size: 13px;
+}
+.prompt-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#ai-panel #copy-prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 7px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+#copy-prompt svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#prompt-summary[data-state='stale'] {
+  color: #f3c77a;
+}
+#prompt-preview[data-stale='true'] textarea {
+  border-color: #b99356;
 }
 #prompt-preview-text {
   display: block;
@@ -1078,6 +1109,14 @@ body:has(#ai-dialog[open]) {
   min-width: 0;
   margin: 0;
   line-height: 1.5;
+}
+#test-preparing {
+  margin-top: 14px;
+  padding: 24px;
+  border: 1px solid #46536a;
+  border-radius: 8px;
+  color: #bdcbdc;
+  background: #101722;
 }
 body[data-panel='writing'] .testing,
 body[data-panel='testing'] .writing {

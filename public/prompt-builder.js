@@ -8,7 +8,7 @@ export function hasPromptSource(source, emptyAlgorithm) {
   );
 }
 
-export function buildCopyablePrompt(contract, input, source) {
+export function validatePromptContract(contract) {
   if (
     contract?.schemaVersion !== 1 ||
     contract.language !== 'javascript' ||
@@ -18,6 +18,10 @@ export function buildCopyablePrompt(contract, input, source) {
     !contract.outputInstructions.prompt.trim()
   )
     throw new Error('게임 규약 형식을 확인할 수 없습니다. 규약을 다시 불러오세요.');
+}
+
+export function buildCopyablePrompt(contract, input, source) {
+  validatePromptContract(contract);
   if (input?.intent === 'modify' && (typeof source !== 'string' || !source.trim()))
     throw new Error('수정할 코드를 먼저 작성하거나 불러오세요.');
   const request = buildStrategyRequest(input, input?.intent === 'modify' ? source : undefined);
