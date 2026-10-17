@@ -148,21 +148,34 @@ export function createAuthoring({
         if (path === '/api/algorithms/validate' && request.method === 'POST') {
           const raw = request.headers['content-type']?.split(';')[0] === 'text/plain';
           const sourcePath = raw ? await readSourceFile(request) : null;
+          const cancellation = new AbortController();
+          const cancel = () => {
+            if (!response.writableEnded) cancellation.abort();
+          };
+          response.once('close', cancel);
+          if (response.destroyed) cancellation.abort();
           try {
             const source = sourcePath
               ? undefined
               : (await readJson(request, 2 * 1024 * 1024)).source;
-            const result = await validateAlgorithm(source, user.id, sourcePath);
-            json(response, result.ok ? 200 : 400, result);
+            const result = await validateAlgorithm(
+              source,
+              user.id,
+              sourcePath,
+              cancellation.signal,
+            );
+            if (!response.destroyed) json(response, result.ok ? 200 : 400, result);
           } catch (error) {
-            json(response, error.status || 400, {
-              error: String(error.message).slice(0, 500),
-              diagnostic: Number.isInteger(error.pos)
-                ? { offset: error.pos, line: error.loc.line, column: error.loc.column + 1 }
-                : null,
-            });
+            if (!response.destroyed)
+              json(response, error.status || 400, {
+                error: String(error.message).slice(0, 500),
+                diagnostic: Number.isInteger(error.pos)
+                  ? { offset: error.pos, line: error.loc.line, column: error.loc.column + 1 }
+                  : null,
+              });
             return true;
           } finally {
+            response.removeListener('close', cancel);
             if (sourcePath) await unlink(sourcePath).catch(() => {});
           }
           return true;

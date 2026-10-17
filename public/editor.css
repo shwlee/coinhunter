@@ -790,6 +790,53 @@ dialog #load-error {
   gap: 8px;
   flex-wrap: wrap;
 }
+#code-import-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(900px, calc(100vw - 32px));
+  height: min(760px, calc(100dvh - 32px));
+  overscroll-behavior: contain;
+}
+#code-import-dialog h2,
+#code-import-dialog p {
+  margin: 0;
+}
+.code-import-help {
+  color: #b3c0d0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+#imported-code {
+  flex: 1;
+  min-height: 140px;
+  width: 100%;
+  resize: none;
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+#import-code-status {
+  min-height: 3.2em;
+  max-height: 9.6em;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.6;
+}
+#import-code-status[data-state='error'] {
+  color: #ffaaa4;
+}
+#import-code-status[data-state='success'] {
+  color: #b6f36e;
+}
+#code-import-dialog .dialog-actions {
+  flex-wrap: wrap;
+  margin: 0;
+}
+body:has(#code-import-dialog[open]) {
+  overflow: hidden;
+}
 #confirm-save {
   background: #b6f36e;
   color: #162217;

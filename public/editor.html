@@ -344,6 +344,9 @@
                       전략을 선택하거나 추가 요청을 입력하세요.
                     </p>
                     <button id="copy-prompt" type="button" disabled>프롬프트 복사</button>
+                    <button id="open-code-import" type="button" disabled>
+                      생성된 코드 가져오기
+                    </button>
                     <p class="prompt-copy-help">
                       사용하는 AI에 붙여 넣은 후 생성된 코드를 가져오세요. 이 복사 기능은 API 키나
                       API 사용료가 필요하지 않습니다.
@@ -527,6 +530,27 @@
             <button id="confirm-save" type="submit">저장하기</button>
           </div>
         </form>
+      </dialog>
+      <dialog id="code-import-dialog" aria-labelledby="code-import-title">
+        <h2 id="code-import-title">생성된 코드 가져오기</h2>
+        <p class="code-import-help">
+          원문 JavaScript 또는 JavaScript 코드 블록 하나를 붙여 넣으세요. 검사에 통과한 뒤 편집기에
+          적용할 수 있습니다.
+        </p>
+        <label for="imported-code">JavaScript 코드</label>
+        <textarea
+          id="imported-code"
+          rows="16"
+          spellcheck="false"
+          autocomplete="off"
+          autocapitalize="off"
+        ></textarea>
+        <p id="import-code-status" role="status" aria-live="polite"></p>
+        <div class="dialog-actions">
+          <button id="cancel-code-import" type="button">취소</button>
+          <button id="check-imported-code" type="button" disabled>코드 검사</button>
+          <button id="apply-imported-code" type="button" disabled>편집기에 적용</button>
+        </div>
       </dialog>
       <dialog id="ai-dialog" aria-labelledby="ai-dialog-title">
         <h2 id="ai-dialog-title">AI 연결 관리</h2>

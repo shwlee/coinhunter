@@ -347,6 +347,20 @@ try {
   );
   await page.locator('#assistant-prompt-tab').click();
   assert.equal(await page.locator('#assistant-activity').isVisible(), true);
+  // Manual result import is independent of a paid request already in flight.
+  const callsBeforeImport = generationCalls;
+  await page.locator('#open-code-import').click();
+  await page.locator('#imported-code').fill(generatedSource);
+  await page.locator('#check-imported-code').click();
+  await page.locator('#import-code-status[data-state="success"]').waitFor();
+  await page.locator('#apply-imported-code').click();
+  await page.locator('#code-import-dialog').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('#code').inputValue(), generatedSource);
+  assert.equal(generationCalls, callsBeforeImport);
+  assert.match(await page.locator('#assistant-activity-text').textContent(), /진행/);
+  assert.equal(await page.locator('#cancel-ai').isEnabled(), true);
+  await page.locator('#undo').click();
+  assert.equal(await page.locator('#code').inputValue(), original);
   await page.locator('#cancel-ai').click();
   releaseGeneration();
   heldGeneration = null;

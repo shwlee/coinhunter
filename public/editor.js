@@ -5,6 +5,7 @@ import { initializeAiConnections } from './ai-connections.js';
 import { initializeAiScripting } from './ai-scripting.js';
 import { initializeAssistantPanel } from './assistant-panel.js';
 import { initializePromptAssistant } from './prompt-assistant.js';
+import { initializeCodeImport } from './code-import-dialog.js';
 const $ = (id) => document.getElementById(id);
 const editor = createCodeEditor($('code'), $('code-editor'), $('cursor'));
 const emptyAlgorithm = `module.exports = class Player {
@@ -36,6 +37,8 @@ let generating = false;
 let aiScripting = null;
 let assistantPanel = null;
 let promptAssistant = null;
+let codeImport = null;
+let documentEpoch = 0;
 const templateControls = new Map();
 const priorityIds = [];
 function refreshTemplates() {
@@ -345,6 +348,8 @@ function replaceCode(text) {
   refreshState();
 }
 function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name || '') {
+  documentEpoch++;
+  codeImport?.reset();
   aiScripting?.cancel(false);
   validationRequestId++;
   documentId = item?.id || null;
@@ -774,6 +779,12 @@ try {
       source: () => $('code').value,
       priorities: () => [...priorityIds],
       emptyAlgorithm,
+    });
+    codeImport = initializeCodeImport({
+      contents,
+      documentVersion: () => documentEpoch,
+      applySource: replaceCode,
+      notice,
     });
     applyAiWidth();
     new ResizeObserver(applyAiWidth).observe(aiLayout);
