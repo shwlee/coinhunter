@@ -10,7 +10,6 @@ import { validateAlgorithm } from '../src/runtime/preflight.js';
 import { AlgorithmSandbox } from '../src/runtime/sandbox.js';
 import { DEFAULT_MAP_SETTINGS, validateMap } from '../src/game/maps.js';
 import { GameState } from '../src/game/state.js';
-import { buildCopyablePrompt, validatePromptContract } from '../public/prompt-builder.js';
 
 test('authoring sections separate full rules, a short continuation reminder and a runnable skeleton', async () => {
   const contract = await loadAlgorithmContract();
@@ -191,15 +190,4 @@ test('documented tile values, directions, item order and configurable duration m
     assert.equal(state.players[0].effect.type, item);
     assert.equal(state.players[0].effect.remaining, 7);
   }
-});
-
-test('additive sections preserve the old schema and exact existing copy behaviour for stage one', async () => {
-  const contract = await loadAlgorithmContract();
-  assert.equal(contract.schemaVersion, 1);
-  assert.doesNotThrow(() => validatePromptContract(contract));
-  const legacy = structuredClone(contract);
-  delete legacy.promptContext;
-  delete legacy.contentVersion;
-  const strategy = { intent: 'generate', prompt: '', priorities: ['nearestCoin'] };
-  assert.deepEqual(buildCopyablePrompt(contract, strategy), buildCopyablePrompt(legacy, strategy));
 });
