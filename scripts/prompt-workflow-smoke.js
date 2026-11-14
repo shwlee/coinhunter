@@ -97,7 +97,9 @@ try {
   await monitor(context);
   const page = await context.newPage();
   await page.goto(base + '/editor');
-  await page.locator('#open-code-import:enabled').waitFor();
+  await page.locator('#prompt-purpose:enabled').waitFor();
+  for (const id of ['open-code-import', 'code-import-dialog', 'generate', 'candidate'])
+    assert.equal(await page.locator('#' + id).count(), 0);
   assert.equal(await page.locator('#assistant-prompt-panel').isVisible(), true);
   await page.locator('[name="strategy-template"][value="nearestCoin"]').check();
   await page.locator('#prompt').fill('벽을 피해 코인을 모두 수집하세요.');
@@ -112,23 +114,48 @@ try {
   );
   assert.equal(Object.hasOwn(request, 'source'), false);
   assert.equal((await accounts.list(user.id)).length, 0);
+  const firstPrompt = await page.locator('#prompt-preview-text').inputValue();
+  await page.locator('#prompt-purpose').selectOption('modify');
+  await page.locator('#prompt-mode-continue').check();
+  assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
+  await page.locator('#generate-prompt').click();
+  const followupPrompt = await page.locator('#prompt-preview-text').inputValue();
+  assert.ok(followupPrompt.length < firstPrompt.length);
+  assert.equal(parseRequest(followupPrompt).intent, 'modify');
+  assert.equal(Object.hasOwn(parseRequest(followupPrompt), 'source'), false);
 
   const fixture = await readFile(new URL('../examples/nearest-coin.js', import.meta.url), 'utf8');
   // Return code is a known fixture, not a claim that any external AI generated it.
   const returned = fixture + '\n// 프롬프트 반환 코드 테스트 대역';
-  const importSource = async (source) => {
-    const before = await page.locator('#code').inputValue();
-    await page.locator('#open-code-import').click();
-    await page.locator('#imported-code').fill('```javascript\n' + source + '\n```');
-    await page.locator('#check-imported-code').click();
-    await page.locator('#import-code-status[data-state="success"]').waitFor();
-    assert.equal(await page.locator('#code').inputValue(), before);
-    await page.locator('#apply-imported-code:enabled').click();
-    await page.locator('#code-import-dialog').waitFor({ state: 'hidden' });
+  const pasteSource = async (source) => {
+    const input = page.locator('#code-editor .cm-content');
+    await input.focus();
+    await page.keyboard.press('Control+A');
+    // Exercise a paste event without reading or writing the OS clipboard.
+    await input.evaluate((element, text) => {
+      const data = new DataTransfer();
+      data.setData('text/plain', text);
+      element.dispatchEvent(
+        new ClipboardEvent('paste', {
+          clipboardData: data,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    }, source);
     assert.equal(await page.locator('#code').inputValue(), source);
+    await page.locator('#validate').click();
+    await page.locator('#validation-status[data-state="success"]').waitFor();
   };
-  await importSource(returned);
-  assert.equal(writes.length, 0, 'Import and apply must not save');
+  await pasteSource(returned);
+  assert.equal(
+    await page.locator('#prompt-mode-continue').isChecked(),
+    true,
+    'Pasting returned code keeps the same conversation',
+  );
+  assert.equal(await page.locator('#prompt-preview-text').inputValue(), followupPrompt);
+  assert.equal(await page.locator('#prompt-purpose').inputValue(), 'modify');
+  assert.equal(writes.length, 0, 'Pasting and validation must not save');
   let releaseGame;
   const gameScript = new Promise((resolve) => {
     releaseGame = resolve;
@@ -251,14 +278,35 @@ try {
   await page.locator('#confirm-save').click();
   await page.locator('#save-dialog').waitFor({ state: 'hidden' });
   let saved = (await accounts.list(user.id))[0];
+  assert.equal(
+    await page.locator('#prompt-mode-continue').isChecked(),
+    true,
+    'Saving the same document keeps its conversation',
+  );
+  assert.equal(await page.locator('#prompt-preview-text').inputValue(), followupPrompt);
   assert.equal(writes.length, 1);
   assert.equal((await accounts.get(user.id, saved.id)).source, returned);
+  await page.locator('#load-mode').click();
+  await page.locator('#library').selectOption(saved.id);
+  await page.locator('#open').click();
+  await page.locator('#load-panel').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('#code').inputValue(), returned);
+  assert.equal(
+    await page.locator('#prompt-mode-new').isChecked(),
+    true,
+    'Explicitly loading a saved document starts a new conversation context',
+  );
+  assert.equal(await page.locator('#prompt-preview-text').inputValue(), '');
+  assert.equal(await page.locator('#prompt-purpose').inputValue(), 'generate');
 
   // Fresh editor navigation retains the account document; modify its prompt and overwrite it.
   await page.goto(base + '/editor?algorithmId=' + saved.id);
   await page.locator('#document-title').filter({ hasText: saved.name }).waitFor();
   assert.equal(await page.locator('#code').inputValue(), returned);
+  assert.equal(await page.locator('#prompt-mode-new').isChecked(), true);
+  assert.equal(await page.locator('#prompt-preview-text').inputValue(), '');
   await page.locator('#prompt').fill('코인 수집을 유지하며 이름을 변경하세요.');
+  await page.locator('#prompt-purpose').selectOption('modify');
   await page.locator('#prompt-include-source:enabled').check();
   await page.locator('#generate-prompt:enabled').click();
   await page.locator('#copy-prompt:enabled').click();
@@ -268,7 +316,7 @@ try {
   assert.equal(request.source, returned);
   const modified = returned.replace("'길찾기 '", "'수집가 '");
   assert.notEqual(modified, returned);
-  await importSource(modified);
+  await pasteSource(modified);
   assert.equal(writes.length, 1);
   assert.equal((await accounts.get(user.id, saved.id)).source, returned);
   await page.locator('#undo').click();
@@ -303,6 +351,7 @@ try {
   await mobile.locator('#document-title').filter({ hasText: saved.name }).waitFor();
   assert.equal(await mobile.locator('#code').inputValue(), modified);
   assert.equal(await mobile.locator('#save-state').textContent(), '저장됨');
+  assert.equal(await mobile.locator('#prompt-mode-new').isChecked(), true);
   assert.equal(await mobile.locator('#prompt-include-source').isChecked(), false);
   assert.equal(await mobile.locator('#prompt-preview-text').isVisible(), true);
   assert.equal(await mobile.locator('#prompt-preview-text').inputValue(), '');
@@ -315,7 +364,7 @@ try {
   assert.deepEqual(externalRequests, []);
   assert.deepEqual(errors, []);
   console.log(
-    'Prompt workflow passed: strategy/copy, real import validation, apply, actual 40-point completed match, explicit save/reload, modify/undo/overwrite, account isolation and mobile restore. External AI output and clipboard are fixtures; AI disabled.',
+    'Prompt workflow passed: strategy/copy, paste into editor, actual validation, 40-point completed match, explicit save/reload, modify/undo/overwrite, account isolation and mobile restore. External AI output and clipboard are fixtures; AI disabled.',
   );
 } finally {
   if (browser) await browser.close();

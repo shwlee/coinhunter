@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildCopyablePrompt, hasPromptSource } from '../public/prompt-builder.js';
-import { loadAlgorithmContract } from '../src/algorithm-assistant/contract.js';
+import {
+  loadAlgorithmContract,
+  promptContentVersion,
+} from '../src/algorithm-assistant/contract.js';
 
 const input = {
   intent: 'generate',
@@ -155,6 +158,9 @@ test('new and continuing generation preserve strategy-only, request-only and com
       assert.equal(result.text.includes('excluded code'), false);
       assert.equal(result.length, result.text.length);
       assert.equal(result.contentVersion, contract.contentVersion);
+      assert.equal(result.text.includes('[대화 방식]'), false);
+      assert.equal(result.text.includes('[규약 버전]'), false);
+      assert.equal(result.text.includes(contract.contentVersion), false);
       assert.ok(result.text.endsWith(contract.outputInstructions.prompt));
     }
   }
@@ -219,6 +225,57 @@ test('versioned sections are required; incomplete old responses never silently u
   delete noLegacy.instructions;
   delete noLegacy.outputInstructions.api;
   assert.deepEqual(buildCopyablePrompt(noLegacy, input), buildCopyablePrompt(contract, input));
+});
+
+test('refreshed strategy metadata cannot mix a new contract version with old browser values', async () => {
+  const contract = await loadAlgorithmContract();
+  for (const change of [
+    (c) => {
+      c.priorityWeights = [9, 6, 2];
+    },
+    (c) => {
+      c.strategies[0].description = 'Changed server instruction';
+    },
+    (c) => {
+      c.strategies[0].label = 'Changed label';
+    },
+    (c) => {
+      c.strategies[0].id = 'changedId';
+    },
+    (c) => {
+      c.strategies.reverse();
+    },
+    (c) => {
+      c.strategies.pop();
+    },
+    (c) => {
+      c.inputLimits.maxPriorities++;
+    },
+    (c) => {
+      c.inputLimits.maxPromptCharacters++;
+    },
+  ]) {
+    const changed = structuredClone(contract);
+    change(changed);
+    changed.contentVersion = promptContentVersion(changed);
+    for (const conversationMode of ['new', 'continue'])
+      assert.throws(
+        () => buildCopyablePrompt(changed, input, undefined, { conversationMode }),
+        /코드를 먼저 저장하거나 내보낸 뒤 페이지를 새로고침/,
+      );
+  }
+  for (const invalid of [
+    { ...contract, priorityWeights: null },
+    { ...contract, strategies: [null] },
+    { ...contract, inputLimits: {} },
+  ])
+    assert.throws(() => buildCopyablePrompt(invalid, input), /새로고침/);
+  const rulesOnly = structuredClone(contract);
+  rulesOnly.promptContext.fullRules += '\nChanged rule without strategy changes.';
+  rulesOnly.contentVersion = promptContentVersion(rulesOnly);
+  const result = buildCopyablePrompt(rulesOnly, input);
+  assert.equal(result.contentVersion, rulesOnly.contentVersion);
+  assert.ok(result.text.includes('Changed rule without strategy changes.'));
 });
 
 test('empty editor and whitespace-only default skeleton do not count as modification source', () => {

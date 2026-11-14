@@ -368,8 +368,74 @@ section {
   margin: 18px 0 12px;
   font-size: 15px;
 }
-.assistant-method,
-.assistant-local-actions {
+.prompt-purpose-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+#prompt-purpose {
+  width: 100%;
+  margin-bottom: 12px;
+}
+#prompt-conversation-mode {
+  min-width: 0;
+  margin: 0 0 16px;
+  padding: 10px;
+  border: 1px solid #46536a;
+  border-radius: 8px;
+}
+#prompt-conversation-mode legend {
+  padding: 0 5px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.prompt-conversation-options {
+  display: grid;
+  gap: 6px;
+}
+.prompt-conversation-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px;
+  border: 1px solid #46536a;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.prompt-conversation-options label:has(input:checked) {
+  border-color: #b6f36e;
+  background: #23342d;
+}
+.prompt-conversation-options label:focus-within {
+  outline: 2px solid #b6f36e;
+  outline-offset: 2px;
+}
+.prompt-conversation-options input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #b6f36e;
+}
+#prompt-mode-help,
+#prompt-context-notice {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+#ai-panel #prompt-context-notice {
+  margin-bottom: 12px;
+  color: #f3c77a;
+}
+#ai-panel #retry-prompt-contract {
+  padding: 5px 8px;
+  font-size: 12px;
+}
+.assistant-method {
   border-top: 1px solid #46536a;
   margin-top: 16px;
   padding-top: 12px;
@@ -584,15 +650,6 @@ section {
 #ai-panel button {
   margin: 4px 6px 4px 0;
 }
-#candidate {
-  margin-top: 14px;
-  padding-top: 10px;
-  border-top: 1px solid #46536a;
-}
-#candidate-code {
-  max-height: 150px;
-  font-size: 12px;
-}
 #code-panel {
   min-width: 0;
 }
@@ -718,53 +775,6 @@ dialog #load-error {
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
-}
-#code-import-dialog[open] {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: min(900px, calc(100vw - 32px));
-  height: min(760px, calc(100dvh - 32px));
-  overscroll-behavior: contain;
-}
-#code-import-dialog h2,
-#code-import-dialog p {
-  margin: 0;
-}
-.code-import-help {
-  color: #b3c0d0;
-  font-size: 13px;
-  line-height: 1.6;
-}
-#imported-code {
-  flex: 1;
-  min-height: 140px;
-  width: 100%;
-  resize: none;
-  font-family: monospace;
-  font-size: 13px;
-  line-height: 1.5;
-}
-#import-code-status {
-  min-height: 3.2em;
-  max-height: 9.6em;
-  overflow: auto;
-  overflow-wrap: anywhere;
-  font-size: 13px;
-  line-height: 1.6;
-}
-#import-code-status[data-state='error'] {
-  color: #ffaaa4;
-}
-#import-code-status[data-state='success'] {
-  color: #b6f36e;
-}
-#code-import-dialog .dialog-actions {
-  flex-wrap: wrap;
-  margin: 0;
-}
-body:has(#code-import-dialog[open]) {
-  overflow: hidden;
 }
 #confirm-save {
   background: #b6f36e;

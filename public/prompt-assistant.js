@@ -5,6 +5,7 @@ import { normalizeStrategyInput } from './algorithm-strategy.js';
 export function initializePromptAssistant({ source, priorities, emptyAlgorithm }) {
   const $ = (id) => document.getElementById(id);
   let contract = null,
+    lastContentVersion = null,
     loading = false,
     copying = false,
     current = null,
@@ -12,6 +13,15 @@ export function initializePromptAssistant({ source, priorities, emptyAlgorithm }
     previousProblem = '',
     revision = 0,
     documentEpoch = 0;
+  const conversationMode = () => ($('prompt-mode-continue').checked ? 'continue' : 'new');
+  function setConversationMode(mode) {
+    $('prompt-mode-new').checked = mode === 'new';
+    $('prompt-mode-continue').checked = mode === 'continue';
+  }
+  function contextNotice(message = '') {
+    $('prompt-context-notice').textContent = message;
+    $('prompt-context-notice').hidden = !message;
+  }
   const copyStatus = (message = '', state = '') => {
     $('prompt-copy-status').textContent = message;
     $('prompt-copy-status').dataset.state = state;
@@ -22,6 +32,8 @@ export function initializePromptAssistant({ source, priorities, emptyAlgorithm }
       (!!a &&
         !!b &&
         a.intent === b.intent &&
+        a.conversationMode === b.conversationMode &&
+        a.contentVersion === b.contentVersion &&
         a.prompt === b.prompt &&
         a.source === b.source &&
         a.priorities.length === b.priorities.length &&
@@ -31,19 +43,40 @@ export function initializePromptAssistant({ source, priorities, emptyAlgorithm }
   // Read small strategy fields and compare source strings; never assemble a prompt here.
   function refresh() {
     const code = source();
+    const mode = conversationMode();
+    const intent = $('prompt-purpose').value;
     const available = hasPromptSource(code, emptyAlgorithm);
-    $('prompt-include-source').disabled = !available;
-    if (!available) $('prompt-include-source').checked = false;
+    $('prompt-include-source').disabled = !available || intent === 'generate';
+    if ($('prompt-include-source').disabled) $('prompt-include-source').checked = false;
+    $('prompt-mode-help').textContent =
+      mode === 'new'
+        ? '새 대화·다른 AI에서는 전체 규약을 전달합니다.'
+        : '전체 규약·예제를 생략합니다. 규약을 이미 전달한 같은 AI 대화에서 사용하세요.';
+    $('prompt-source-help').textContent =
+      intent === 'generate'
+        ? '기존 코드를 사용하려면 작업 목적에서 기존 코드 수정을 선택하세요.'
+        : $('prompt-include-source').checked
+          ? '첨부한 현재 코드를 기준으로 수정합니다.'
+          : mode === 'continue'
+            ? '이전 대화의 코드를 기준으로 수정합니다. 게임에서 코드를 바꿨다면 현재 코드를 포함하세요.'
+            : '새 대화에서 수정하려면 대상 코드를 작성하거나 불러오고 현재 코드 포함을 선택하세요.';
     let input = null,
       problem = '';
     try {
+      const strategy = normalizeStrategyInput({
+        intent,
+        prompt: $('prompt').value,
+        priorities: priorities(),
+      });
+      if (intent === 'modify' && mode === 'new' && !$('prompt-include-source').checked)
+        throw new Error(
+          '새 대화에서 기존 코드를 수정하려면 대상 코드를 준비하고 현재 코드 포함을 선택하세요.',
+        );
       input = {
-        ...normalizeStrategyInput({
-          intent: $('prompt-include-source').checked ? 'modify' : 'generate',
-          prompt: $('prompt').value,
-          priorities: priorities(),
-        }),
+        ...strategy,
         source: $('prompt-include-source').checked ? code : undefined,
+        conversationMode: mode,
+        contentVersion: contract?.contentVersion ?? null,
       };
     } catch (error) {
       problem = error.message;
@@ -57,7 +90,7 @@ export function initializePromptAssistant({ source, priorities, emptyAlgorithm }
     const fresh = !!(
       current &&
       contract &&
-      current.contract === contract &&
+      current.contentVersion === contract.contentVersion &&
       sameInput(current.input, input)
     );
     $('generate-prompt').disabled = !contract || !input || loading || copying;
@@ -70,19 +103,25 @@ export function initializePromptAssistant({ source, priorities, emptyAlgorithm }
         : '복사';
     $('select-prompt').disabled = !fresh || loading;
     $('retry-prompt-contract').disabled = loading;
+    $('retry-prompt-contract').setAttribute('aria-busy', String(loading));
     $('prompt-preview').dataset.stale = String(!!current && !fresh);
     $('prompt-summary').dataset.state = current && !fresh ? 'stale' : current ? 'ready' : 'empty';
     const summary = current
-      ? `${current.includesSource ? '현재 코드 포함 · 수정 요청' : '코드 제외 · 신규 작성'} · ${current.length.toLocaleString('ko-KR')}자`
+      ? `${current.conversationMode === 'new' ? '새 대화' : '후속 요청'} · ${current.includesFullRules ? '전체 규약' : '규약 요약'} · ${current.includesSource ? '현재 코드 포함' : current.intent === 'modify' ? '이전 대화 코드 사용' : '코드 제외'}${current.includesExample ? ' · 기본 골격 포함' : ''} · ${current.length.toLocaleString('ko-KR')}자`
       : '';
     $('prompt-summary').textContent = current
-      ? fresh
-        ? summary
-        : `${summary} · 입력이 변경되었습니다. 프롬프트를 다시 생성하세요.${problem ? ' ' + problem : ''}`
+      ? loading
+        ? `${summary} · 게임 규약을 확인하고 있습니다.`
+        : !contract
+          ? `${summary} · 게임 규약을 확인한 뒤 복사할 수 있습니다.`
+          : fresh
+            ? summary
+            : `${summary} · 입력이 변경되었습니다. 프롬프트를 다시 생성하세요.${problem ? ' ' + problem : ''}`
       : input
         ? '프롬프트 생성을 누르면 아래에 본문이 표시됩니다.'
-        : '전략을 선택하거나 추가 요청을 입력하세요.' +
-          (problem && problem !== '전략 입력을 확인하세요.' ? ' ' + problem : '');
+        : problem && problem !== '전략 입력을 확인하세요.'
+          ? problem
+          : '전략을 선택하거나 추가 요청을 입력하세요.';
     $('prompt-size-note').hidden = !current || current.length < 100000;
     return { input, fresh };
   }
@@ -94,20 +133,26 @@ export function initializePromptAssistant({ source, priorities, emptyAlgorithm }
   async function loadContract() {
     if (loading) return;
     loading = true;
-    contract = null;
     $('prompt-contract-status').textContent = '게임 규약을 준비하고 있습니다…';
-    $('retry-prompt-contract').hidden = true;
     refresh();
     try {
       const loaded = await api('/api/algorithm-assistant/contract');
       validatePromptContract(loaded);
+      if (lastContentVersion && lastContentVersion !== loaded.contentVersion) {
+        setConversationMode('new');
+        contextNotice(
+          '게임 규약이 변경되어 새 대화 모드로 돌아왔습니다. 프롬프트를 다시 생성해 전체 규약을 전달하세요.',
+        );
+      }
       contract = loaded;
+      lastContentVersion = loaded.contentVersion;
       $('prompt-contract-status').textContent = '';
     } catch (error) {
+      contract = null;
       $('prompt-contract-status').textContent = `규약을 준비하지 못했습니다. ${error.message}`;
-      $('retry-prompt-contract').hidden = false;
     } finally {
       loading = false;
+      $('retry-prompt-contract').hidden = false;
       refresh();
     }
   }
@@ -116,8 +161,13 @@ export function initializePromptAssistant({ source, priorities, emptyAlgorithm }
     const { input } = refresh();
     if (!input) return;
     try {
-      const { source: code, ...strategy } = input;
-      current = { ...buildCopyablePrompt(contract, strategy, code), input, contract };
+      const strategy = { intent: input.intent, prompt: input.prompt, priorities: input.priorities };
+      current = {
+        ...buildCopyablePrompt(contract, strategy, input.source, {
+          conversationMode: input.conversationMode,
+        }),
+        input,
+      };
       revision++;
       $('prompt-preview-text').value = current.text;
       copyStatus();
@@ -168,9 +218,20 @@ export function initializePromptAssistant({ source, priorities, emptyAlgorithm }
     void loadContract();
   };
   $('prompt-include-source').onchange = refresh;
+  $('prompt-purpose').disabled = false;
+  $('prompt-purpose').value = 'generate';
+  $('prompt-purpose').onchange = refresh;
+  for (const id of ['prompt-mode-new', 'prompt-mode-continue']) {
+    $(id).disabled = false;
+    $(id).onchange = () => {
+      contextNotice();
+      refresh();
+    };
+  }
   $('prompt').addEventListener('input', refresh);
   $('code').addEventListener('input', refresh);
   document.addEventListener('ai-priorities-changed', refresh);
+  setConversationMode('new');
   void loadContract();
   return {
     refresh,
@@ -178,6 +239,9 @@ export function initializePromptAssistant({ source, priorities, emptyAlgorithm }
       documentEpoch++;
       revision++;
       current = null;
+      $('prompt-purpose').value = 'generate';
+      setConversationMode('new');
+      contextNotice();
       $('prompt-include-source').checked = false;
       $('prompt-preview-text').value = '';
       copyStatus();

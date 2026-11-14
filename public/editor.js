@@ -1,8 +1,7 @@
 import { api, accountBar } from './account.js';
 import { createCodeEditor } from '/code-editor.js';
-import { PRIORITY_WEIGHTS, STRATEGY_TEMPLATES, buildTemplateSource } from './strategy-templates.js';
+import { PRIORITY_WEIGHTS, STRATEGY_TEMPLATES } from './strategy-templates.js';
 import { initializePromptAssistant } from './prompt-assistant.js';
-import { initializeCodeImport } from './code-import-dialog.js';
 const $ = (id) => document.getElementById(id);
 const editor = createCodeEditor($('code'), $('code-editor'), $('cursor'));
 const emptyAlgorithm = `module.exports = class Player {
@@ -21,8 +20,6 @@ let documentId = null,
   documentOrigin = '새 문서 · 아직 저장하지 않음',
   saved = '',
   saving = false,
-  candidate = null,
-  generation = 0,
   testing = false,
   testReady = false,
   pendingTest = null,
@@ -30,10 +27,7 @@ let documentId = null,
   testSource = null,
   testRequestId = 0;
 let validationRequestId = 0;
-let generating = false;
 let promptAssistant = null;
-let codeImport = null;
-let documentEpoch = 0;
 const templateControls = new Map();
 const priorityIds = [];
 function refreshTemplates() {
@@ -83,7 +77,7 @@ function refreshTemplates() {
       if (from < 0 || to < 0 || from === to) return;
       priorityIds.splice(from, 1);
       priorityIds.splice(to, 0, sourceId);
-      invalidateTemplateCandidate();
+      refreshTemplates();
     });
     const text = document.createElement('span');
     text.textContent = `${index + 1}순위 · ${label}`;
@@ -103,7 +97,7 @@ function refreshTemplates() {
       button.onclick = () => {
         const next = index + direction;
         [priorityIds[index], priorityIds[next]] = [priorityIds[next], priorityIds[index]];
-        invalidateTemplateCandidate();
+        refreshTemplates();
         const moved = list.children[next].querySelectorAll('button');
         (moved[direction < 0 && next === 0 ? 1 : 0] || moved[0]).focus();
       };
@@ -112,21 +106,12 @@ function refreshTemplates() {
     row.append(text, weight, controls);
     list.append(row);
   });
-  $('generate').disabled = generating || count === 0;
   document.dispatchEvent(new Event('ai-priorities-changed'));
-}
-function invalidateTemplateCandidate() {
-  generation++;
-  generating = false;
-  $('cancel-ai').disabled = true;
-  candidate = null;
-  $('candidate').hidden = true;
-  refreshTemplates();
 }
 function clearTemplates() {
   priorityIds.length = 0;
   for (const { checkbox } of templateControls.values()) checkbox.checked = false;
-  invalidateTemplateCandidate();
+  refreshTemplates();
 }
 for (const template of STRATEGY_TEMPLATES) {
   const option = document.createElement('div');
@@ -149,7 +134,7 @@ for (const template of STRATEGY_TEMPLATES) {
   checkbox.addEventListener('change', () => {
     if (checkbox.checked) priorityIds.push(template.id);
     else priorityIds.splice(priorityIds.indexOf(template.id), 1);
-    invalidateTemplateCandidate();
+    refreshTemplates();
   });
 }
 refreshTemplates();
@@ -336,13 +321,7 @@ document.addEventListener('keydown', (event) => {
   if (document.querySelector('dialog[open]')) return;
   setCodeMaximized(false);
 });
-function replaceCode(text) {
-  editor.replace(text);
-  refreshState();
-}
 function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name || '') {
-  documentEpoch++;
-  codeImport?.reset();
   validationRequestId++;
   documentId = item?.id || null;
   revision = item?.revision || null;
@@ -355,8 +334,6 @@ function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name 
   setValidationBusy(false);
   saved = contents();
   promptAssistant?.reset();
-  candidate = null;
-  $('candidate').hidden = true;
   if (!testing) {
     testSource = null;
     preparedRequest = null;
@@ -621,58 +598,6 @@ $('validate').onclick = run(async () => {
   await validateEditorSource();
   notice('실행 전 검사를 통과했습니다. 실제 전략과 장시간 동작은 테스트 플레이에서 확인하세요.');
 });
-$('generate').onclick = run(async () => {
-  const priorities = [...priorityIds];
-  if (!priorities.length) return;
-  const token = ++generation,
-    baseline = contents();
-  generating = true;
-  refreshTemplates();
-  $('cancel-ai').disabled = false;
-  candidate = null;
-  $('candidate').hidden = true;
-  try {
-    await api('/api/algorithms');
-    const source = buildTemplateSource(priorities);
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    if (generation !== token) return;
-    await api('/api/algorithms/validate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-      body: source,
-    });
-    if (generation !== token) return;
-    candidate = { source, baseline };
-    $('apply').disabled = false;
-    $('candidate-code').textContent = source;
-    $('candidate').hidden = false;
-    $('candidate-info').textContent =
-      `템플릿 코드: ${priorities.map((id, index) => `${index + 1}순위 ${STRATEGY_TEMPLATES.find((item) => item.id === id).label}`).join(' · ')}. 자유 입력은 아직 반영되지 않습니다.`;
-  } finally {
-    if (generation === token) {
-      generating = false;
-      refreshTemplates();
-      $('cancel-ai').disabled = true;
-    }
-  }
-});
-$('cancel-ai').onclick = () => {
-  generation++;
-  generating = false;
-  refreshTemplates();
-  $('cancel-ai').disabled = true;
-  notice('생성을 취소했습니다. 편집 코드는 유지됩니다.');
-};
-$('apply').onclick = () => {
-  if (!candidate || candidate.valid === false) return;
-  if (
-    candidate.baseline !== contents() &&
-    !confirm('요청 이후 편집 내용이 변경되었습니다. 생성 코드로 교체할까요?')
-  )
-    return;
-  replaceCode(candidate.source);
-  notice('후보 코드를 적용했습니다. 실행 취소로 되돌릴 수 있습니다.');
-};
 function testPreparation(message = '', busy = Boolean(message)) {
   $('test-preparing').textContent = message;
   $('test-preparing').hidden = !message;
@@ -756,12 +681,6 @@ try {
       priorities: () => [...priorityIds],
       emptyAlgorithm,
     });
-    codeImport = initializeCodeImport({
-      contents,
-      documentVersion: () => documentEpoch,
-      applySource: replaceCode,
-      notice,
-    });
     applyAiWidth();
     new ResizeObserver(applyAiWidth).observe(aiLayout);
     const selectedId = new URLSearchParams(location.search).get('algorithmId');
@@ -771,7 +690,7 @@ try {
       notice('선택한 저장 알고리즘을 열었습니다.');
     } else
       notice(
-        '전략과 추가 요청으로 프롬프트를 생성해 사용하는 AI에 전달하고, 받은 코드를 가져와 검사·테스트하세요. 직접 편집도 가능합니다.',
+        '프롬프트를 복사해 사용하는 AI에 전달하세요. 받은 JavaScript 코드는 편집기에 붙여 넣고 코드 검사·테스트를 진행하세요.',
       );
   }
 } catch (error) {

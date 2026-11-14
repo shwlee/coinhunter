@@ -473,7 +473,7 @@ try {
   assert.equal(await templates.count(), 11);
   assert.equal(await page.locator('.template-pick small').count(), 0);
   assert.match(await page.locator('.template-pick').first().getAttribute('title'), /코인/);
-  assert.equal(await page.locator('#generate').isDisabled(), true);
+  assert.equal(await page.locator('#generate').count(), 0);
   await templates.nth(0).check();
   await templates.nth(1).check();
   await templates.nth(2).check();
@@ -495,16 +495,12 @@ try {
       .evaluateAll((rows) => rows.map((row) => row.dataset.templateId)),
     ['valuableCoin', 'coinCluster', 'nearestCoin'],
   );
-  await page.click('#generate');
-  await page.waitForSelector('#candidate', { state: 'visible' });
-  const generated = await page.locator('#candidate-code').textContent();
-  assert.match(generated, /"nearestCoin":1/);
-  assert.match(generated, /"valuableCoin":5/);
-  assert.match(generated, /"coinCluster":3/);
-  await page.click('#apply');
-  assert.equal(await page.locator('#code').inputValue(), generated);
-  assert.equal(await warnsOnExit(), true, 'Applying generated code leaves unsaved changes');
-  await page.click('#undo');
+  await page.click('#generate-prompt:enabled');
+  const generated = await page.locator('#prompt-preview-text').inputValue();
+  for (const text of ['"weight": 5', '"weight": 3', '"weight": 1'])
+    assert.ok(generated.includes(text));
+  assert.equal(await page.locator('#candidate').count(), 0);
+  assert.equal(await warnsOnExit(), true, 'Generating a prompt does not save edited code');
   assert.equal(await page.locator('#code').inputValue(), original + '\n// edit');
   await page.click('#save');
   await page.locator('#save-dialog').waitFor({ state: 'visible' });
@@ -802,7 +798,7 @@ try {
   assert.match(blank, /moveNext\(map, myPosition, items\) \{\s*\}/);
   assert.equal(await page.locator('#prompt').inputValue(), '');
   assert.equal(await page.locator('#template-count').textContent(), '0 / 3');
-  assert.equal(await page.locator('#generate').isDisabled(), true);
+  assert.equal(await page.locator('#generate-prompt').isDisabled(), true);
   assert.equal(await page.locator('#test-code-state').isVisible(), false);
   await expectNoDialog(() => page.click('#new'));
   assert.equal(await page.locator('#code').inputValue(), blank);
@@ -878,7 +874,7 @@ try {
   await guest.waitForURL(base + '/signin');
   assert.deepEqual(errors, []);
   console.log(
-    'Authoring smoke passed: login, save, weighted template generation, simplified solo test, mobile, second session.',
+    'Authoring smoke passed: login, save, strategy prompt generation, simplified solo test, mobile, second session.',
   );
 } finally {
   await browser.close();

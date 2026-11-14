@@ -273,6 +273,11 @@
                 </button>
                 <aside id="ai-panel" aria-label="알고리즘 작성 도우미">
                   <h2>알고리즘 작성 도우미</h2>
+                  <label class="prompt-purpose-label" for="prompt-purpose">작업 목적</label>
+                  <select id="prompt-purpose" disabled>
+                    <option value="generate">새 알고리즘 작성</option>
+                    <option value="modify">기존 코드 수정</option>
+                  </select>
                   <h3 class="assistant-strategy-title">어떤 전략으로 움직일까요?</h3>
                   <fieldset id="strategy-templates">
                     <legend>전략 템플릿 <span id="template-count">0 / 3</span></legend>
@@ -302,23 +307,60 @@
                   >
                     <h3>프롬프트로 작성</h3>
                     <label class="prompt-source-toggle"
-                      ><input id="prompt-include-source" type="checkbox" disabled />현재 코드
-                      포함</label
+                      ><input
+                        id="prompt-include-source"
+                        type="checkbox"
+                        aria-describedby="prompt-source-help"
+                        disabled
+                      />현재 코드 포함</label
                     >
+                    <p id="prompt-source-help" class="prompt-copy-help"></p>
                     <p id="prompt-contract-status" role="status">게임 규약을 준비하고 있습니다…</p>
-                    <button id="retry-prompt-contract" type="button" hidden>
-                      규약 다시 불러오기
+                    <button
+                      id="retry-prompt-contract"
+                      type="button"
+                      aria-label="게임 규약 다시 확인"
+                      title="게임 규약의 변경 여부를 다시 확인합니다."
+                      hidden
+                    >
+                      규약 확인
                     </button>
                     <p id="prompt-summary" role="status">
                       전략을 선택하거나 추가 요청을 입력하세요.
                     </p>
+                    <fieldset id="prompt-conversation-mode" aria-describedby="prompt-mode-help">
+                      <legend>대화 방식</legend>
+                      <div class="prompt-conversation-options">
+                        <label>
+                          <input
+                            id="prompt-mode-new"
+                            type="radio"
+                            name="prompt-conversation-mode"
+                            value="new"
+                            checked
+                            disabled
+                          />
+                          <span>새 AI 대화에서 시작</span>
+                        </label>
+                        <label>
+                          <input
+                            id="prompt-mode-continue"
+                            type="radio"
+                            name="prompt-conversation-mode"
+                            value="continue"
+                            disabled
+                          />
+                          <span>같은 AI 대화에서 계속</span>
+                        </label>
+                      </div>
+                      <p id="prompt-mode-help">새 대화·다른 AI에서는 전체 규약을 전달합니다.</p>
+                    </fieldset>
+                    <p id="prompt-context-notice" role="status" hidden></p>
                     <button id="generate-prompt" type="button" disabled>프롬프트 생성</button>
-                    <button id="open-code-import" type="button" disabled>
-                      생성된 코드 가져오기
-                    </button>
                     <p class="prompt-copy-help">
-                      사용하는 AI에 붙여 넣은 후 생성된 코드를 가져오세요. 이 복사 기능은 API 키나
-                      API 사용료가 필요하지 않습니다.
+                      사용하는 AI에 프롬프트를 전달하고, 받은 JavaScript 코드는 편집기에 붙여 넣어
+                      코드 검사·테스트를 진행하세요. 프롬프트 복사는 API 키나 API 사용료가 필요하지
+                      않습니다.
                     </p>
                     <div id="prompt-preview">
                       <div class="prompt-preview-header">
@@ -351,15 +393,6 @@
                       생략하지 않았습니다.
                     </p>
                   </section>
-                  <div class="assistant-local-actions">
-                    <button id="generate" disabled>템플릿 코드 생성</button
-                    ><button id="cancel-ai" disabled>취소</button>
-                  </div>
-                  <div id="candidate" hidden>
-                    <p id="candidate-info"></p>
-                    <pre id="candidate-code"></pre>
-                    <button id="apply">편집기에 적용</button>
-                  </div>
                 </aside>
               </div>
             </div>
@@ -443,27 +476,6 @@
             <button id="confirm-save" type="submit">저장하기</button>
           </div>
         </form>
-      </dialog>
-      <dialog id="code-import-dialog" aria-labelledby="code-import-title">
-        <h2 id="code-import-title">생성된 코드 가져오기</h2>
-        <p class="code-import-help">
-          원문 JavaScript 또는 JavaScript 코드 블록 하나를 붙여 넣으세요. 검사에 통과한 뒤 편집기에
-          적용할 수 있습니다.
-        </p>
-        <label for="imported-code">JavaScript 코드</label>
-        <textarea
-          id="imported-code"
-          rows="16"
-          spellcheck="false"
-          autocomplete="off"
-          autocapitalize="off"
-        ></textarea>
-        <p id="import-code-status" role="status" aria-live="polite"></p>
-        <div class="dialog-actions">
-          <button id="cancel-code-import" type="button">취소</button>
-          <button id="check-imported-code" type="button" disabled>코드 검사</button>
-          <button id="apply-imported-code" type="button" disabled>편집기에 적용</button>
-        </div>
       </dialog>
     </main>
   </body>

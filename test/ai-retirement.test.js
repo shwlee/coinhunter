@@ -139,7 +139,7 @@ test('workbench serves prompt tools but no direct AI UI or browser modules', asy
   });
   const cookie = login.headers.get('set-cookie').split(';')[0];
   const html = await (await fetch(base + '/editor', { headers: { cookie } })).text();
-  for (const id of ['generate-prompt', 'copy-prompt', 'open-code-import', 'testing-view', 'save'])
+  for (const id of ['generate-prompt', 'copy-prompt', 'validate', 'testing-view', 'save'])
     assert.ok(html.includes(`id="${id}"`));
   for (const id of [
     'assistant-api-tab',
@@ -147,6 +147,12 @@ test('workbench serves prompt tools but no direct AI UI or browser modules', asy
     'ai-dialog',
     'ai-model',
     'ai-connection',
+    'open-code-import',
+    'code-import-dialog',
+    'generate',
+    'cancel-ai',
+    'candidate',
+    'apply',
   ])
     assert.equal(html.includes(`id="${id}"`), false);
   const script = await (await fetch(base + '/editor.js', { headers: { cookie } })).text();
@@ -156,8 +162,9 @@ test('workbench serves prompt tools but no direct AI UI or browser modules', asy
     '/ai-provider-guides.js',
     '/ai-scripting.js',
     '/assistant-panel.js',
+    '/code-import-dialog.js',
+    '/algorithm-code-import.js',
   ])
     assert.equal((await fetch(base + path, { headers: { cookie } })).status, 404, path);
   assert.equal((await fetch(base + '/prompt-assistant.js')).status, 200);
-  assert.equal((await fetch(base + '/code-import-dialog.js')).status, 200);
 });
