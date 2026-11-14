@@ -9,9 +9,6 @@ import { FileCredentialStore } from '../src/ai/credential-store.js';
 import { FileAiConnectionRepository } from '../src/ai/connection-repository.js';
 import { createAiStorage } from '../src/ai/storage-service.js';
 import { readAiConfig } from '../src/ai/config.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { createGameServer } from '../src/server.js';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
 
 const key = randomBytes(32).toString('hex');
 const scope = () => ({ ownerId: randomUUID(), sessionId: randomUUID() });
@@ -302,36 +299,4 @@ test('owner cleanup removes metadata, stored credentials and selections but pres
   const next = login(sessions, a.scope.ownerId);
   assert.deepEqual(await service.list(next.scope), []);
   assert.deepEqual(await service.preference(next.scope), { connectionId: null, modelId: null });
-});
-
-test('HTTP authentication scope activates AI storage cleanup on logout without exposing internal session IDs', async (t) => {
-  const dir = await directory(t);
-  const accounts = new FileAccountRepository(join(dir, 'accounts.json'));
-  const authoring = createAuthoring({
-    accounts,
-    aiConfig: readAiConfig({ AI_ENABLED: 'true' }),
-    aiEnv: { AI_DATA_DIR: join(dir, 'ai') },
-    authConfig: { mode: 'mock' },
-  });
-  const app = createGameServer({ authoring });
-  await new Promise((done) => app.server.listen(0, '127.0.0.1', done));
-  t.after(() => app.close());
-  const base = `http://127.0.0.1:${app.server.address().port}`;
-  const response = await fetch(base + '/api/auth/mock', {
-    method: 'POST',
-    headers: { origin: base, 'content-type': 'application/json' },
-    body: JSON.stringify({ email: 'developer@company.test' }),
-  });
-  assert.equal(response.status, 200);
-  const cookie = response.headers.get('set-cookie').split(';')[0];
-  const authenticated = await authoring.aiScope({ headers: { cookie } });
-  const item = await authoring.aiStorage.create(authenticated, metadata(), 'private-key');
-  const session = await (await fetch(base + '/api/session', { headers: { cookie } })).text();
-  assert.equal(session.includes(authenticated.sessionId), false);
-  assert.equal(
-    (await fetch(base + '/api/auth/logout', { method: 'POST', headers: { origin: base, cookie } }))
-      .status,
-    200,
-  );
-  await assert.rejects(authoring.aiStorage.credential(authenticated, item.id), { status: 401 });
 });

@@ -1,9 +1,13 @@
 # 새 게임 아키텍처 설계안
 
+2026-11-14 작성 지원 변경: 직접 AI 연결의 UI·서버 서비스 연결을 종료하고 프롬프트 생성·외부 응답 가져오기를 중심으로 한다. 아래 AI 연결 구성은 최초 설계 기록이며 [현재 사용법](local-authoring.md)과 [프롬프트 후속 계획](prompt-authoring-improvement-plan.md)을 우선한다.
+
 - 작성일: 2026-09-27
 - 상태: 설계안과 첫 구현 기록. 현재 동작 범위는 [진행 결과](progress.md), 실행 검증은 [검증 보고서](runtime-verification.md)를 참고한다.
 - 요구사항 기준: [전체 작업 계획](implementation-plan.md)
 - 준비 및 실행 항목: [작업 준비 체크리스트](work-checklist.md)
+- 추후 고도화 보관 계획: [FE 웹서버·BE 서버 분리](frontend-backend-separation-plan.md). 현재 구현 범위에서는 제외하며 사용자가 고도화 범위를 새로 설정할 때 포함한다. [보관 목록](enhancement-backlog.md) 참고.
+- 고도화 이후 전체 서비스 구조: [Markdown](service-architecture-target.md), [독립 HTML](service-architecture-target.html). 현재 구현과 목표·미검증 조건을 구분한다.
 - 사용자가 확정한 규칙과 아래 기술 제안을 구분한다. 요구사항을 기술 편의에 맞춰 변경하지 않는다.
 
 ## 1. 설계 목표

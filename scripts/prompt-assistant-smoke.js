@@ -6,14 +6,12 @@ import { chromium } from 'playwright-core';
 import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
 import { createAuthoring } from '../src/authoring-api.js';
 import { createGameServer } from '../src/server.js';
-import { readAiConfig } from '../src/ai/config.js';
 
 const dir = await mkdtemp(join(tmpdir(), 'coinhunter-prompt-browser-'));
 const { server, close } = createGameServer({
   authoring: createAuthoring({
     accounts: new FileAccountRepository(join(dir, 'accounts.json')),
     authConfig: { mode: 'mock' },
-    aiConfig: readAiConfig({ AI_ENABLED: 'false' }),
   }),
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

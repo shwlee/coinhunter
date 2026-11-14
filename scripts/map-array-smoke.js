@@ -7,7 +7,6 @@ import { FileAccountRepository } from '../src/persistence/file-account-repositor
 import { MapRepository } from '../src/game/map-repository.js';
 import { createAuthoring } from '../src/authoring-api.js';
 import { createGameServer } from '../src/server.js';
-import { readAiConfig } from '../src/ai/config.js';
 import { parseMapArray } from '../public/map-array.js';
 
 const dir = await mkdtemp(join(tmpdir(), 'coinhunter-map-array-ui-'));
@@ -28,7 +27,6 @@ const { server, close } = createGameServer({
     accounts,
     authConfig: { mode: 'mock' },
     domain: 'company.test',
-    aiConfig: readAiConfig({ AI_ENABLED: 'false' }),
   }),
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

@@ -1,6 +1,6 @@
 # Coin Hunter
 
-사용자 알고리즘으로 코인을 수집하는 웹 게임. 현재는 **JavaScript 파일 업로드 → 개인/더미 경기 → 결과**를 실행하는 첫 개발 버전입니다.
+사용자 알고리즘으로 코인을 수집하는 웹 게임. **전략·프롬프트 생성 → 외부 AI에서 코드 작성 → 가져오기·검사·테스트 → 저장·경기**와 직접 JavaScript 파일 업로드 플레이를 제공합니다. 게임 내 직접 AI API 연결은 제거했습니다.
 
 ## 시작
 
@@ -17,7 +17,7 @@ npm start
 
 ## 구현된 기능
 
-- [로컬 알고리즘 작업실](docs/local-authoring.md): `/editor`에서 코드 편집·계정별 저장·테스트 플레이·사용자 관리. 기본 로그인과 AI 응답은 개발용 목업입니다.
+- [로컬 알고리즘 작업실](docs/local-authoring.md): `/editor`에서 프롬프트 생성·코드 가져오기·편집·검사·계정별 저장·테스트 플레이. 기본 인증은 로컬 목업이며 Google OAuth도 지원합니다. 프롬프트 생성에는 외부 AI 연결이나 API 키가 필요하지 않습니다.
 - [Google OAuth 설정](docs/google-auth-setup.md): `.env`에 웹 클라이언트 설정을 입력하고 Google 로그인을 활성화합니다. 실제 Google 로그인 확인과 운영 네트워크 연결은 별도 검증합니다.
 - [계정 데이터 저장 어댑터](docs/storage-adapters.md): 메타데이터와 별도 `.js` 코드 파일, 단일 컨테이너 영구 볼륨, 이후 DB 교체 계약.
 
@@ -50,12 +50,15 @@ npm run test:google-auth
 
 ## 아직 구현하지 않은 기능
 
-실제 Google 계정으로 로그인 확인·기존 목업 계정 이관, AI 연결, 선택적 공유 더미, 대회, 실제 사내 배포는 후속 단계입니다. 작업실의 계정·알고리즘·종료 경기 메타데이터는 로컬 JSON에, 코드 원문과 과거 경기 코드 사본은 별도 `.js` 파일에 유지됩니다. 게스트 업로드 코드와 경기 기록은 영구 저장되지 않으며 경기 결과는 종료 후 약 5분 동안 서버 메모리에 유지됩니다.
+프롬프트 작성 흐름·오류/결과 기반 수정 지원, 배포 환경 Google OAuth·필요한 목업 신원 이관, 운영 DB·컨테이너·사내 배포와 마지막 필수 개인정보 운영 준비가 남아 있습니다. 선택적 공유 더미·대회는 별도 범위입니다. 작업실의 계정·알고리즘·완료 경기 메타데이터는 로컬 JSON에, 코드 원문과 경기 당시 코드 사본은 별도 `.js` 파일에 유지됩니다. 게스트 원문·기록은 영구 저장하지 않으며 완료 경기의 메모리 상태는 약 5분 유지됩니다. 직접 AI 연결 확장은 필수 작업에서 제외했습니다.
 
 ## 문서
 
 - [전체 작업 계획](docs/implementation-plan.md)
+- [프롬프트 중심 작성 후속 계획](docs/prompt-authoring-improvement-plan.md)
 - [아키텍처](docs/architecture.md)
+- [FE 웹서버·BE 서버 분리 작업 계획](docs/frontend-backend-separation-plan.md)
+- 고도화 이후 서비스 구조: [Markdown](docs/service-architecture-target.md), [HTML](docs/service-architecture-target.html)
 - [작업 체크리스트](docs/work-checklist.md)
 - [게임 규칙 및 첫 구현 결정](docs/game-rules.md)
 - [알고리즘 API](docs/algorithm-api.md)

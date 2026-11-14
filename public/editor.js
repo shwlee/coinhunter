@@ -1,9 +1,6 @@
 import { api, accountBar } from './account.js';
 import { createCodeEditor } from '/code-editor.js';
 import { PRIORITY_WEIGHTS, STRATEGY_TEMPLATES, buildTemplateSource } from './strategy-templates.js';
-import { initializeAiConnections } from './ai-connections.js';
-import { initializeAiScripting } from './ai-scripting.js';
-import { initializeAssistantPanel } from './assistant-panel.js';
 import { initializePromptAssistant } from './prompt-assistant.js';
 import { initializeCodeImport } from './code-import-dialog.js';
 const $ = (id) => document.getElementById(id);
@@ -34,8 +31,6 @@ let documentId = null,
   testRequestId = 0;
 let validationRequestId = 0;
 let generating = false;
-let aiScripting = null;
-let assistantPanel = null;
 let promptAssistant = null;
 let codeImport = null;
 let documentEpoch = 0;
@@ -121,12 +116,10 @@ function refreshTemplates() {
   document.dispatchEvent(new Event('ai-priorities-changed'));
 }
 function invalidateTemplateCandidate() {
-  aiScripting?.cancel(false);
   generation++;
   generating = false;
   $('cancel-ai').disabled = true;
   candidate = null;
-  assistantPanel?.setApiCandidate(false);
   $('candidate').hidden = true;
   refreshTemplates();
 }
@@ -350,7 +343,6 @@ function replaceCode(text) {
 function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name || '') {
   documentEpoch++;
   codeImport?.reset();
-  aiScripting?.cancel(false);
   validationRequestId++;
   documentId = item?.id || null;
   revision = item?.revision || null;
@@ -364,7 +356,6 @@ function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name 
   saved = contents();
   promptAssistant?.reset();
   candidate = null;
-  assistantPanel?.setApiCandidate(false);
   $('candidate').hidden = true;
   if (!testing) {
     testSource = null;
@@ -631,7 +622,6 @@ $('validate').onclick = run(async () => {
   notice('실행 전 검사를 통과했습니다. 실제 전략과 장시간 동작은 테스트 플레이에서 확인하세요.');
 });
 $('generate').onclick = run(async () => {
-  aiScripting?.cancel(false);
   const priorities = [...priorityIds];
   if (!priorities.length) return;
   const token = ++generation,
@@ -640,7 +630,6 @@ $('generate').onclick = run(async () => {
   refreshTemplates();
   $('cancel-ai').disabled = false;
   candidate = null;
-  assistantPanel?.setApiCandidate(false);
   $('candidate').hidden = true;
   try {
     await api('/api/algorithms');
@@ -668,10 +657,6 @@ $('generate').onclick = run(async () => {
   }
 });
 $('cancel-ai').onclick = () => {
-  if (aiScripting?.isBusy()) {
-    aiScripting.cancel();
-    return;
-  }
   generation++;
   generating = false;
   refreshTemplates();
@@ -686,8 +671,6 @@ $('apply').onclick = () => {
   )
     return;
   replaceCode(candidate.source);
-  assistantPanel?.setApiCandidate(false);
-  void aiScripting?.discard(candidate.requestId);
   notice('후보 코드를 적용했습니다. 실행 취소로 되돌릴 수 있습니다.');
 };
 function testPreparation(message = '', busy = Boolean(message)) {
@@ -768,30 +751,6 @@ try {
     reset({ source: emptyAlgorithm });
     await library();
     $('workbench').hidden = false;
-    aiScripting = initializeAiScripting({
-      contents,
-      source: () => $('code').value,
-      priorities: () => [...priorityIds],
-      notice,
-      onBusy: (value) => {
-        assistantPanel?.setApiBusy(value);
-        generating = value;
-        refreshTemplates();
-        $('cancel-ai').disabled = !value;
-      },
-      onCandidate: (value) => {
-        assistantPanel?.setApiCandidate(Boolean(value?.requestId));
-        candidate = value;
-        $('candidate').hidden = !value;
-        $('apply').disabled = !value?.valid;
-        if (!value) return;
-        $('candidate-code').textContent = value.source;
-        $('candidate-info').textContent =
-          `${value.explanation}\n${value.valid ? '실행 검사 통과' : value.validation?.error || '실행 검사 실패'}${value.usage.total_tokens != null ? ` · 사용 토큰 ${value.usage.total_tokens}` : ''}`;
-        $('apply').disabled = !value.valid;
-      },
-    });
-    assistantPanel = initializeAssistantPanel({ openConnections: initializeAiConnections });
     promptAssistant = initializePromptAssistant({
       source: () => $('code').value,
       priorities: () => [...priorityIds],
@@ -812,9 +771,8 @@ try {
       notice('선택한 저장 알고리즘을 열었습니다.');
     } else
       notice(
-        '전략과 추가 요청으로 프롬프트를 생성한 뒤 복사하거나 코드를 직접 편집하세요. AI 직접 생성은 AI 연결 탭에서 사용할 수 있습니다.',
+        '전략과 추가 요청으로 프롬프트를 생성해 사용하는 AI에 전달하고, 받은 코드를 가져와 검사·테스트하세요. 직접 편집도 가능합니다.',
       );
-    void aiScripting.restore();
   }
 } catch (error) {
   notice(error.message);

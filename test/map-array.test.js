@@ -9,7 +9,6 @@ import { MapRepository } from '../src/game/map-repository.js';
 import { DEFAULT_MAP_SETTINGS, validateMapDocument } from '../src/game/maps.js';
 import { createAuthoring } from '../src/authoring-api.js';
 import { createGameServer } from '../src/server.js';
-import { readAiConfig } from '../src/ai/config.js';
 
 test('integer map arrays support bracket, C# initializer, BOM, line breaks and trailing commas', () => {
   for (const text of [
@@ -94,7 +93,6 @@ test('admin array validation is read-only, enforces access and keeps draft/publi
       accounts,
       authConfig: { mode: 'mock' },
       domain: 'company.test',
-      aiConfig: readAiConfig({ AI_ENABLED: 'false' }),
     }),
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

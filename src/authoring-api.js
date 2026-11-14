@@ -8,14 +8,7 @@ import { createAuthenticationService } from './auth/authentication-service.js';
 import { readAuthConfig } from './auth/config.js';
 import { createGoogleProvider } from './auth/google-provider.js';
 import { createMemorySessionStore } from './auth/memory-session-store.js';
-import { readAiConfig } from './ai/config.js';
-import { createAiStorage } from './ai/storage-service.js';
-import { createAiModelCatalog } from './ai/model-catalog.js';
-import { createAiRoutes } from './ai/routes.js';
-import { createAiRequestService } from './ai/request-service.js';
-import { createOpenAiGeneration } from './ai/openai-generation.js';
 import { loadAlgorithmContract } from './algorithm-assistant/contract.js';
-import { join } from 'node:path';
 
 export function createAuthoring({
   accounts = createAccountRepository(),
@@ -23,11 +16,6 @@ export function createAuthoring({
   mock = authConfig.mode === 'mock',
   domain = process.env.MOCK_COMPANY_DOMAIN || 'company.test',
   googleClient,
-  aiConfig = readAiConfig(),
-  aiEnv = process.env,
-  aiProviders,
-  aiGenerationProviders,
-  aiDiagnostics,
 } = {}) {
   const google =
     authConfig.mode === 'google'
@@ -46,66 +34,20 @@ export function createAuthoring({
     sessions,
     allowIdentitySignup: async () => !!google,
   });
-  let aiStorage = null;
-  let aiCatalog = null;
-  let aiRequests = null;
-  try {
-    if (aiConfig.enabled) {
-      aiStorage = createAiStorage({
-        sessions,
-        config: aiConfig,
-        env: aiEnv,
-        beforeConnectionChange: async (id) => {
-          aiCatalog?.cancelConnection(id);
-          aiRequests?.cancelConnection(id);
-        },
-      });
-      aiCatalog = createAiModelCatalog({
-        storage: aiStorage,
-        sessions,
-        config: aiConfig,
-        providers: aiProviders,
-      });
-      aiRequests = createAiRequestService({
-        storage: aiStorage,
-        catalog: aiCatalog,
-        sessions,
-        config: aiConfig,
-        providers: aiGenerationProviders || { openai: createOpenAiGeneration(aiConfig) },
-        directory: join(aiEnv.AI_DATA_DIR || 'data/ai', 'requests'),
-        onError: aiDiagnostics,
-      });
-    }
-  } catch (error) {
-    sessions.close();
-    throw error;
-  }
   const { current, requireUser } = authentication;
-  const aiRoute = createAiRoutes({
-    config: aiConfig,
-    storage: aiStorage,
-    catalog: aiCatalog,
-    authentication,
-    requests: aiRequests,
-  });
   return {
     accounts,
     current,
     requireUser,
-    aiStorage,
-    aiCatalog,
-    aiRequests,
-    aiScope: authentication.scope,
     async close() {
       authentication.close();
-      await aiRequests?.close();
-      await aiCatalog?.close();
-      await aiStorage?.close();
     },
     async route(request, response, url, user, readJson, json, revoke, readSourceFile) {
       if (await authentication.route(request, response, url, user, readJson, json, revoke))
         return true;
       const path = url.pathname;
+      if (path === '/api/ai' || path.startsWith('/api/ai/'))
+        throw fail(410, '직접 AI 연결 기능은 제공하지 않습니다. 프롬프트 생성기를 이용하세요.');
       if (path === '/api/algorithm-assistant/contract') {
         requireUser(user);
         if (request.method !== 'GET') {
@@ -121,7 +63,6 @@ export function createAuthoring({
         json(response, 200, contract);
         return true;
       }
-      if (await aiRoute(request, response, url, user, readJson, json, readSourceFile)) return true;
       if (path.startsWith('/api/admin/')) {
         requireUser(user);
         if (user.role !== 'admin') throw fail(403, '관리자 권한이 필요합니다.');

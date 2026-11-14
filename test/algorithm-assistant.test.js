@@ -15,7 +15,6 @@ import { validateGenerationInput, buildGenerationInput } from '../src/ai/input.j
 import { createGameServer } from '../src/server.js';
 import { createAuthoring } from '../src/authoring-api.js';
 import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { readAiConfig } from '../src/ai/config.js';
 import { readAuthConfig } from '../src/auth/config.js';
 
 const input = {
@@ -153,74 +152,63 @@ test('API generation keeps its request schema and exact modify source without id
   assert.throws(() => buildStrategyRequest(input, {}), /수정할 코드/);
 });
 
-for (const enabled of [false, true])
-  test(`authenticated contract is available with AI enabled=${enabled}, no credentials and no external calls`, async (t) => {
-    const dir = await temporaryDirectory(t);
-    const accounts = new FileAccountRepository(join(dir, 'accounts.json'));
-    const authoring = createAuthoring({
-      accounts,
-      authConfig: readAuthConfig({ AUTH_MODE: 'mock' }),
-      aiConfig: readAiConfig({ AI_ENABLED: String(enabled) }),
-      aiEnv: { AI_DATA_DIR: join(dir, 'ai') },
-    });
-    const { server, close } = createGameServer({ authoring });
-    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-    t.after(async () => {
-      await close();
-      await rm(dir, { recursive: true, force: true });
-    });
-    const base = `http://127.0.0.1:${server.address().port}`;
-    const originalFetch = globalThis.fetch;
-    let externalCalls = 0;
-    t.mock.method(globalThis, 'fetch', (url, options) => {
-      if (!String(url).startsWith(base + '/')) {
-        externalCalls++;
-        throw new Error('External request is forbidden in this test');
-      }
-      return originalFetch(url, options);
-    });
-    const endpoint = base + '/api/algorithm-assistant/contract';
-    assert.equal((await fetch(endpoint)).status, 401);
-    const guest = await fetch(base + '/api/session');
-    const guestCookie = guest.headers.get('set-cookie').split(';')[0];
-    assert.equal((await fetch(endpoint, { headers: { cookie: guestCookie } })).status, 401);
-    const login = await fetch(base + '/api/auth/mock', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'developer@company.test' }),
-    });
-    assert.equal(login.status, 200);
-    const { user } = await login.json();
-    const cookie = login.headers.get('set-cookie').split(';')[0];
-    const response = await fetch(endpoint, { headers: { cookie } });
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get('cache-control'), 'no-store');
-    const contract = await response.json();
-    assert.deepEqual(contract, await loadAlgorithmContract());
-    const text = JSON.stringify(contract);
-    assert.equal(text.includes(user.email), false);
-    assert.equal(text.includes(user.id), false);
-    assert.equal(text.includes(cookie), false);
-    const wrongMethod = await fetch(endpoint, { method: 'POST', headers: { cookie } });
-    assert.equal(wrongMethod.status, 405);
-    assert.equal(wrongMethod.headers.get('allow'), 'GET');
-    assert.equal(
-      (await fetch(endpoint, { headers: { cookie, Origin: 'https://foreign.example' } })).status,
-      403,
-    );
-    const sharedModule = await fetch(base + '/algorithm-strategy.js', { headers: { cookie } });
-    assert.equal(sharedModule.status, 200);
-    assert.match(sharedModule.headers.get('content-type'), /javascript/);
-    assert.equal(
-      (await fetch(base + '/api/ai/connections', { headers: { cookie } })).status,
-      enabled ? 200 : 503,
-    );
-    if (enabled)
-      assert.deepEqual(
-        await authoring.aiStorage.list(await authoring.aiScope({ headers: { cookie } })),
-        [],
-      );
-    await accounts.updateUser(user.id, { active: false, role: 'user' });
-    assert.equal((await fetch(endpoint, { headers: { cookie } })).status, 401);
-    assert.equal(externalCalls, 0);
+test('authenticated contract is available without provider credentials or external calls', async (t) => {
+  const dir = await temporaryDirectory(t);
+  const accounts = new FileAccountRepository(join(dir, 'accounts.json'));
+  const authoring = createAuthoring({
+    accounts,
+    authConfig: readAuthConfig({ AUTH_MODE: 'mock' }),
   });
+  const { server, close } = createGameServer({ authoring });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(async () => {
+    await close();
+    await rm(dir, { recursive: true, force: true });
+  });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const originalFetch = globalThis.fetch;
+  let externalCalls = 0;
+  t.mock.method(globalThis, 'fetch', (url, options) => {
+    if (!String(url).startsWith(base + '/')) {
+      externalCalls++;
+      throw new Error('External request is forbidden in this test');
+    }
+    return originalFetch(url, options);
+  });
+  const endpoint = base + '/api/algorithm-assistant/contract';
+  assert.equal((await fetch(endpoint)).status, 401);
+  const guest = await fetch(base + '/api/session');
+  const guestCookie = guest.headers.get('set-cookie').split(';')[0];
+  assert.equal((await fetch(endpoint, { headers: { cookie: guestCookie } })).status, 401);
+  const login = await fetch(base + '/api/auth/mock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'developer@company.test' }),
+  });
+  assert.equal(login.status, 200);
+  const { user } = await login.json();
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const response = await fetch(endpoint, { headers: { cookie } });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  const contract = await response.json();
+  assert.deepEqual(contract, await loadAlgorithmContract());
+  const text = JSON.stringify(contract);
+  assert.equal(text.includes(user.email), false);
+  assert.equal(text.includes(user.id), false);
+  assert.equal(text.includes(cookie), false);
+  const wrongMethod = await fetch(endpoint, { method: 'POST', headers: { cookie } });
+  assert.equal(wrongMethod.status, 405);
+  assert.equal(wrongMethod.headers.get('allow'), 'GET');
+  assert.equal(
+    (await fetch(endpoint, { headers: { cookie, Origin: 'https://foreign.example' } })).status,
+    403,
+  );
+  const sharedModule = await fetch(base + '/algorithm-strategy.js', { headers: { cookie } });
+  assert.equal(sharedModule.status, 200);
+  assert.match(sharedModule.headers.get('content-type'), /javascript/);
+  assert.equal((await fetch(base + '/api/ai/connections', { headers: { cookie } })).status, 410);
+  await accounts.updateUser(user.id, { active: false, role: 'user' });
+  assert.equal((await fetch(endpoint, { headers: { cookie } })).status, 401);
+  assert.equal(externalCalls, 0);
+});

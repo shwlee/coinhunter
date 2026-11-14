@@ -8,7 +8,6 @@ import { MapRepository } from '../src/game/map-repository.js';
 import { DEFAULT_MAP_SETTINGS } from '../src/game/maps.js';
 import { createAuthoring } from '../src/authoring-api.js';
 import { createGameServer } from '../src/server.js';
-import { readAiConfig } from '../src/ai/config.js';
 
 // Exercise the real local pipeline. External AI output and the OS clipboard are fixtures.
 const dir = await mkdtemp(join(tmpdir(), 'coinhunter-prompt-workflow-'));
@@ -33,7 +32,6 @@ const { server, close } = createGameServer({
   authoring: createAuthoring({
     accounts,
     authConfig: { mode: 'mock' },
-    aiConfig: readAiConfig({ AI_ENABLED: 'false' }),
   }),
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -100,7 +98,7 @@ try {
   const page = await context.newPage();
   await page.goto(base + '/editor');
   await page.locator('#open-code-import:enabled').waitFor();
-  assert.equal(await page.locator('#assistant-prompt-tab').getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('#assistant-prompt-panel').isVisible(), true);
   await page.locator('[name="strategy-template"][value="nearestCoin"]').check();
   await page.locator('#prompt').fill('벽을 피해 코인을 모두 수집하세요.');
   await page.locator('#generate-prompt:enabled').click();

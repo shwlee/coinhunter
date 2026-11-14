@@ -6,7 +6,6 @@ import { chromium } from 'playwright-core';
 import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
 import { createAuthoring } from '../src/authoring-api.js';
 import { createGameServer } from '../src/server.js';
-import { readAiConfig } from '../src/ai/config.js';
 
 const dir = await mkdtemp(join(tmpdir(), 'coinhunter-editor-'));
 const accounts = new FileAccountRepository(join(dir, 'store.json'));
@@ -14,7 +13,6 @@ await accounts.bootstrapAdmin('admin@company.test');
 const { server, close } = createGameServer({
   authoring: createAuthoring({
     accounts,
-    aiConfig: readAiConfig({ AI_ENABLED: 'false' }),
   }),
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -220,19 +218,15 @@ try {
   await page.click('#go-editor');
   await page.waitForSelector('#workbench', { state: 'visible' });
   assert.deepEqual(aiRequests, [], 'Offline workbench entry does not initialize API connections');
-  assert.equal(await page.locator('#assistant-prompt-tab').getAttribute('aria-selected'), 'true');
-  await page.locator('#assistant-api-tab').click();
-  await page.locator('#ai-connection-status').filter({ hasText: '활성화하지' }).waitFor();
-  assert.equal(await page.locator('#ai-manage').isDisabled(), true);
-  await page.locator('#assistant-api-tab').focus();
-  await page.keyboard.press('Home');
-  assert.equal(await page.locator('#assistant-prompt-tab').getAttribute('aria-selected'), 'true');
-  assert.equal(
-    await page
-      .locator('#assistant-prompt-tab')
-      .evaluate((button) => button === document.activeElement),
-    true,
-  );
+  assert.equal(await page.locator('#assistant-prompt-panel').isVisible(), true);
+  for (const selector of [
+    '#assistant-api-tab',
+    '#assistant-prompt-tab',
+    '#ai-dialog',
+    '#ai-model',
+    '#ai-connection',
+  ])
+    assert.equal(await page.locator(selector).count(), 0, `${selector} is removed, not hidden`);
   assert.equal(await page.locator('#admin').count(), 0);
   await page.locator('#account-bar .admin-link[href="/admin"]').waitFor({ state: 'visible' });
   assert.equal(await warnsOnExit(), false, 'The new document does not warn on exit');

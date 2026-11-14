@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>코인 헌터 : 알고리즘 아레나 — 고도화 이후 서비스 구조</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #24364a;
+        --muted: #5c6c7b;
+        --paper: #fff;
+        --line: #dce4ec;
+        --accent: #225a93;
+        --soft: #eef4fa;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-padding-top: 24px;
+      }
+      body {
+        margin: 0;
+        background: #f2f5f8;
+        color: var(--ink);
+        font:
+          16px/1.85 system-ui,
+          -apple-system,
+          'Segoe UI',
+          'Malgun Gothic',
+          sans-serif;
+        overflow-wrap: anywhere;
+      }
+      a {
+        color: var(--accent);
+        text-underline-offset: 3px;
+      }
+      a:focus-visible {
+        outline: 3px solid #d58918;
+        outline-offset: 4px;
+      }
+      .topbar {
+        background: #172c43;
+        color: #fff;
+        padding: 18px max(24px, calc((100vw - 1220px) / 2));
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+      }
+      .layout {
+        max-width: 1268px;
+        margin: auto;
+        padding: 40px 24px 64px;
+        display: grid;
+        grid-template-columns: 245px minmax(0, 1fr);
+        gap: 32px;
+        align-items: start;
+      }
+      .toc {
+        position: sticky;
+        top: 24px;
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--paper);
+        font-size: 13px;
+        max-height: calc(100vh - 48px);
+        overflow-y: auto;
+      }
+      .toc p {
+        margin: 0 0 12px;
+        font-weight: 750;
+        font-size: 15px;
+      }
+      .toc ol {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 7px;
+      }
+      .toc a {
+        text-decoration: none;
+        display: block;
+      }
+      .toc a:hover {
+        text-decoration: underline;
+      }
+      main {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--paper);
+        padding: 38px 42px;
+        box-shadow: 0 10px 30px #172c4307;
+      }
+      h1 {
+        word-break: keep-all;
+        font-size: clamp(26px, 3vw, 36px);
+        line-height: 1.4;
+        letter-spacing: -0.035em;
+        margin: 0 0 24px;
+        color: #152c45;
+      }
+      h2 {
+        font-size: 23px;
+        line-height: 1.5;
+        margin: 46px 0 18px;
+        padding-top: 22px;
+        border-top: 1px solid var(--line);
+        letter-spacing: -0.02em;
+      }
+      h3 {
+        font-size: 18px;
+        margin: 26px 0 12px;
+      }
+      p {
+        margin: 0 0 18px;
+      }
+      li + li {
+        margin-top: 7px;
+      }
+      ul {
+        padding-left: 24px;
+        margin: 0 0 22px;
+      }
+      main > ul:first-of-type {
+        padding: 18px 22px 18px 40px;
+        background: var(--soft);
+        border-radius: 10px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      strong {
+        color: #183e65;
+      }
+      main > p:has(> strong:first-child) {
+        padding: 18px 20px;
+        border-left: 4px solid #d49b36;
+        background: #fff8e8;
+        border-radius: 0 8px 8px 0;
+      }
+      code {
+        font:
+          0.9em/1.65 Consolas,
+          'Cascadia Code',
+          monospace;
+        background: var(--soft);
+        border-radius: 4px;
+        padding: 2px 5px;
+      }
+      .diagram {
+        margin: 22px 0;
+        padding: 24px;
+        background: #172c43;
+        color: #eef5ff;
+        border-radius: 12px;
+        overflow-x: auto;
+        font-size: 13px;
+        line-height: 1.9;
+        white-space: pre;
+        tab-size: 2;
+      }
+      .diagram code {
+        background: none;
+        color: inherit;
+        padding: 0;
+        font: inherit;
+        font-family: Consolas, 'Cascadia Code', 'Malgun Gothic', monospace;
+      }
+      .table-wrap {
+        overflow-x: auto;
+        margin: 20px 0 24px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+        line-height: 1.8;
+      }
+      th {
+        text-align: left;
+        background: var(--soft);
+        color: #234567;
+        font-weight: 700;
+      }
+      td,
+      th {
+        padding: 13px 16px;
+        vertical-align: top;
+        border-bottom: 1px solid var(--line);
+      }
+      td:first-child {
+        font-weight: 650;
+        min-width: 110px;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      footer {
+        max-width: 1268px;
+        margin: 0 auto;
+        padding: 0 24px 32px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 20px;
+          padding-top: 24px;
+        }
+        .toc {
+          position: static;
+          max-height: none;
+        }
+        .toc ol {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          column-gap: 20px;
+        }
+        main {
+          padding: 28px;
+        }
+        h2 {
+          font-size: 21px;
+        }
+      }
+      @media (max-width: 480px) {
+        body {
+          font-size: 15px;
+        }
+        .layout {
+          padding: 16px 12px 32px;
+          gap: 16px;
+        }
+        main {
+          padding: 22px 18px;
+          border-radius: 12px;
+        }
+        .toc {
+          padding: 16px;
+        }
+        .toc ol {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 5px;
+        }
+        h1 {
+          font-size: 26px;
+        }
+        h2 {
+          font-size: 20px;
+          margin-top: 32px;
+        }
+        .diagram {
+          padding: 18px;
+          font-size: 12px;
+        }
+        td,
+        th {
+          padding: 11px 12px;
+        }
+        .topbar {
+          padding: 16px 20px;
+          letter-spacing: 0.06em;
+        }
+      }
+      @media print {
+        body {
+          background: #fff;
+          font-size: 10pt;
+          line-height: 1.6;
+        }
+        .topbar,
+        .toc,
+        footer {
+          display: none;
+        }
+        .layout {
+          display: block;
+          max-width: none;
+          margin: 0;
+          padding: 0;
+        }
+        main {
+          border: 0;
+          box-shadow: none;
+          padding: 0;
+        }
+        h1 {
+          font-size: 21pt;
+        }
+        h2 {
+          font-size: 15pt;
+          margin-top: 22px;
+          break-after: avoid;
+        }
+        h3 {
+          break-after: avoid;
+        }
+        .table-wrap {
+          overflow: visible;
+        }
+        table {
+          font-size: 9pt;
+        }
+        tr {
+          break-inside: avoid;
+        }
+        .diagram {
+          white-space: pre-wrap;
+          overflow: visible;
+          background: #f2f5f8;
+          color: #172c43;
+          font-size: 9pt;
+          border: 1px solid #ccd6e0;
+          break-inside: avoid;
+        }
+        a {
+          color: inherit;
+        }
+        .table-wrap {
+          border-color: #ccd6e0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">COIN HUNTER / SERVICE ARCHITECTURE / 2026-10-17</header>
+    <div class="layout">
+      <nav class="toc" aria-label="문서 목차">
+        <p>목차</p>
+        <ol>
+          <li><a href="#part-1">1. 전체 방향과 전제</a></li>
+          <li><a href="#part-2">2. 전체 구성</a></li>
+          <li><a href="#part-3">3. 사용자에게 보이는 서비스</a></li>
+          <li><a href="#part-4">4. FE 웹서버의 책임</a></li>
+          <li><a href="#part-5">5. BE 서버의 책임</a></li>
+          <li><a href="#part-6">6. 코드 준비와 경기 실행 분리</a></li>
+          <li><a href="#part-7">7. 공통 실행 계약과 언어별 실행기</a></li>
+          <li><a href="#part-8">8. 경기별·참가자별 인스턴스 수명</a></li>
+          <li><a href="#part-9">9. 데이터 보관 구조</a></li>
+          <li><a href="#part-10">10. 배포와 확장</a></li>
+          <li><a href="#part-11">11. 적용 범위와 보관 원칙</a></li>
+          <li><a href="#part-12">12. 관련 문서와 기술 확인 자료</a></li>
+        </ol>
+      </nav>
+      <main id="content">
+        <h1>코인 헌터 : 알고리즘 아레나 — 고도화 이후 서비스 구조</h1>
+        <ul>
+          <li>작성일: 2026-10-17</li>
+          <li>문서 성격: FE·BE 분리와 여러 알고리즘 언어 지원을 완료했을 때의 목표 구조 설명.</li>
+          <li>
+            상태: 설계 보관. 현재 구현 상태나 착수 승인을 의미하지 않는다. 사용자가 고도화 범위를
+            새로 정할 때 검토한다.
+          </li>
+          <li>열람 형식: <a href="service-architecture-target.html">독립 HTML 문서</a>.</li>
+          <li>
+            관련 계획: <a href="enhancement-backlog.md">고도화 작업 보관 목록</a>,
+            <a href="frontend-backend-separation-plan.md">FE·BE 분리 계획</a>.
+          </li>
+        </ul>
+        <h2 id="part-1">1. 전체 방향과 전제</h2>
+        <p>
+          2026-11-14 제품 변경: 직접 AI API 연결은 현재 서비스에서 제거했다. 이 문서의 직접 연결
+          구성은 당시 목표 기록이며, 작성 지원은
+          <a href="prompt-authoring-improvement-plan.md">프롬프트 후속 계획</a>을 따른다. FE·BE
+          분리와 다국어 구현 보류 상태는 유지한다.
+        </p>
+        <p>
+          하나의 서비스 주소 아래에서 FE 웹서버·BE 서버·알고리즘 실행 환경을 분리한다. 사용자는
+          브라우저만 사용하며 코드 저장·컴파일·실행·경기 판정은 서버에서 처리한다. 사용자 PC에
+          알고리즘 실행기를 설치하지 않는다.
+        </p>
+        <p>
+          여러 언어 지원 대상은 C#·C++·JavaScript·Python이다. 각 실행기는 공통 입력·출력과 시간
+          제한·인스턴스 수명 계약을 만족해야 한다. 게임 화면과 게임 엔진은 언어와 독립적으로
+          유지한다.
+        </p>
+        <p>
+          <strong>아직 해결되지 않은 전제:</strong> 경기 중 인터프리터 실행까지 배제하면서 턴별
+          500ms 중단과 동일 프로세스·인스턴스 유지를 보장할 언어별 실행 환경은 선정되지 않았다. 현재
+          QuickJS와 일반적인 Python 실행은 바이트코드 인터프리터를 사용한다. 아래 구조는 해당 요구를
+          통과한 실행기를 연결한다는 목표이며, 네 언어의 모든 문법·라이브러리를 지원할 수 있다고
+          확정한 것은 아니다.
+        </p>
+        <h2 id="part-2">2. 전체 구성</h2>
+        <pre class="diagram"><code>사용자 브라우저
+      │ 단일 서비스 주소
+      ▼
+FE 웹서버
+ ├─ 로그인 · 홈 · 작업실 · 게임 · 관리자 화면
+ ├─ 스크립트 · 이미지 · 영상 · 편집기 에셋
+ └─ /api/* 요청 · 실시간 연결 전달
+                    ▼
+BE 서버 — 첫 구성은 인스턴스 하나
+ ├─ Google 인증 · 세션 · 권한 · 소유권 검사
+ ├─ 알고리즘 · 맵 · 옵션 · 경기 기록 관리
+ ├─ 공통 규약 · 프롬프트 · 외부 AI 연결
+ ├─ 코드 검사 · 컴파일 · 실행 준비
+ ├─ 경기 관리자 · 게임 엔진
+ │    ├─ 경기 A → 참가자별 실행 프로세스와 Player 인스턴스
+ │    └─ 경기 B → 참가자별 실행 프로세스와 Player 인스턴스
+ └─ 메타데이터 어댑터 · 원문 파일 · 준비된 실행 결과 · 비밀 저장소</code></pre>
+        <p>
+          프로세스마다 해당 참가자의 언어 실행기를 사용한다. JavaScript·Python·C++·C# 실행기라는
+          구분은 구현 종류를 의미하며, 서로 다른 경기나 참가자가 하나의 Player 인스턴스를 공유한다는
+          의미가 아니다.
+        </p>
+        <h2 id="part-3">3. 사용자에게 보이는 서비스</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">화면</th>
+                <th scope="col">주요 기능</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>로그인</td>
+                <td>Google 로그인 또는 게스트 진입</td>
+              </tr>
+              <tr>
+                <td>홈</td>
+                <td>알고리즘 작업실·게임 플레이·관리자 메뉴 진입</td>
+              </tr>
+              <tr>
+                <td>알고리즘 작업실</td>
+                <td>
+                  언어 선택, 코드 작성·불러오기·저장, 프롬프트 생성, 직접 AI 연결, 코드 검사·테스트
+                </td>
+              </tr>
+              <tr>
+                <td>게임 플레이</td>
+                <td>알고리즘·맵·옵션·캐릭터·시작 위치 선택, 경기 진행·결과 분석</td>
+              </tr>
+              <tr>
+                <td>관리자</td>
+                <td>사용자 관리, 맵 제작·옵션·게시·노출·표시 순서 관리</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          게스트는 로컬 파일을 업로드해 게임을 실행한다. 계정 단위 알고리즘 생성·저장·불러오기와
+          과거 경기 알고리즘 대결은 로그인 사용자에게 제공한다. 로그인 사용자는 다른 PC에서도 본인
+          계정의 알고리즘과 경기 기록에 접근한다.
+        </p>
+        <p>
+          다른 사용자의 코드는 기본적으로 공개하지 않는다. 선택적 공유 더미나 대회는 별도 기능이며
+          FE·BE 분리와 언어 지원만으로 구현 완료된 것으로 간주하지 않는다.
+        </p>
+        <h2 id="part-4">4. FE 웹서버의 책임</h2>
+        <p>
+          FE는 단일 접속 창구다. HTML·CSS·JavaScript·이미지·영상을 제공하고 <code>/api/*</code>를
+          설정된 내부 BE 주소로 전달한다. 브라우저는 FE와 BE의 별도 주소를 관리하지 않으며 기존 API
+          상대 경로를 사용한다.
+        </p>
+        <p>
+          페이지 진입 시 BE의 인증 상태를 조회해 로그인 화면으로 이동하거나 접근 거부를 표시한다.
+          편집기 보안 헤더와 요청별 CSP nonce도 FE 제공 계층에서 처리한다. 작업실과 테스트 플레이
+          iframe은 같은 공개 Origin에서 동작한다.
+        </p>
+        <p>
+          FE는 점수·아이템 획득·사용자 권한을 확정하지 않는다. 화면에서 권한을 확인했어도 BE는 모든
+          API에서 인증·역할·소유권을 독립적으로 검사한다. FE에 원문 저장소·사용자 데이터·Google
+          secret·AI 키·암호화 키를 배포하거나 보관하지 않는다.
+        </p>
+        <p>
+          운영에서는 공개 HTTPS 주소와 신뢰할 프록시를 명시적으로 설정한다. FE가 외부에서 받은 전달
+          헤더를 그대로 신뢰하지 않으며 BE의 Host·Origin·쿠키·OAuth 검증과 일치시킨다. 실제
+          도메인·TLS 종료 위치·VPN 경로는 배포 검증에서 확정한다.
+        </p>
+        <h2 id="part-5">5. BE 서버의 책임</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">모듈</th>
+                <th scope="col">책임</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>인증·권한</td>
+                <td>Google 로그인, 세션, 관리자 역할, 계정 이용 상태, 데이터 소유권</td>
+              </tr>
+              <tr>
+                <td>콘텐츠 관리</td>
+                <td>알고리즘·맵·옵션·완료 경기 기록의 조회·저장</td>
+              </tr>
+              <tr>
+                <td>작성 지원</td>
+                <td>공통 게임 규약, 복사용 프롬프트, 외부 AI 연결·모델·요청·결과 처리</td>
+              </tr>
+              <tr>
+                <td>실행 준비</td>
+                <td>언어별 문법·규약 검사, 필요한 컴파일, 실행 전 검사</td>
+              </tr>
+              <tr>
+                <td>경기 관리</td>
+                <td>참가자 구성, 경기 생성·종료, 실행 프로세스 수명</td>
+              </tr>
+              <tr>
+                <td>게임 엔진</td>
+                <td>독립 턴, 위치·점수·아이템·기믹·종료 판정</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          처음에는 하나의 BE 인스턴스 안에서 모듈을 분리한다. 각 기능을 처음부터 별도 네트워크
+          서버로 만들지는 않는다. 게임 상태의 최종 권한은 서버에 있고, 브라우저는
+          입력·렌더링·애니메이션을 담당한다.
+        </p>
+        <p>
+          외부 AI 직접 연결과 복사용 프롬프트 생성은 함께 제공한다. 프롬프트 생성만 사용하는 경우 AI
+          API 연결이나 유료 호출이 필요하지 않다. 직접 연결 시에는 BE가 제공자 인증·요청을 담당한다.
+          실제 외부 접속 경로와 회사 네트워크 허용 여부는 별도 배포 조건이다.
+        </p>
+        <h2 id="part-6">6. 코드 준비와 경기 실행 분리</h2>
+        <h3>경기 시작 전</h3>
+        <pre class="diagram"><code>원문 파일과 언어 확인
+ → 문법·게임 규약 검사
+ → 필요한 컴파일·실행 준비
+ → 실행 전 검사
+ → 준비 완료
+ → 경기 생성·참가자별 로드·Player 생성·초기화
+ → 모든 참가자 준비 완료 후 경기 진행</code></pre>
+        <p>
+          컴파일·필수 준비·실행 환경 로드는 경기가 진행되기 전에 끝낸다. 컴파일 시간과 준비 시간은
+          턴 실행 시간과 구분하고 별도 시간·메모리·동시 작업 제한을 적용한다. 컴파일 과정도 신뢰하지
+          않는 코드 처리로 격리한다.
+        </p>
+        <p>
+          준비된 실행 결과는 원문 내용·언어 버전·컴파일러·실행 규약·대상 환경에 따라 구분해 재사용할
+          수 있다. 코드나 실행 환경이 바뀌면 다시 준비한다. 결과 파일을 재사용해도 사용자 권한
+          검사를 생략하거나 실행 중 객체를 공유하지 않는다.
+        </p>
+        <h3>경기 진행 중</h3>
+        <p>
+          같은 Player 인스턴스의 <code>moveNext(현재 맵, 현재 위치, 아이템)</code>를 반복 호출한다.
+          원문 파일 재로딩·재파싱·컴파일을 매 턴 수행하지 않는다. 호출에는 최신 게임 입력을 전달하고
+          결과를 기존 게임 엔진이 판정한다.
+        </p>
+        <p>
+          인스턴스 유지와 인터프리터 사용 여부는 별개다. Python의 바이트코드 사전 준비나 C#의 DLL
+          생성만으로 경기 중 인터프리터/JIT 배제를 충족했다고 처리하지 않는다. 이 조건은 언어별
+          실행기 확정 전에 별도로 검증한다.
+        </p>
+        <h2 id="part-7">7. 공통 실행 계약과 언어별 실행기</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">공통 기능</th>
+                <th scope="col">역할</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>prepare</td>
+                <td>코드 검사·필요한 컴파일·실행 결과 준비</td>
+              </tr>
+              <tr>
+                <td>initialize</td>
+                <td>경기 참가자의 Player 인스턴스 생성·초기화</td>
+              </tr>
+              <tr>
+                <td>getName</td>
+                <td>알고리즘 이름 조회</td>
+              </tr>
+              <tr>
+                <td>moveNext</td>
+                <td>맵·현재 위치·아이템을 받아 이동 방향 계산</td>
+              </tr>
+              <tr>
+                <td>close</td>
+                <td>경기 종료 후 인스턴스·프로세스 정리</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          prepare는 경기 전 준비 계층에 속하며 나머지는 참가자별 실행 환경의 계약이다. 경기 중
+          엔진은 언어별 컴파일 방식이나 런타임 내부를 알 필요가 없다.
+        </p>
+        <p>
+          실행 결과는 정상·시간 초과·예외·잘못된 반환값 상태, 방향(-1 또는 0~3), 실행 시간, 제한된
+          디버그 출력으로 통일한다. 런타임 자체 장애는 정상적인 턴 시간 초과와 구분해 별도 장애
+          정책으로 처리한다.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">언어</th>
+                <th scope="col">현재 상태와 목표 검토 방향</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>JavaScript</td>
+                <td>
+                  현재 QuickJS 실행기 보유. 인터프리터 배제 조건을 엄격히 적용하면 재검토 필요
+                </td>
+              </tr>
+              <tr>
+                <td>Python</td>
+                <td>
+                  제한된 실행 환경과 허용 모듈·문법을 검토. 일반 인터프리터만으로 추가 성능 조건을
+                  충족한다고 가정하지 않음
+                </td>
+              </tr>
+              <tr>
+                <td>C++</td>
+                <td>
+                  사전 컴파일과 제어 가능한 실행 환경 검토. Wasm 후보도 중단 후 객체·메모리 상태
+                  보존 검증 필요
+                </td>
+              </tr>
+              <tr>
+                <td>C#</td>
+                <td>
+                  제어 가능한 실행 환경 검토. DLL 생성과 JIT 없는 사전 실행 코드 생성을 구분하고
+                  중단·동일 객체 재호출을 검증
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          네 언어의 실행 환경·지원 버전·문법·표준 라이브러리는 확정 전이다. 모든 외부 패키지와 일반
+          개발 환경 전체를 제공하는 것을 기본 범위로 삼지 않는다. Wasm 실행 중단 기능 자체가 언어
+          런타임 내부 상태까지 복구해 주는 것은 아니다.
+        </p>
+        <h2 id="part-8">8. 경기별·참가자별 인스턴스 수명</h2>
+        <pre class="diagram"><code>경기 A
+ ├─ 참가자 1 전용 프로세스 → Player A
+ └─ 참가자 2 전용 프로세스 → Player B
+
+경기 B
+ ├─ 참가자 1 전용 프로세스 → Player C
+ └─ 참가자 2 전용 프로세스 → Player D</code></pre>
+        <p>
+          같은 알고리즘 코드가 A와 C에 사용되더라도 변수·방문 기록·턴 상태·메모리는 공유하지 않는다.
+          코드의 준비된 결과만 재사용할 수 있고 런타임 객체는 경기마다 새로 생성한다. 서로 다른
+          언어가 한 경기에 참가해도 엔진은 같은 계약으로 호출한다.
+        </p>
+        <p>
+          참가자들은 독립적으로 턴을 수행한다. 한 참가자가 계산 중이더라도 다른 참가자의 정상 턴을
+          기다리게 하지 않는다. 같은 참가자의 이전 호출이 끝나기 전에 다음 호출을 중첩하지 않는다.
+        </p>
+        <p>
+          각 호출은 최대 500ms를 기준으로 독립 판정한다. 실행기가 현재 계산을 실제 중단하고 이번
+          턴의 이동을 -1 제자리 패널티로 처리한다. 응답만 버리고 계산을 계속하거나
+          프로세스·인스턴스를 재생성하는 방식은 허용하지 않는다. 중단 이후 다음 턴은 같은 인스턴스로
+          호출하고 경기가 완전히 끝나면 정리한다. 500ms는 통신·대기·애니메이션 시간이 아니라
+          알고리즘 실행 구간의 기준이며 감지·스케줄링 오차를 포함한 검증이 필요하다.
+        </p>
+        <p>
+          지원 확정 전 필수 실험은 정상 실행 → 상태 변경 → 무한 루프 중단 → 동일 PID·인스턴스의 정상
+          재호출이다. 예외 포착·finally·긴 내장 연산·재귀·메모리 고갈·다른 참가자의 독립 실행도
+          검증한다.
+        </p>
+        <h2 id="part-9">9. 데이터 보관 구조</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">데이터</th>
+                <th scope="col">보관 방식</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>계정·역할·알고리즘 이름·언어·파일 참조·완료 경기 메타데이터</td>
+                <td>메타데이터 저장 어댑터</td>
+              </tr>
+              <tr>
+                <td>알고리즘 원문</td>
+                <td>내부 사용자 식별자와 연결된 파일</td>
+              </tr>
+              <tr>
+                <td>과거 경기에서 사용한 알고리즘</td>
+                <td>해당 경기 당시 코드의 별도 파일</td>
+              </tr>
+              <tr>
+                <td>맵 배치·옵션·버전·게시 정보</td>
+                <td>기존 맵 파일·등록 저장 계약 유지</td>
+              </tr>
+              <tr>
+                <td>컴파일 결과</td>
+                <td>재생성 가능한 파일 캐시</td>
+              </tr>
+              <tr>
+                <td>진행 중 경기·Player 인스턴스</td>
+                <td>BE와 실행 프로세스 메모리</td>
+              </tr>
+              <tr>
+                <td>AI 자격 증명</td>
+                <td>전용 자격 증명 저장소 또는 해당 연결 방식의 세션 메모리</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          알고리즘 원문을 DB의 텍스트 필드로 옮기지 않는다. 언어·버전·원문 파일 참조 등을
+          메타데이터로 관리하고 원문은 파일로 유지한다. 과거 경기의 코드는 이후 원본 수정과 독립된
+          사본을 사용한다.
+        </p>
+        <p>
+          현재 메타데이터는 파일 어댑터를 사용한다. FE·BE 분리와 다국어 지원만 완료했다고 DB
+          연결까지 완료되는 것은 아니다. 실제 DB 어댑터 연결은 별도 배포 작업으로 검증하며 원문 파일
+          보관 원칙은 유지한다. 기존 JS 데이터에 언어 정보가 없으면 JavaScript로 해석하는 호환
+          경로를 설계한다.
+        </p>
+        <p>
+          원문·기록·캐시·임시 파일·비밀의 소유권과 정리 경계를 유지한다. 로그에 코드·쿠키·OAuth
+          code/state·AI 키를 남기지 않으며 FE의 공개 산출물에 사용자 데이터를 포함하지 않는다.
+        </p>
+        <h2 id="part-10">10. 배포와 확장</h2>
+        <p>
+          최초 운영은 한 호스트·한 컨테이너 안에서 FE·BE와 참가자별 실행 프로세스를 관리하는 구성을
+          지원한다. 외부에는 서비스 진입점만 노출하고 프로세스 관리자가 서버 준비·종료·실패를
+          관리한다. 실제 이미지·관리자·운영 OS·TLS 구성은 배포 단계에서 확정한다.
+        </p>
+        <p>
+          이후 FE와 BE를 다른 컨테이너나 호스트에 배치할 수 있도록 내부 연결 설정을 분리한다. 사용자
+          주소와 API 경로는 유지한다. 프로세스를 분리해도 같은 호스트의 CPU·메모리는 공유하므로 동시
+          경기·컴파일 작업·실행 메모리·출력에 한도를 적용한다. 언어별 런타임 기본 메모리와 알고리즘
+          메모리는 구분해 측정한다.
+        </p>
+        <p>
+          FE만 재시작할 때 BE의 경기·세션은 유지하고 브라우저가 재연결하도록 구성한다. BE 재시작 후
+          진행 경기 복구나 여러 BE의 분산 운영은 이 고도화만으로 제공되지 않는다. 현재 메모리
+          세션·OAuth 진행 상태·경기·일부 AI 요청 상태를 여러 서버가 공유하는 설계는 별도 확장
+          작업이다.
+        </p>
+        <p>
+          실제 사내 네트워크·VPN·Google/AI 외부 연결·브라우저·동시 경기 부하는 배포 검증에서
+          확인한다. 개인정보 운영 준비는 기존 합의대로 실제 서비스 개시 전 마지막 필수 단계다.
+        </p>
+        <h2 id="part-11">11. 적용 범위와 보관 원칙</h2>
+        <p>
+          이 문서는 최종 목표를 설명하기 위한 보관 문서다. 현재 코드·설정·서버 실행을 변경하거나
+          고도화 구현을 시작하지 않는다. 고도화 착수 시
+          <a href="enhancement-backlog.md">보관 목록</a>과 상세 계획을 기준으로 당시 코드와 배포
+          조건에 맞춰 범위를 다시 정한다.
+        </p>
+        <p>
+          FE·BE 분리와 다국어 지원은 독립적으로 진행할 수 있다. 다국어 지원의 첫 작업은 공통 실행
+          계약과 기존 JavaScript 동작의 보존, 후보 언어의 중단·상태 유지·성능 조건 검증이다. 네
+          언어의 지원 범위는 검증 결과를 근거로 확정한다.
+        </p>
+        <h2 id="part-12">12. 관련 문서와 기술 확인 자료</h2>
+        <ul>
+          <li><a href="enhancement-backlog.md">고도화 작업 보관 목록</a></li>
+          <li>
+            <a href="frontend-backend-separation-plan.md">FE 웹서버·BE 서버 분리 작업 계획</a>
+          </li>
+          <li><a href="architecture.md">현재 아키텍처와 최초 설계 기록</a></li>
+          <li><a href="runtime-verification.md">현재 JavaScript 실행 환경 검증</a></li>
+          <li><a href="storage-adapters.md">저장 어댑터</a></li>
+          <li><a href="privacy-operations-plan.md">개인정보 운영 준비</a></li>
+          <li>
+            <a href="https://bellard.org/quickjs/quickjs.html">QuickJS의 바이트코드·실행 방식</a>
+          </li>
+          <li>
+            <a href="https://docs.python.org/3/glossary.html#term-bytecode"
+              >Python의 바이트코드 정의</a
+            >
+          </li>
+          <li>
+            <a href="https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/"
+              >.NET Native AOT 개요</a
+            >
+          </li>
+          <li>
+            <a href="https://learn.microsoft.com/en-us/dotnet/standard/threading/destroying-threads"
+              >.NET 스레드 중단 제약</a
+            >
+          </li>
+          <li>
+            <a href="https://docs.wasmtime.dev/examples-interrupting-wasm.html"
+              >Wasmtime 실행 중단</a
+            >
+          </li>
+        </ul>
+        <p>
+          기술 자료는 초기 조사 근거다. 해당 게임에서 언어별 실행 조건 검증을 완료했다는 의미는
+          아니다.
+        </p>
+      </main>
+    </div>
+    <footer>
+      고도화 이후의 목표 구조 · 설계 보관 문서 ·
+      <a href="service-architecture-target.md">Markdown</a>
+    </footer>
+  </body>
+</html>
