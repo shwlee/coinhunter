@@ -2,6 +2,8 @@
 
 2026-11-14: 직접 AI API 연결을 종료했다. `/api/ai` 및 모든 하위 경로는 HTTP 410을 반환하며 기존 AI_* 활성 설정으로 재활성화하지 않는다. 프롬프트 규약 조회 `/api/algorithm-assistant/contract`와 코드 검사·저장·경기 API는 유지한다.
 
+`GET /api/algorithm-assistant/contract`의 작성용 확장: 기존 schemaVersion 1과 instructions를 유지하고 `contentVersion`, `promptContext.fullRules/continuationRules/starterSource`를 추가했다. 시간·메모리 값은 실제 실행 정책에서 가져오며 내용 버전은 사용자 데이터 없는 SHA-256 식별자다. 활성 로그인 전용·no-store이며 조회에 외부 호출·저장은 없다. [상세 계약](prompt-contract.md). 두 모드의 생성·UI는 후속 단계다.
+
 - 기준일: 2026-09-27
 - 최초 게스트 API 기록이다. 2026-09-29 추가된 목업 계정·영구 파일 저장·작성 API의 현재 사용법은 [로컬 작업실](local-authoring.md)을 참고한다.
 
