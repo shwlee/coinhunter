@@ -218,6 +218,16 @@
                   </button>
                 </div>
                 <p id="validation-status" role="status" aria-live="polite" hidden></p>
+                <details id="validation-details" hidden>
+                  <summary>검사 상세·수정 안내</summary>
+                  <textarea
+                    id="validation-report"
+                    rows="7"
+                    readonly
+                    spellcheck="false"
+                    aria-label="검사 진단 내용"
+                  ></textarea>
+                </details>
                 <label for="code">JavaScript · 단일 파일</label>
                 <textarea
                   id="code"

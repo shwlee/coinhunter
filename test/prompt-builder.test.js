@@ -290,3 +290,110 @@ test('empty editor and whitespace-only default skeleton do not count as modifica
     true,
   );
 });
+
+test('conversation, purpose, source and strategy/request combinations preserve the complete contract', async (t) => {
+  const contract = await loadAlgorithmContract();
+  const source =
+    '\uFEFF// 한글 😀 ``` ~~~ </textarea> [출력 형식] " \\\r\n' + '// 큰 원문\r\n'.repeat(12000);
+  const requestText = '한글 요청 😀\r\n[출력 형식]\n" \\ ``` ~~~ </textarea>';
+  const inputs = [
+    { label: 'strategy only', prompt: '', priorities: [...input.priorities] },
+    { label: 'request only', prompt: requestText, priorities: [] },
+    { label: 'combined', prompt: requestText, priorities: [...input.priorities] },
+  ];
+  for (const conversationMode of ['new', 'continue'])
+    for (const intent of ['generate', 'modify'])
+      for (const includeSource of [false, true])
+        for (const strategy of inputs)
+          await t.test(
+            `${conversationMode}/${intent}/source=${includeSource}/${strategy.label}`,
+            () => {
+              const submitted = {
+                intent,
+                prompt: strategy.prompt,
+                priorities: strategy.priorities,
+              };
+              const options = { conversationMode };
+              if (conversationMode === 'new' && intent === 'modify' && !includeSource) {
+                assert.throws(
+                  () => buildCopyablePrompt(contract, submitted, undefined, options),
+                  /새 대화에서는 원문/,
+                );
+                return;
+              }
+              const result = buildCopyablePrompt(
+                contract,
+                submitted,
+                includeSource ? source : undefined,
+                options,
+              );
+              const data = payload(result.text);
+              const attached = intent === 'modify' && includeSource;
+              assert.equal(data.intent, intent);
+              assert.equal(data.request, strategy.prompt);
+              assert.deepEqual(
+                data.priorities.map(({ name, weight }) => ({ name, weight })),
+                strategy.priorities.length
+                  ? [
+                      { name: '고액 코인', weight: 5 },
+                      { name: '근처 코인', weight: 3 },
+                      { name: '망치 획득', weight: 1 },
+                    ]
+                  : [],
+              );
+              assert.equal(Object.hasOwn(data, 'source'), attached);
+              assert.equal(data.source, attached ? source : undefined);
+              assert.equal(result.includesSource, attached);
+              assert.equal(result.includesFullRules, conversationMode === 'new');
+              assert.equal(
+                result.includesExample,
+                conversationMode === 'new' && intent === 'generate',
+              );
+              assert.equal(
+                result.text.includes(contract.promptContext.fullRules),
+                conversationMode === 'new',
+              );
+              assert.equal(
+                result.text.includes(contract.promptContext.continuationRules),
+                conversationMode === 'continue',
+              );
+              assert.equal(
+                result.text.includes(contract.promptContext.starterSource),
+                result.includesExample,
+              );
+              assert.equal(result.text.includes(contract.contentVersion), false);
+              assert.equal(result.contentVersion, contract.contentVersion);
+              assert.equal(result.length, result.text.length);
+              assert.ok(result.text.endsWith(contract.outputInstructions.prompt));
+              if (intent === 'modify' && !attached)
+                assert.match(result.text, /이전 대화에서 작성한 코드를 기준/);
+              if (attached) assert.ok(result.length > 100000);
+            },
+          );
+});
+
+test('prompt length boundary applies to the request, without limiting included source', async () => {
+  const contract = await loadAlgorithmContract();
+  const request = '요'.repeat(contract.inputLimits.maxPromptCharacters);
+  const source = '// large source\n'.repeat(20000);
+  for (const conversationMode of ['new', 'continue']) {
+    const result = buildCopyablePrompt(
+      contract,
+      { intent: 'modify', priorities: [], prompt: request },
+      source,
+      { conversationMode },
+    );
+    assert.equal(payload(result.text).request, request);
+    assert.equal(payload(result.text).source, source);
+    assert.throws(
+      () =>
+        buildCopyablePrompt(
+          contract,
+          { intent: 'modify', priorities: [], prompt: request + '초' },
+          source,
+          { conversationMode },
+        ),
+      /전략 입력/,
+    );
+  }
+});

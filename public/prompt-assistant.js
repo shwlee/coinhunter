@@ -193,11 +193,15 @@ export function initializePromptAssistant({ source, priorities, emptyAlgorithm }
       failed = true;
     } finally {
       copying = false;
-      refresh();
+      const { fresh } = refresh();
       if (startedDocument !== documentEpoch) {
         // A previous document's clipboard completion must not update the new document.
       } else if (startedAt !== revision) {
         copyStatus('복사 중 입력이 변경되었습니다. 프롬프트를 다시 생성한 뒤 복사하세요.');
+      } else if (loading || !fresh) {
+        // A copy started before rechecking the rules can finish during that check.
+        // Do not announce success or offer manual fallback for unverified content.
+        copyStatus('게임 규약을 확인한 뒤 다시 복사하세요.');
       } else if (failed) {
         selectText();
         copyStatus(

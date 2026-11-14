@@ -46,13 +46,15 @@ try {
       configurable: true,
       value: {
         writeText: async (text) => {
+          const mode = window.__copyMode;
           if (window.__copyMode === 'deny')
             throw new DOMException('fixture denial', 'NotAllowedError');
           window.__copiedText = text;
-          if (window.__copyMode === 'wait')
+          if (mode === 'wait' || mode === 'wait-deny')
             await new Promise((resolve) => {
               window.__releaseCopy = resolve;
             });
+          if (mode === 'wait-deny') throw new DOMException('delayed denial', 'NotAllowedError');
         },
       },
     });
@@ -78,8 +80,10 @@ try {
   let failedContract = true,
     contractRevision = 0,
     incompatibleStrategy = '',
-    incompleteContract = false;
+    incompleteContract = false,
+    contractGate = null;
   await page.route('**/api/algorithm-assistant/contract', async (route) => {
+    if (contractGate) await contractGate;
     if (failedContract)
       return route.fulfill({
         status: failedContract === 'expired' ? 401 : 503,
@@ -123,6 +127,79 @@ try {
   assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
   assert.equal(await page.locator('#prompt-mode-new').isChecked(), true);
   assert.equal(await page.locator('#prompt-purpose').inputValue(), 'generate');
+  // All UI-reachable combinations, including the three blocked new modifications.
+  const matrixFile =
+    '// 한글 😀 ``` ~~~ </textarea> [출력 형식] " \\\r\n' + '// 큰 원문\r\n'.repeat(16000);
+  const matrixRequest = '추가 요청 😀\n" \\ ``` [출력 형식] </textarea>';
+  await page.locator('#load-mode').click();
+  await page.locator('#import').setInputFiles({
+    name: 'matrix-source.js',
+    mimeType: 'text/javascript',
+    buffer: Buffer.from(matrixFile),
+  });
+  await page.locator('#document-origin').filter({ hasText: 'matrix-source.js' }).waitFor();
+  const matrixSource = await page.locator('#code').inputValue();
+  assert.ok(matrixSource.length > 100000);
+  let matrixCases = 0;
+  for (const mode of ['new', 'continue'])
+    for (const intent of ['generate', 'modify'])
+      for (const included of intent === 'modify' ? [false, true] : [false])
+        for (const kind of ['strategy', 'request', 'combined']) {
+          matrixCases++;
+          await page.locator('#prompt-purpose').selectOption(intent);
+          await page.locator('#prompt-mode-' + mode).check();
+          const template = page.locator('[name="strategy-template"][value="nearestCoin"]');
+          await template.setChecked(kind !== 'request');
+          await page.locator('#prompt').fill(kind === 'strategy' ? '' : matrixRequest);
+          if (intent === 'modify')
+            await page.locator('#prompt-include-source').setChecked(included);
+          else assert.equal(await page.locator('#prompt-include-source').isDisabled(), true);
+          const before = await page.locator('#prompt-preview-text').inputValue();
+          if (mode === 'new' && intent === 'modify' && !included) {
+            assert.equal(await page.locator('#generate-prompt').isDisabled(), true);
+            assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
+            assert.match(await page.locator('#prompt-summary').textContent(), /현재 코드 포함/);
+            assert.equal(await page.locator('#prompt-preview-text').inputValue(), before);
+            continue;
+          }
+          await page.locator('#generate-prompt:enabled').click();
+          const text = await page.locator('#prompt-preview-text').inputValue();
+          const data = parseRequest(text);
+          assert.equal(data.intent, intent);
+          assert.equal(data.request, kind === 'strategy' ? '' : matrixRequest);
+          assert.deepEqual(
+            data.priorities.map(({ name, weight }) => ({ name, weight })),
+            kind === 'request' ? [] : [{ name: '근처 코인', weight: 5 }],
+          );
+          assert.equal(Object.hasOwn(data, 'source'), included);
+          assert.ok(
+            data.source === (included ? matrixSource : undefined),
+            'Only the explicitly included editor snapshot is copied',
+          );
+          assert.equal(text.includes('[게임 규약]\n'), mode === 'new');
+          assert.equal(
+            text.includes('[필수 메서드 골격]'),
+            mode === 'new' && intent === 'generate',
+          );
+          assert.equal(text.includes('[규약 버전]'), false);
+          assert.equal(text.includes('[대화 방식]'), false);
+          assert.ok(
+            (await page.locator('#prompt-summary').textContent()).includes(
+              text.length.toLocaleString('ko-KR') + '자',
+            ),
+          );
+          assert.equal(await page.locator('#prompt-size-note').isVisible(), included);
+          await page.locator('#copy-prompt:enabled').click();
+          await page.locator('#prompt-copy-status[data-state="copied"]').waitFor();
+          assert.equal(await page.evaluate(() => window.__copiedText), text);
+          assert.ok(
+            (await page.locator('#code').inputValue()) === matrixSource,
+            'Prompt actions never alter the editor',
+          );
+        }
+  assert.equal(matrixCases, 18);
+  await page.locator('#new').click();
+  assert.equal(await page.locator('#prompt-preview-text').inputValue(), '');
   await page.locator('[name="strategy-template"][value="nearestCoin"]').check();
   assert.equal(await page.locator('#generate-prompt').isEnabled(), true);
   assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
@@ -169,6 +246,46 @@ try {
     true,
     'An unchanged rules reload keeps the snapshot usable',
   );
+  for (const copyMode of ['wait', 'wait-deny']) {
+    await page.evaluate((mode) => {
+      window.__copyMode = mode;
+      window.__releaseCopy = null;
+    }, copyMode);
+    await page.locator('#copy-prompt').click();
+    await wait(page, () => !!window.__releaseCopy);
+    let releaseContract;
+    contractGate = new Promise((resolve) => {
+      releaseContract = resolve;
+    });
+    try {
+      await page.locator('#retry-prompt-contract').click();
+      assert.equal(await page.locator('#retry-prompt-contract').isDisabled(), true);
+      await page.evaluate(() => window.__releaseCopy());
+      await wait(
+        page,
+        () => document.getElementById('copy-prompt').getAttribute('aria-busy') === 'false',
+      );
+      assert.notEqual(
+        await page.locator('#prompt-copy-status').getAttribute('data-state'),
+        'copied',
+      );
+      assert.match(
+        await page.locator('#prompt-copy-status').textContent(),
+        /규약.*확인.*다시 복사/,
+      );
+      assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
+      assert.equal(await page.locator('#select-prompt').isDisabled(), true);
+      assert.equal(await page.locator('#prompt-preview-text').inputValue(), continuation);
+    } finally {
+      contractGate = null;
+      releaseContract();
+      await page.locator('#retry-prompt-contract:enabled').waitFor();
+    }
+    assert.equal(await page.locator('#copy-prompt').isEnabled(), true);
+  }
+  await page.evaluate(() => {
+    window.__copyMode = 'success';
+  });
   await page.locator('#prompt-mode-continue').focus();
   await page.keyboard.press('ArrowUp');
   assert.equal(await page.locator('#prompt-mode-new').isChecked(), true);
@@ -389,8 +506,27 @@ try {
     '복사 대기 중 변경',
   );
   await mkdir('artifacts', { recursive: true });
+  const checkGenerationLayout = async () => {
+    await page.locator('#generate-prompt').scrollIntoViewIfNeeded();
+    assert.equal(
+      await page.locator('#prompt-conversation-mode').evaluate((mode) => {
+        const choice = mode.getBoundingClientRect();
+        const button = document.getElementById('generate-prompt').getBoundingClientRect();
+        return (
+          choice.top >= 0 &&
+          choice.bottom <= button.top &&
+          button.top - choice.bottom < 48 &&
+          button.bottom <= innerHeight
+        );
+      }),
+      true,
+      'Mode choices stay directly above the generation button in the viewport',
+    );
+  };
+  await checkGenerationLayout();
   await page.screenshot({ path: 'artifacts/prompt-assistant-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
+  await checkGenerationLayout();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   assert.equal(
     await page.locator('#copy-prompt').evaluate((button) => {
@@ -463,7 +599,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    'Prompt assistant smoke passed: explicit generation, stable visible preview, strategy-only, stale input guards, code opt-in, clipboard fallback, delayed copy, mobile and reset. Clipboard writes were replaced.',
+    'Prompt assistant smoke passed: 18 UI combinations, large exact source, explicit generation/copy, mode/version/clipboard races, failures/recovery, document resets and desktop/mobile layout. Clipboard writes were replaced.',
   );
 } finally {
   if (browser) await browser.close();

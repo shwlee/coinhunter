@@ -115,18 +115,10 @@ try {
   assert.equal(Object.hasOwn(request, 'source'), false);
   assert.equal((await accounts.list(user.id)).length, 0);
   const firstPrompt = await page.locator('#prompt-preview-text').inputValue();
-  await page.locator('#prompt-purpose').selectOption('modify');
-  await page.locator('#prompt-mode-continue').check();
-  assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
-  await page.locator('#generate-prompt').click();
-  const followupPrompt = await page.locator('#prompt-preview-text').inputValue();
-  assert.ok(followupPrompt.length < firstPrompt.length);
-  assert.equal(parseRequest(followupPrompt).intent, 'modify');
-  assert.equal(Object.hasOwn(parseRequest(followupPrompt), 'source'), false);
 
   const fixture = await readFile(new URL('../examples/nearest-coin.js', import.meta.url), 'utf8');
   // Return code is a known fixture, not a claim that any external AI generated it.
-  const returned = fixture + '\n// 프롬프트 반환 코드 테스트 대역';
+  let returned = fixture + '\n// 프롬프트 반환 코드 테스트 대역';
   const pasteSource = async (source) => {
     const input = page.locator('#code-editor .cm-content');
     await input.focus();
@@ -149,12 +141,12 @@ try {
   };
   await pasteSource(returned);
   assert.equal(
-    await page.locator('#prompt-mode-continue').isChecked(),
+    await page.locator('#prompt-mode-new').isChecked(),
     true,
     'Pasting returned code keeps the same conversation',
   );
-  assert.equal(await page.locator('#prompt-preview-text').inputValue(), followupPrompt);
-  assert.equal(await page.locator('#prompt-purpose').inputValue(), 'modify');
+  assert.equal(await page.locator('#prompt-preview-text').inputValue(), firstPrompt);
+  assert.equal(await page.locator('#prompt-purpose').inputValue(), 'generate');
   assert.equal(writes.length, 0, 'Pasting and validation must not save');
   let releaseGame;
   const gameScript = new Promise((resolve) => {
@@ -251,6 +243,23 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.locator('#back-to-editor').click();
   assert.equal(await page.locator('#code').inputValue(), returned);
+  // Run a second complete game from a source-free continuation, not merely another preview.
+  await page.locator('#prompt-purpose').selectOption('modify');
+  await page.locator('#prompt-mode-continue').check();
+  assert.equal(await page.locator('#copy-prompt').isDisabled(), true);
+  await page.locator('#generate-prompt').click();
+  await page.locator('#copy-prompt').click();
+  await page.locator('#prompt-copy-status[data-state="copied"]').waitFor();
+  const followupPrompt = await page.locator('#prompt-preview-text').inputValue();
+  assert.equal(await page.evaluate(() => window.__copiedText), followupPrompt);
+  assert.ok(followupPrompt.length < firstPrompt.length);
+  assert.equal(parseRequest(followupPrompt).intent, 'modify');
+  assert.equal(Object.hasOwn(parseRequest(followupPrompt), 'source'), false);
+  returned += '\n// 후속 요청 반환 코드 테스트 대역';
+  await pasteSource(returned);
+  assert.equal(await page.locator('#prompt-mode-continue').isChecked(), true);
+  assert.equal(await page.locator('#prompt-purpose').inputValue(), 'modify');
+  assert.equal(await page.locator('#prompt-preview-text').inputValue(), followupPrompt);
   const expiredTestSession = async (route) => {
     if (route.request().frame().parentFrame())
       await route.fulfill({ status: 401, json: { error: '다시 로그인하세요.' } });
@@ -270,6 +279,23 @@ try {
   await page.locator('#testing-view').click();
   await page.locator('#game').waitFor({ state: 'visible' });
   await game.locator('#test-score-value').filter({ hasText: /^0$/ }).waitFor();
+  await game.locator('#map-select').selectOption(map.id);
+  await game.locator('input[name="start-slot"][value="0"]').check();
+  const secondCreated = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === '/api/matches' && r.request().method() === 'POST',
+  );
+  await game.locator('#start-button').click();
+  const secondResponse = await secondCreated;
+  assert.equal(secondResponse.status(), 201);
+  assert.equal(secondResponse.request().postData(), returned);
+  const { id: secondId } = await secondResponse.json();
+  assert.notEqual(secondId, matchId);
+  await game.locator('#arena-message strong').filter({ hasText: '테스트 종료' }).waitFor();
+  const secondMatch = await (await context.request.get(`${base}/api/matches/${secondId}`)).json();
+  assert.equal(secondMatch.game.reason, 'coins-collected');
+  assert.equal(secondMatch.game.players[0].score, 40);
+  assert.equal(secondMatch.game.players[0].stats.penalties, 0);
+  assert.equal(await game.locator('#test-score-value').textContent(), '40');
   await page.locator('#back-to-editor').click();
   assert.equal((await accounts.list(user.id)).length, 0, 'Test play must not save the document');
   await page.locator('#save').click();
@@ -364,7 +390,7 @@ try {
   assert.deepEqual(externalRequests, []);
   assert.deepEqual(errors, []);
   console.log(
-    'Prompt workflow passed: strategy/copy, paste into editor, actual validation, 40-point completed match, explicit save/reload, modify/undo/overwrite, account isolation and mobile restore. External AI output and clipboard are fixtures; AI disabled.',
+    'Prompt workflow passed: full and continuation copies, editor paste/validation, two completed 40-point matches, explicit save/reload, modify/undo/overwrite, account isolation and mobile restore. External AI output and clipboard are fixtures; AI disabled.',
   );
 } finally {
   if (browser) await browser.close();

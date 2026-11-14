@@ -103,6 +103,31 @@ main,
 #validation-status[data-state='error'] {
   color: #ffbf99;
 }
+#validation-details {
+  min-width: 0;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #705447;
+  border-radius: 8px;
+  background: #211e26;
+}
+#validation-details summary {
+  cursor: pointer;
+  color: #ffbf99;
+  font-size: 13px;
+}
+#validation-report {
+  display: block;
+  width: 100%;
+  min-height: 120px;
+  max-height: 260px;
+  margin-top: 10px;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+}
 #notice {
   min-height: 24px;
   color: #c9e7a7;

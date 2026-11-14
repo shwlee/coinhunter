@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { analyze } from 'eslint-scope';
 import { validateSource } from './policy.js';
 import { AlgorithmSandbox } from './sandbox.js';
+import { validationDiagnostic } from './validation-diagnostic.js';
 
 // Only globals available to player.js; host APIs and disabled dynamic execution are excluded.
 const globals = new Set(
@@ -16,7 +17,13 @@ escape unescape`.split(/\s+/),
 );
 
 async function inspect(source) {
-  const tree = validateSource(source);
+  let tree;
+  try {
+    tree = validateSource(source);
+  } catch (error) {
+    error.validation = { stage: error.loc ? 'syntax' : 'policy' };
+    throw error;
+  }
   const scope = analyze(tree, {
     ecmaVersion: 2022,
     sourceType: 'script',
@@ -31,6 +38,7 @@ async function inspect(source) {
     const error = new Error(`선언되지 않았거나 사용할 수 없는 이름: ${missing.name}`);
     error.pos = missing.start;
     error.loc = missing.loc.start;
+    error.validation = { stage: 'references' };
     throw error;
   }
   let calls = 0;
@@ -40,11 +48,16 @@ async function inspect(source) {
     );
     const starts = [0, map.columns - 1, map.columns * (map.rows - 1), map.tiles.length - 1];
     for (let player = 0; player < 4; player++) {
-      const sandbox = await AlgorithmSandbox.create(source, player, map.columns, map.rows);
+      let sandbox,
+        checkedTurn = null;
       try {
+        sandbox = await AlgorithmSandbox.create(source, player, map.columns, map.rows, {
+          diagnostics: true,
+        });
         let position = starts[player];
         const tiles = [...map.tiles];
         for (let turn = 0; turn < 3; turn++) {
+          checkedTurn = turn + 1;
           // Include both absent items and present items, plus a coin-free board.
           if (turn === 2) for (let i = 0; i < tiles.length; i++) if (tiles[i] > 0) tiles[i] = 0;
           const items = turn === 1 ? [...starts] : [-1, -1, -1, -1];
@@ -56,9 +69,17 @@ async function inspect(source) {
                 exception: '실행 중 예외 발생',
                 'invalid-result': '반환값은 정수 -1, 0, 1, 2, 3 중 하나여야 합니다',
               }[result.status] || result.status;
-            throw new Error(
+            const error = new Error(
               `moveNext 검사 실패 · ${map.columns}×${map.rows}, 플레이어 ${player + 1}, ${turn + 1}회 호출: ${reason}`,
             );
+            error.validation = {
+              stage: 'moveNext',
+              status: result.status,
+              detail: result.exceptionMessage || reason,
+              logs: [...result.logs],
+              droppedLogs: result.droppedLogs,
+            };
+            throw error;
           }
           calls++;
           const direction = result.value;
@@ -75,8 +96,14 @@ async function inspect(source) {
             tiles[position] = 0;
           }
         }
+      } catch (error) {
+        error.validation = {
+          ...error.validation,
+          context: { columns: map.columns, rows: map.rows, player: player + 1, call: checkedTurn },
+        };
+        throw error;
       } finally {
-        sandbox.dispose();
+        sandbox?.dispose();
       }
     }
   }
@@ -88,12 +115,11 @@ process.once('message', async ({ source, sourcePath }) => {
   try {
     result = await inspect(sourcePath ? await readFile(sourcePath, 'utf8') : source);
   } catch (error) {
+    if (typeof error.code === 'string' && error.code.startsWith('E'))
+      error = new Error('검사 환경 또는 검사 대상 파일을 준비하지 못했습니다.');
     result = {
       error: String(error.message).slice(0, 500),
-      diagnostic:
-        Number.isInteger(error.pos) && error.loc
-          ? { offset: error.pos, line: error.loc.line, column: error.loc.column + 1 }
-          : null,
+      diagnostic: validationDiagnostic(error),
     };
   }
   process.send?.(result, () => process.disconnect());

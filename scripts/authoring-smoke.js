@@ -448,6 +448,21 @@ try {
   await page.locator('#code-error').waitFor({ state: 'visible' });
   assert.match(await page.locator('#code-error').textContent(), /1줄 16열/);
   assert.equal(await page.locator('.cm-code-error').count(), 1);
+  assert.equal(await page.locator('#validation-details').isVisible(), true);
+  assert.match(await page.locator('#validation-report').inputValue(), /검사 단계: 구문 검사/);
+  assert.match(await page.locator('#validation-report').inputValue(), /수정 안내:.*마크다운/);
+  await page.locator('.cm-content').fill(`class Player {
+    initialize() {} getName() { return 'test'; } moveNext() { return -1; }
+  } module.exports = { Player };`);
+  assert.equal(await page.locator('#validation-details').isVisible(), false);
+  await page.click('#validate');
+  await page.locator('#validation-status[data-state="error"]').waitFor();
+  assert.match(await page.locator('#validation-report').inputValue(), /module.exports = Player;/);
+  assert.match(
+    await page.locator('#validation-report').inputValue(),
+    /module.exports = \{ Player \}/,
+  );
+  assert.equal(await page.locator('#code-error').isVisible(), false);
   await page
     .locator('.cm-content')
     .fill(original.replace('this.turn++;', '쟁.ㅁㄴㅇ; this.turn++;'));
@@ -460,10 +475,63 @@ try {
   await page.click('#validate');
   await page.locator('#validation-status[data-state="error"]').waitFor();
   assert.match(await page.locator('#validation-status').textContent(), /moveNext 검사 실패.*예외/);
+  assert.match(
+    await page.locator('#validation-report').inputValue(),
+    /검사 단계: moveNext 샘플 실행/,
+  );
+  assert.match(await page.locator('#validation-report').inputValue(), /수정 안내: map은 1차원/);
+  await page
+    .locator('.cm-content')
+    .fill(
+      original.replace(
+        'this.turn++;',
+        `debug.print('실패 직전', myPosition); throw new Error('<img src=x onerror=alert(1)> 예제 오류'); this.turn++;`,
+      ),
+    );
+  await page.click('#validate');
+  await page.locator('#validation-status[data-state="error"]').waitFor();
+  const report = await page.locator('#validation-report').inputValue();
+  assert.match(report, /오류: <img src=x onerror=alert\(1\)> 예제 오류/);
+  assert.match(report, /debug.print 출력:\n실패 직전/);
+  assert.equal(await page.locator('#validation-details img').count(), 0);
+  assert.equal(await page.locator('#validation-report').getAttribute('readonly'), '');
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await page
+    .locator('#validation-details')
+    .screenshot({ path: 'artifacts/editor-validation-mobile.png' });
+  await page.setViewportSize({ width: 1550, height: 1100 });
+  // A late error belongs to the checked snapshot, never to a subsequent edit.
+  let releaseValidation, enteredValidation;
+  const validationEntered = new Promise((resolve) => {
+    enteredValidation = resolve;
+  });
+  const validationGate = new Promise((resolve) => {
+    releaseValidation = resolve;
+  });
+  const delayedValidation = async (route) => {
+    const response = await route.fetch();
+    enteredValidation();
+    await validationGate;
+    await route.fulfill({ response });
+  };
+  await page.route('**/api/algorithms/validate', delayedValidation);
+  try {
+    await page.click('#validate');
+    await validationEntered;
+    await page.locator('.cm-content').fill(original + '\n// changed during validation');
+  } finally {
+    releaseValidation();
+    await page.locator('#validate:enabled').waitFor();
+    await page.unroute('**/api/algorithms/validate', delayedValidation);
+  }
+  assert.equal(await page.locator('#validation-details').isVisible(), false);
+  assert.equal(await page.locator('#validation-report').inputValue(), '');
   await page.locator('.cm-content').fill(original + '\n// edit');
   assert.equal(await warnsOnExit(), true);
   assert.equal(await page.locator('.cm-code-error').count(), 0);
   assert.equal(await page.locator('#code-error').isVisible(), false);
+  assert.equal(await page.locator('#validation-details').isVisible(), false);
   await page.click('#validate');
   await page.locator('#validation-status[data-state="success"]').waitFor();
   assert.match(await page.locator('#validation-status').textContent(), /검사 통과/);

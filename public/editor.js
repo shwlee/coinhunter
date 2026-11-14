@@ -138,10 +138,40 @@ for (const template of STRATEGY_TEMPLATES) {
   });
 }
 refreshTemplates();
+function clearValidationDetails() {
+  $('validation-details').hidden = true;
+  $('validation-details').open = false;
+  $('validation-report').value = '';
+}
 function validationStatus(state, message) {
+  clearValidationDetails();
   $('validation-status').hidden = false;
   $('validation-status').dataset.state = state;
   $('validation-status').textContent = message;
+}
+function validationDetails(error) {
+  const diagnostic = error.diagnostic;
+  const lines = [
+    `검사 단계: ${diagnostic?.stageLabel || '검사 요청'}`,
+    `오류: ${diagnostic?.detail || error.message}`,
+  ];
+  if (diagnostic?.hint) lines.push('', `수정 안내: ${diagnostic.hint}`);
+  if (Number.isInteger(diagnostic?.line))
+    lines.push('', `위치: ${diagnostic.line}줄 ${diagnostic.column}열`);
+  if (diagnostic?.context) {
+    const { columns, rows, player, call } = diagnostic.context;
+    lines.push(
+      '',
+      `검사 조건: ${columns}×${rows} 맵 · 플레이어 ${player}${call ? ` · ${call}회 호출` : ''}`,
+    );
+  }
+  if (diagnostic?.logs?.length)
+    lines.push('', '실패한 호출의 debug.print 출력:', ...diagnostic.logs);
+  if (diagnostic?.droppedLogs)
+    lines.push(`출력 한도로 ${diagnostic.droppedLogs}개 메시지를 생략했습니다.`);
+  $('validation-report').value = lines.join('\n');
+  $('validation-details').hidden = false;
+  $('validation-details').open = true;
 }
 function setValidationBusy(busy) {
   const button = $('validate');
@@ -331,6 +361,7 @@ function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name 
   $('code').value = item?.source || '';
   $('code-error').hidden = true;
   $('validation-status').hidden = true;
+  clearValidationDetails();
   setValidationBusy(false);
   saved = contents();
   promptAssistant?.reset();
@@ -579,7 +610,8 @@ async function validateEditorSource() {
         ? `검사 실패 · ${error.message}`
         : '검사 중 코드가 변경되었습니다. 다시 검사하세요.',
     );
-    if (source === $('code').value && error.diagnostic) {
+    if (source === $('code').value) validationDetails(error);
+    if (source === $('code').value && Number.isInteger(error.diagnostic?.offset)) {
       showPanel('writing');
       editor.showError(error.diagnostic.offset);
       $('code-error').textContent =
