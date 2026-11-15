@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { diskSpace, hasCopySpace, withCopySpace } from '../src/persistence/disk-space.js';
+import {
+  diskSpace,
+  hasCopySpace,
+  withCopySpace,
+} from '../backend/node/src/persistence/disk-space.js';
 
 test('copy space includes the source size before starting a copy', async (t) => {
   const directory = await mkdtemp(join(tmpdir(), 'coinhunter-disk-'));

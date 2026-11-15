@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readdir, rm, utimes, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { cleanupOrphanUploads } from '../src/persistence/upload-cleanup.js';
+import { cleanupOrphanUploads } from '../backend/node/src/persistence/upload-cleanup.js';
 
 test('startup cleanup removes dead-process uploads and old legacy uploads', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'coinhunter-orphans-'));

@@ -4,11 +4,11 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createAiProviders, aiError } from '../src/ai/providers.js';
-import { createAiModelCatalog } from '../src/ai/model-catalog.js';
-import { readAiConfig } from '../src/ai/config.js';
-import { createAiStorage } from '../src/ai/storage-service.js';
-import { createMemorySessionStore } from '../src/auth/memory-session-store.js';
+import { createAiProviders, aiError } from '../backend/node/src/ai/providers.js';
+import { createAiModelCatalog } from '../backend/node/src/ai/model-catalog.js';
+import { readAiConfig } from '../backend/node/src/ai/config.js';
+import { createAiStorage } from '../backend/node/src/ai/storage-service.js';
+import { createMemorySessionStore } from '../backend/node/src/auth/memory-session-store.js';
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 const deferred = () => {

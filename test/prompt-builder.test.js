@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCopyablePrompt, hasPromptSource } from '../public/prompt-builder.js';
+import { buildCopyablePrompt, hasPromptSource } from '../frontend/public/prompt-builder.js';
 import {
   loadAlgorithmContract,
   promptContentVersion,
-} from '../src/algorithm-assistant/contract.js';
+} from '../backend/node/src/algorithm-assistant/contract.js';
 
 const input = {
   intent: 'generate',

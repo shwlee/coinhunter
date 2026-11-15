@@ -3,10 +3,10 @@ import { mkdtemp, rm, mkdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { createGameServer } from '../src/server.js';
-import { promptContentVersion } from '../src/algorithm-assistant/contract.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
+import { createGameServer } from '../backend/node/src/server.js';
+import { promptContentVersion } from '../backend/node/src/algorithm-assistant/contract.js';
 
 const dir = await mkdtemp(join(tmpdir(), 'coinhunter-prompt-browser-'));
 const { server, close } = createGameServer({
@@ -392,7 +392,7 @@ try {
   assert.equal(copied.includes('Return JSON with source'), false);
   assert.equal(await page.locator('#prompt-preview-text').isVisible(), true);
   const code =
-    (await readFile(new URL('../examples/nearest-coin.js', import.meta.url), 'utf8')) +
+    (await readFile(new URL('../backend/node/examples/nearest-coin.js', import.meta.url), 'utf8')) +
     '\n// source-ONLY-MARKER';
   await page.locator('#code-editor .cm-content').fill(code);
   assert.equal(await page.locator('#prompt-include-source').isDisabled(), true);

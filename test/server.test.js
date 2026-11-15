@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGameServer } from '../src/server.js';
+import { createGameServer } from '../backend/node/src/server.js';
 
 test(
   'guest upload/start, ownership, invalid origin, stop and cleanup',

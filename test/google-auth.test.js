@@ -6,11 +6,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import http from 'node:http';
 import { OAuth2Client } from 'google-auth-library';
-import { readAuthConfig } from '../src/auth/config.js';
-import { createGoogleProvider } from '../src/auth/google-provider.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { createGameServer } from '../src/server.js';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
+import { readAuthConfig } from '../backend/node/src/auth/config.js';
+import { createGoogleProvider } from '../backend/node/src/auth/google-provider.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
+import { createGameServer } from '../backend/node/src/server.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
 
 const deferred = () => {
   let resolve;

@@ -1,5 +1,32 @@
 # 구현 진행 결과
 
+## 2026-11-15 — FE/BE 소스 폴더 구분
+
+- 화면·에셋·에디터와 정적 웹/API 중계를 `frontend/`로 이동했다.
+- C# 프로젝트는 `backend/src`에 유지하고 Node 게임/실행기·샘플 코드/맵은 `backend/node/`로 이동했다. 공용 순수 JS 5개는 `shared/`로 분리했다.
+- 실행/빌드·C# 엔진 탐색·기본 맵/예제·회귀/브라우저 검사와 에셋 URL 연결을 갱신했다. 루트 명령, `.env`·기존 C# 로컬 설정, 실제 `data/` 경로는 유지했다.
+- C# 빌드와 44개 검사, 프레임/업무 통합 18그룹, Node 232개 회귀 및 실제 브라우저 전체 흐름 통과. [현재 구조](project-layout.md).
+- 커밋·푸시와 실제 데이터 이전은 수행하지 않았다.
+
+## 2026-11-15 — BE 분리 2~9단계 로컬 구현 완료·리뷰 대기
+
+- C# 운영 파일/원문/맵 저장, Google/세션/관리자, 경기별 Node 실행 관리, 업무 API/경기/SSE/멱등 결과와 전량 JSONL/receipt/partial 복구를 구현했다.
+- Node는 정적 웹/중계로 사용하고 기본 `npm start`를 새 BE 경로로 연결했다. 직접 AI 기능은 복원하지 않았다.
+- 실제 브라우저 전체 흐름과 4경기/16플레이어·SSE/검사/업로드 동시 실행, 엔진/실행 관리/운영 장애, 이전 dry-run/복사·ID 유지, launcher 정상 종료를 검증했다. 기존 Node 232개 검사 통과.
+- 결과 ack 재시도, 실패 종료 순번, receipt 선저장, 수락 거부 pending 제거, 요청 키의 소유자 범위, 미확정 원문 정리 등 검사 중 결함을 수정했다.
+- [단계별 결과/제한](backend-split-completion.md), [실행법](../backend/README.md), [전환/복귀](backend-cutover-runbook.md).
+- 실제 사용자 데이터/키·기존 서버는 변경하지 않았다. 외부 Google/사내 배포·DB 전환·독립 FE 배포·개인정보 마지막 준비는 후속이다. 커밋/푸시는 하지 않았으며 최종 사용자 리뷰 대기.
+
+## 2026-11-15 — BE 분리 1단계 계약·닷넷 호스트 기반 완료
+
+`backend/CoinHunter.sln`에 .NET 10 운영 API·실행 관리 호스트·Contracts·Infrastructure·실행형 계약 검사를 추가했다. 두 호스트는 별도 포트에서 기동하고 공유 메모리 주입 키로 내부 status를 확인한다. 설정/Host/Origin·명시 proxy·내부 키 인증·정상 종료·live/readiness를 구현했으며 readiness는 bootstrap 범위와 businessReady=false를 표시한다. 기존 게임·사용자 저장소는 열지 않는다.
+
+공개 API 36개를 목록화하고 미이전 경로는 501, 제거 AI는 410으로 구분했다. 버전 있는 실행 요청/결과·scope/source 참조 DTO와 길이 접두 C#/Node 프레임 코덱·공통 manifest·fixture를 보관했다. 실제 게임 생성·원문/계정 저장·인증 이전·SSE·수집은 다음 단계이며 호스트 기반만으로 완료 표시하지 않았다.
+
+`node scripts/backend.js test`로 로컬 빈 feed 복원/빌드(경고/오류 0), C# 검사 31개·Node/HTTP/프로세스 검사 19개를 통과했다. 호스트에 불필요한 환경 자격 증명 전달 제외, 프레임 양방향 상호운용·내부 인증·위조/불완전 proxy·OAuth 쿼리 로그 미노출·version/key/대형/정지 응답·독립 기동/종료·실행 도구 종료/포트 정리를 검증했다. 기존 runtime/preflight 회귀 21개도 통과했다. npm 진입 파일의 sandbox 접근 제한은 동일한 직접 Node 명령으로 우회하고 전역 설정을 바꾸지 않았다.
+
+[실행법](../backend/README.md), [공개 API](backend-api-contracts.md), [내부 계약](backend-execution-contract-v1.md), [검증 기록](backend-stage1-verification.md)을 추가했다. 자체 리뷰에서 status 본문 deadline·불완전 전달 헤더·확장자 404·실행 스크립트 순환 의존을 수정했다. 실제 사용자 서버·계정/키·외부 서비스는 사용하지 않았고 검사 호스트는 종료했다. 커밋 전 상태이며 다음은 BE 2단계 저장 어댑터다.
+
 ## 2026-11-15 — BE 우선 분리 9단계 작업 계획 생성
 
 [BE 분리 구현 계획](backend-separation-implementation-plan.md)에 계약/닷넷 뼈대 → 운영 파일 저장 → 인증/계정 → 실행 관리/게임별 Node 호스트 → 업무 API → 경기/SSE/결과 → 독립 전량 수집 → 기존 화면 연결 → 통합/전환의 9단계를 정리했다. 각 단계의 선행 의존성·산출물·완료 기준·현재 미구현 상태와 전환/복귀 경계를 명시했다.
@@ -134,7 +161,7 @@ preflight 11개·런타임 10개·계정/HTTP 3개·규약 5개의 관련 검사
 
 ## 2026-11-14 — 분량 축소 1단계: 작성 규약 분리와 내용 버전
 
-`promptContext.fullRules/continuationRules/starterSource`와 SHA-256 `contentVersion`을 규약 조회에 추가했다. [작성용 규약 원본](algorithm-authoring-rules.md)은 실제 메서드·위치·입력·아이템·독립 턴·현재 턴 패널티·제한을 정리하고 시간/guest 메모리 값은 실제 정책에서 채운다. 맵별 액션 시간·일정·지속량을 고정하지 않는다. [최소 골격](../examples/player-skeleton.js)은 실제 preflight 24회를 통과한다. [상세 계약과 대응표](prompt-contract.md)에 구현 근거와 버전 범위를 기록했다.
+`promptContext.fullRules/continuationRules/starterSource`와 SHA-256 `contentVersion`을 규약 조회에 추가했다. [작성용 규약 원본](algorithm-authoring-rules.md)은 실제 메서드·위치·입력·아이템·독립 턴·현재 턴 패널티·제한을 정리하고 시간/guest 메모리 값은 실제 정책에서 채운다. 맵별 액션 시간·일정·지속량을 고정하지 않는다. [최소 골격](../backend/node/examples/player-skeleton.js)은 실제 preflight 24회를 통과한다. [상세 계약과 대응표](prompt-contract.md)에 구현 근거와 버전 범위를 기록했다.
 
 내용 버전은 작성 규약·요약·골격·출력·언어·관련 정책/전략을 대상으로 하며 줄바꿈에 독립적이다. 사용자·시각·종료한 API 출력과 과거 호환 문서 원문은 포함하지 않는다. 기존 schemaVersion 1과 instructions는 유지해 현재 복사 본문·UI를 바꾸지 않는다. 모드별 생성은 2단계, 선택 UI·규약 버전 전환 처리는 3단계에서 연결한다.
 

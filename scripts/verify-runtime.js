@@ -1,4 +1,4 @@
-import { PlayerProcess } from '../src/runtime/player-process.js';
+import { PlayerProcess } from '../backend/node/src/runtime/player-process.js';
 
 const source = `module.exports = class {
   initialize() { this.calls=0; }

@@ -1,0 +1,21 @@
+{
+  "contractVersion": 1,
+  "headerBytes": 4,
+  "byteOrder": "big-endian",
+  "maxFrameBytes": 4194304,
+  "maxJsonDepth": 64,
+  "messageTypes": [
+    "initialize",
+    "prepared",
+    "start",
+    "snapshot",
+    "stop",
+    "closed",
+    "failed",
+    "recording-status",
+    "ack"
+  ],
+  "executionStates": ["accepted", "prepared", "running", "closed", "failed"],
+  "recordingStates": ["not-started", "recording", "complete", "partial", "failed"],
+  "resultDeliveryStates": ["pending", "applied"]
+}

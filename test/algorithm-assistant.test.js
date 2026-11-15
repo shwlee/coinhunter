@@ -7,15 +7,15 @@ import {
   normalizeStrategyInput,
   expandStrategyPriorities,
   buildStrategyRequest,
-} from '../public/algorithm-strategy.js';
-import { STRATEGY_TEMPLATES, PRIORITY_WEIGHTS } from '../public/strategy-templates.js';
-import { loadAlgorithmContract } from '../src/algorithm-assistant/contract.js';
-import { TURN_LIMIT_MS, ALGORITHM_MEMORY_LIMIT_BYTES } from '../src/runtime/policy.js';
-import { validateGenerationInput, buildGenerationInput } from '../src/ai/input.js';
-import { createGameServer } from '../src/server.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { readAuthConfig } from '../src/auth/config.js';
+} from '../shared/algorithm-strategy.js';
+import { STRATEGY_TEMPLATES, PRIORITY_WEIGHTS } from '../shared/strategy-templates.js';
+import { loadAlgorithmContract } from '../backend/node/src/algorithm-assistant/contract.js';
+import { TURN_LIMIT_MS, ALGORITHM_MEMORY_LIMIT_BYTES } from '../backend/node/src/runtime/policy.js';
+import { validateGenerationInput, buildGenerationInput } from '../backend/node/src/ai/input.js';
+import { createGameServer } from '../backend/node/src/server.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { readAuthConfig } from '../backend/node/src/auth/config.js';
 
 const input = {
   intent: 'generate',
@@ -110,7 +110,7 @@ test('contract uses current documents and runtime limits with separate API and c
   for (const path of [
     '../docs/algorithm-api.md',
     '../docs/game-rules.md',
-    '../examples/nearest-coin.js',
+    '../backend/node/examples/nearest-coin.js',
   ])
     assert.ok(
       contract.instructions.includes(await readFile(new URL(path, import.meta.url), 'utf8')),

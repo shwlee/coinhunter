@@ -1,8 +1,11 @@
 import { readFile } from 'node:fs/promises';
-import { MAPS } from '../src/game/map-repository.js';
-import { Match } from '../src/game/match.js';
+import { MAPS } from '../backend/node/src/game/map-repository.js';
+import { Match } from '../backend/node/src/game/match.js';
 
-const source = await readFile(new URL('../examples/nearest-coin.js', import.meta.url), 'utf8');
+const source = await readFile(
+  new URL('../backend/node/examples/nearest-coin.js', import.meta.url),
+  'utf8',
+);
 const map = structuredClone(MAPS[0]);
 map.settings.actionMs = 30;
 map.settings.runningTimeMs = 10000;

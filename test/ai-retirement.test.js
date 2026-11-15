@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createGameServer } from '../src/server.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
+import { createGameServer } from '../backend/node/src/server.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
 
 async function snapshot(directory) {
   const result = {};

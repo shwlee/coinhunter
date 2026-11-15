@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rankPlayers } from '../public/podium.js';
+import { rankPlayers } from '../frontend/public/podium.js';
 
 test('podium ranks scores without changing players and shares tied ranks', () => {
   const players = [

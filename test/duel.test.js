@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGameServer } from '../src/server.js';
-import { GameState } from '../src/game/state.js';
-import { MAPS } from '../src/game/map-repository.js';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { createAuthoring } from '../src/authoring-api.js';
+import { createGameServer } from '../backend/node/src/server.js';
+import { GameState } from '../backend/node/src/game/state.js';
+import { MAPS } from '../backend/node/src/game/map-repository.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

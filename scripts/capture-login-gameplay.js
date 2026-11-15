@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { chromium } from 'playwright-core';
-import { createGameServer } from '../src/server.js';
+import { createGameServer } from '../backend/node/src/server.js';
 
 const candidates = [
   process.env.COINHUNTER_BROWSER,
@@ -18,8 +18,12 @@ const executablePath = candidates.find((path) => path && existsSync(path));
 if (!executablePath) throw new Error('COINHUNTER_BROWSER에 Chromium 실행 경로를 지정하세요.');
 
 const ffmpeg = process.env.COINHUNTER_FFMPEG || 'ffmpeg';
-const output = fileURLToPath(new URL('../public/assets/login-gameplay.mp4', import.meta.url));
-const poster = fileURLToPath(new URL('../public/assets/login-gameplay.jpg', import.meta.url));
+const output = fileURLToPath(
+  new URL('../frontend/public/assets/login-gameplay.mp4', import.meta.url),
+);
+const poster = fileURLToPath(
+  new URL('../frontend/public/assets/login-gameplay.jpg', import.meta.url),
+);
 const temporary = await mkdtemp(join(tmpdir(), 'coinhunter-login-video-'));
 const { server, close } = createGameServer();
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -33,7 +37,9 @@ try {
     await page.locator(`#map-select option[value="${mapId}"]`).waitFor({ state: 'attached' });
     await page
       .locator('#algorithm-file')
-      .setInputFiles(fileURLToPath(new URL('../examples/nearest-coin.js', import.meta.url)));
+      .setInputFiles(
+        fileURLToPath(new URL('../backend/node/examples/nearest-coin.js', import.meta.url)),
+      );
     await page.locator('#file-next').click();
     await page.locator('#map-select').selectOption(mapId);
     await page.locator('#settings-next').click();
@@ -77,7 +83,9 @@ try {
   };
   const first = await recordMatch('crossroads', 'lumi');
   const second = await recordMatch('four-courtyards', 'dino');
-  await mkdir(fileURLToPath(new URL('../public/assets/', import.meta.url)), { recursive: true });
+  await mkdir(fileURLToPath(new URL('../frontend/public/assets/', import.meta.url)), {
+    recursive: true,
+  });
   let size;
   for (const quality of [32, 34, 36, 38, 40]) {
     const encode = spawnSync(

@@ -3,9 +3,9 @@ import { mkdtemp, rm, mkdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { createGameServer } from '../src/server.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
+import { createGameServer } from '../backend/node/src/server.js';
 
 const dir = await mkdtemp(join(tmpdir(), 'coinhunter-editor-'));
 const accounts = new FileAccountRepository(join(dir, 'store.json'));
@@ -905,7 +905,7 @@ try {
   await second.locator('#saved-current').selectOption(editable.id);
   await second.locator('#file-label').filter({ hasText: editable.name }).waitFor();
   assert.equal(await second.locator('#edit-selected-algorithm').isEnabled(), true);
-  await second.locator('#algorithm-file').setInputFiles('examples/nearest-coin.js');
+  await second.locator('#algorithm-file').setInputFiles('backend/node/examples/nearest-coin.js');
   assert.equal(await second.locator('#edit-selected-algorithm').isDisabled(), true);
   await second.locator('#saved-current').selectOption(editable.id);
   await second.locator('#file-label').filter({ hasText: editable.name }).waitFor();

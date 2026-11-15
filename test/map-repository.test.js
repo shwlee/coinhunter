@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MapRepository } from '../src/game/map-repository.js';
+import { MapRepository } from '../backend/node/src/game/map-repository.js';
 import { readFileSync } from 'node:fs';
-import { validateMapDocument } from '../src/game/maps.js';
-import { Match } from '../src/game/match.js';
-import { createGameServer } from '../src/server.js';
+import { validateMapDocument } from '../backend/node/src/game/maps.js';
+import { Match } from '../backend/node/src/game/match.js';
+import { createGameServer } from '../backend/node/src/server.js';
 const sample = JSON.parse(
-  readFileSync(new URL('../maps/samples/crossroads.json', import.meta.url), 'utf8'),
+  readFileSync(new URL('../backend/node/maps/samples/crossroads.json', import.meta.url), 'utf8'),
 );
 
 async function repository(t) {

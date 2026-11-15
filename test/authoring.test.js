@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { createGameServer } from '../src/server.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
+import { createGameServer } from '../backend/node/src/server.js';
 
 test('production refuses explicit mock authentication', () => {
   const original = process.env.NODE_ENV;

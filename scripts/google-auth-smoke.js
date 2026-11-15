@@ -6,9 +6,9 @@ import { generateKeyPairSync, sign } from 'node:crypto';
 import http from 'node:http';
 import { OAuth2Client } from 'google-auth-library';
 import { chromium } from 'playwright-core';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { createGameServer } from '../src/server.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
+import { createGameServer } from '../backend/node/src/server.js';
 
 // Google transport is replaced; the real SDK validates locally signed tokens.
 const dir = await mkdtemp(join(tmpdir(), 'coin-google-browser-'));

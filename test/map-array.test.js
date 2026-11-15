@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseMapArray, formatMapArray } from '../public/map-array.js';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { MapRepository } from '../src/game/map-repository.js';
-import { DEFAULT_MAP_SETTINGS, validateMapDocument } from '../src/game/maps.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { createGameServer } from '../src/server.js';
+import { parseMapArray, formatMapArray } from '../shared/map-array.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { MapRepository } from '../backend/node/src/game/map-repository.js';
+import { DEFAULT_MAP_SETTINGS, validateMapDocument } from '../backend/node/src/game/maps.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
+import { createGameServer } from '../backend/node/src/server.js';
 
 test('integer map arrays support bracket, C# initializer, BOM, line breaks and trailing commas', () => {
   for (const text of [
@@ -49,7 +49,10 @@ test('array parser rejects executable source, non-integers, ambiguous blocks and
 
 test('both export formats preserve rectangular and maximum maps in row order', async () => {
   const sample = JSON.parse(
-    await readFile(new URL('../maps/samples/four-courtyards.json', import.meta.url), 'utf8'),
+    await readFile(
+      new URL('../backend/node/maps/samples/four-courtyards.json', import.meta.url),
+      'utf8',
+    ),
   );
   const largest = {
     columns: 40,

@@ -8,4 +8,9 @@ data/maps/
 data/accounts/
 data/ai/
 data/algorithm-sources/
-public/generated/
+data/backend/
+frontend/public/generated/
+backend/**/bin/
+backend/**/obj/
+backend/.vs/
+backend/**/appsettings.Local.json

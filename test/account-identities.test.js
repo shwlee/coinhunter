@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { createAuthenticationService } from '../src/auth/authentication-service.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { createAuthenticationService } from '../backend/node/src/auth/authentication-service.js';
 
 async function fixture(t) {
   const directory = await mkdtemp(join(tmpdir(), 'coin-identities-'));

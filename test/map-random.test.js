@@ -6,9 +6,9 @@ import {
   starts,
   COIN_VALUES,
   RANDOM_MAP_TEMPLATES,
-} from '../public/map-editing.js';
-import { validateMapDocument, DEFAULT_MAP_SETTINGS } from '../src/game/maps.js';
-import { MapRepository } from '../src/game/map-repository.js';
+} from '../shared/map-editing.js';
+import { validateMapDocument, DEFAULT_MAP_SETTINGS } from '../backend/node/src/game/maps.js';
+import { MapRepository } from '../backend/node/src/game/map-repository.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

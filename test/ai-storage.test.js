@@ -4,11 +4,11 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import { mkdtemp, rm, readFile, readdir, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createMemorySessionStore } from '../src/auth/memory-session-store.js';
-import { FileCredentialStore } from '../src/ai/credential-store.js';
-import { FileAiConnectionRepository } from '../src/ai/connection-repository.js';
-import { createAiStorage } from '../src/ai/storage-service.js';
-import { readAiConfig } from '../src/ai/config.js';
+import { createMemorySessionStore } from '../backend/node/src/auth/memory-session-store.js';
+import { FileCredentialStore } from '../backend/node/src/ai/credential-store.js';
+import { FileAiConnectionRepository } from '../backend/node/src/ai/connection-repository.js';
+import { createAiStorage } from '../backend/node/src/ai/storage-service.js';
+import { readAiConfig } from '../backend/node/src/ai/config.js';
 
 const key = randomBytes(32).toString('hex');
 const scope = () => ({ ownerId: randomUUID(), sessionId: randomUUID() });

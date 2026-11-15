@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { validateSource } from '../src/runtime/policy.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { validateSource } from '../backend/node/src/runtime/policy.js';
 
 test('administrator is bootstrapped once and its role persists without configuration', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'coinhunter-admin-bootstrap-'));

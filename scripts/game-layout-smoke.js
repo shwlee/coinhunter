@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
-import { createGameServer } from '../src/server.js';
-import { GameState } from '../src/game/state.js';
-import { MAPS } from '../src/game/map-repository.js';
+import { createGameServer } from '../backend/node/src/server.js';
+import { GameState } from '../backend/node/src/game/state.js';
+import { MAPS } from '../backend/node/src/game/map-repository.js';
 
 const { server, close } = createGameServer();
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

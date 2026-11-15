@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateAlgorithm } from '../src/runtime/preflight.js';
-import { validateSource } from '../src/runtime/policy.js';
-import { AlgorithmSandbox } from '../src/runtime/sandbox.js';
+import { validateAlgorithm } from '../backend/node/src/runtime/preflight.js';
+import { validateSource } from '../backend/node/src/runtime/policy.js';
+import { AlgorithmSandbox } from '../backend/node/src/runtime/sandbox.js';
 import { readFile } from 'node:fs/promises';
 
 const source = (move = 'return -1;', initialize = 'this.turn = 0;', name = "return '테스트';") =>
@@ -87,7 +87,10 @@ test('validation explains export, required methods, name, initialization and ret
   const invalid = await check(source('return "2";'));
   assert.match(invalid.diagnostic.hint, /정수 -1, 0, 1, 2, 3/);
   const map = JSON.parse(
-    await readFile(new URL('../maps/samples/crossroads.json', import.meta.url), 'utf8'),
+    await readFile(
+      new URL('../backend/node/maps/samples/crossroads.json', import.meta.url),
+      'utf8',
+    ),
   );
   assert.deepEqual(invalid.diagnostic.context, {
     columns: map.columns,

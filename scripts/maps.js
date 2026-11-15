@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { mapRepository } from '../src/game/map-repository.js';
+import { mapRepository } from '../backend/node/src/game/map-repository.js';
 
 const [command, argument, extra] = process.argv.slice(2);
 try {

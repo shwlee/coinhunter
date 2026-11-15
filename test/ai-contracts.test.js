@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readAiConfig } from '../src/ai/config.js';
-import { validateConnectionMetadata, publicConnection } from '../src/ai/contracts.js';
+import { readAiConfig } from '../backend/node/src/ai/config.js';
+import { validateConnectionMetadata, publicConnection } from '../backend/node/src/ai/contracts.js';
 
 test('AI defaults are disabled, session-only, bounded and immutable without secrets', () => {
   const config = readAiConfig({ AI_MASTER_KEY: 'private', OPENAI_API_KEY: 'private' });

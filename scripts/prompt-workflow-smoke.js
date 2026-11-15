@@ -3,11 +3,11 @@ import { mkdtemp, rm, mkdir, readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { MapRepository } from '../src/game/map-repository.js';
-import { DEFAULT_MAP_SETTINGS } from '../src/game/maps.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { createGameServer } from '../src/server.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { MapRepository } from '../backend/node/src/game/map-repository.js';
+import { DEFAULT_MAP_SETTINGS } from '../backend/node/src/game/maps.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
+import { createGameServer } from '../backend/node/src/server.js';
 
 // Exercise the real local pipeline. External AI output and the OS clipboard are fixtures.
 const dir = await mkdtemp(join(tmpdir(), 'coinhunter-prompt-workflow-'));
@@ -116,7 +116,10 @@ try {
   assert.equal((await accounts.list(user.id)).length, 0);
   const firstPrompt = await page.locator('#prompt-preview-text').inputValue();
 
-  const fixture = await readFile(new URL('../examples/nearest-coin.js', import.meta.url), 'utf8');
+  const fixture = await readFile(
+    new URL('../backend/node/examples/nearest-coin.js', import.meta.url),
+    'utf8',
+  );
   // Return code is a known fixture, not a claim that any external AI generated it.
   let returned = fixture + '\n// 프롬프트 반환 코드 테스트 대역';
   const pasteSource = async (source) => {

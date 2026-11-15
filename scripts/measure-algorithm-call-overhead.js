@@ -1,8 +1,8 @@
 import { performance } from 'node:perf_hooks';
 import { cpus, platform, release, freemem } from 'node:os';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { AlgorithmSandbox } from '../src/runtime/sandbox.js';
-import { PlayerProcess } from '../src/runtime/player-process.js';
+import { AlgorithmSandbox } from '../backend/node/src/runtime/sandbox.js';
+import { PlayerProcess } from '../backend/node/src/runtime/player-process.js';
 
 // Local synthetic measurement only. Does not start an HTTP server or read user data.
 // Both paths use the same QuickJS implementation, source and map copies.

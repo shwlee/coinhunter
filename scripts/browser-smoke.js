@@ -5,11 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
-import { createGameServer } from '../src/server.js';
-import { GameState } from '../src/game/state.js';
-import { MAPS } from '../src/game/map-repository.js';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { createAuthoring } from '../src/authoring-api.js';
+import { createGameServer } from '../backend/node/src/server.js';
+import { GameState } from '../backend/node/src/game/state.js';
+import { MAPS } from '../backend/node/src/game/map-repository.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
 
 const candidates = [
   process.env.COINHUNTER_BROWSER,
@@ -80,7 +80,7 @@ try {
   await duelPage.reload();
   await duelPage.locator('#match-mode option[value="duel"]:enabled').waitFor({ state: 'attached' });
   await duelPage.selectOption('#match-mode', 'duel');
-  await duelPage.setInputFiles('#algorithm-file', 'examples/nearest-coin.js');
+  await duelPage.setInputFiles('#algorithm-file', 'backend/node/examples/nearest-coin.js');
   assert.equal(await duelPage.locator('#file-next').isDisabled(), true);
   await duelPage.locator('#file-next-reason').waitFor({ state: 'visible' });
   assert.match(await duelPage.locator('#file-next-reason').textContent(), /경기 기록이 없습니다/);
@@ -275,7 +275,9 @@ try {
   assert.match(await page.locator('#file-validation').textContent(), /1행/);
   await page
     .locator('#algorithm-file')
-    .setInputFiles(fileURLToPath(new URL('../examples/nearest-coin.js', import.meta.url)));
+    .setInputFiles(
+      fileURLToPath(new URL('../backend/node/examples/nearest-coin.js', import.meta.url)),
+    );
   await page.locator('#file-next').click();
   await page.locator('#settings-step').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#settings-step').isVisible(), true);
@@ -444,7 +446,9 @@ try {
   assert.equal(await page.locator('#result-podium').isVisible(), false);
   await page
     .locator('#algorithm-file')
-    .setInputFiles(fileURLToPath(new URL('../examples/nearest-coin.js', import.meta.url)));
+    .setInputFiles(
+      fileURLToPath(new URL('../backend/node/examples/nearest-coin.js', import.meta.url)),
+    );
   await page.locator('#file-next').click();
   await page.locator('#settings-next').click();
   await page.setViewportSize({ width: 390, height: 844 });

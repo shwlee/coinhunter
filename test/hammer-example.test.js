@@ -1,12 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { MAPS } from '../src/game/map-repository.js';
-import { GameState } from '../src/game/state.js';
-import { PlayerProcess } from '../src/runtime/player-process.js';
+import { MAPS } from '../backend/node/src/game/map-repository.js';
+import { GameState } from '../backend/node/src/game/state.js';
+import { PlayerProcess } from '../backend/node/src/runtime/player-process.js';
 
 test('hammer example collects hammer and breaks three walls in the real runtime', async (t) => {
-  const source = await readFile(new URL('../examples/hammer-test.js', import.meta.url), 'utf8');
+  const source = await readFile(
+    new URL('../backend/node/examples/hammer-test.js', import.meta.url),
+    'utf8',
+  );
   const runner = new PlayerProcess();
   t.after(() => runner.close());
   const map = structuredClone(MAPS.find((map) => map.id === 'four-courtyards'));

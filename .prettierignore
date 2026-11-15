@@ -1,4 +1,4 @@
 node_modules
 artifacts
 package-lock.json
-public/generated
+frontend/public/generated

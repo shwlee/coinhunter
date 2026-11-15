@@ -1,0 +1,45 @@
+{
+  "contractVersion": 1,
+  "matchId": "11111111-1111-4111-8111-111111111111",
+  "messageId": "22222222-2222-4222-8222-222222222222",
+  "correlationId": null,
+  "type": "initialize",
+  "payload": {
+    "contractVersion": 1,
+    "requestId": "33333333-3333-4333-8333-333333333333",
+    "matchId": "11111111-1111-4111-8111-111111111111",
+    "scope": { "kind": "guest", "subjectId": "44444444-4444-4444-8444-444444444444" },
+    "map": {
+      "id": "contract-fixture",
+      "revision": 1,
+      "columns": 4,
+      "rows": 4,
+      "tiles": [0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "settings": {
+        "actionMs": 400,
+        "runningTimeMs": 10000,
+        "itemFirstMs": 5000,
+        "itemIntervalMs": 15000,
+        "itemDuration": 3,
+        "blackMatterIntervalMs": 15000,
+        "destroyWallIntervalMs": 3000,
+        "hurryUpRemovalIntervalMs": { "10": 300, "30": 700, "100": 1000, "200": 1300, "500": 1300 }
+      }
+    },
+    "participants": [
+      {
+        "playerId": 0,
+        "runId": "55555555-5555-4555-8555-555555555555",
+        "language": "javascript",
+        "source": {
+          "sourceKey": "66666666-6666-4666-8666-666666666666",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "byteLength": 123
+        },
+        "startSlot": 0,
+        "characterId": "pengko"
+      }
+    ],
+    "options": { "mode": "practice", "blackMatter": false, "destroyWalls": false }
+  }
+}

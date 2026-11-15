@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { selectRepresentativeModels as select } from '../src/ai/model-selection.js';
+import { selectRepresentativeModels as select } from '../backend/node/src/ai/model-selection.js';
 
 const models = (...ids) => ids.map((id) => ({ id, name: id, generationVerified: false }));
 

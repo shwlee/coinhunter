@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { createAccountRepository } from '../src/persistence/account-repository.js';
+import { createAccountRepository } from '../backend/node/src/persistence/account-repository.js';
 
 const args = process.argv.slice(2);
 try {

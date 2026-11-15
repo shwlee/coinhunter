@@ -1,0 +1,732 @@
+import { api, accountBar } from './account.js';
+import { loadCoins, drawCoinSample } from './coin-renderer.js';
+import {
+  COIN_VALUES,
+  RANDOM_MAP_TEMPLATES,
+  starts,
+  placementIndices,
+  applyTile,
+  inspectMap,
+  generateSymmetricMap,
+} from '../../shared/map-editing.js';
+import { mapStatus } from './map-status.js';
+import { installMapOptions } from './map-options.js';
+import { initializeMapArrayTransfer } from './map-array-transfer.js';
+
+const $ = (id) => document.getElementById(id);
+let map = null,
+  baseline = '',
+  undo = [],
+  redo = [],
+  tool = 'coin',
+  busy = false;
+let cells = [],
+  selected = 0,
+  zoom = null,
+  savedMaps = [];
+const coinImages = new Map();
+let publication = null;
+let publishPending = null;
+let optionDefaults = null;
+const openOptions = installMapOptions(
+  () => {
+    updateControls();
+    feedback('옵션을 적용했습니다. 맵 저장 시 배치와 함께 저장됩니다.');
+  },
+  {
+    async load() {
+      optionDefaults ??= await api('/api/admin/maps/default-settings');
+      return {
+        map: {
+          name: map.name || '새 맵',
+          revision: map.revision ?? 0,
+          settings: {
+            ...(map.settings ?? optionDefaults.settings),
+            hurryUpRemovalIntervalMs: {
+              ...optionDefaults.settings.hurryUpRemovalIntervalMs,
+              ...map.settings?.hurryUpRemovalIntervalMs,
+            },
+          },
+        },
+        limits: optionDefaults.limits,
+      };
+    },
+    async save(settings) {
+      map.settings = structuredClone(settings);
+      return { map };
+    },
+  },
+);
+$('edit-options').onclick = () => {
+  if (map && !busy) void openOptions({ id: map.id, name: map.name || '새 맵', source: 'custom' });
+};
+const snapshot = () =>
+  JSON.stringify(
+    map && {
+      name: map.name,
+      description: map.description,
+      columns: map.columns,
+      rows: map.rows,
+      tiles: map.tiles,
+      settings: map.settings,
+    },
+  );
+const dirty = () => snapshot() !== baseline && !!map;
+function feedback(message, error = false) {
+  $('map-feedback').textContent = message;
+  $('map-feedback').classList.toggle('error', error);
+}
+function mayReplace() {
+  return !dirty() || confirm('저장하지 않은 맵 변경 사항이 있습니다. 버리고 진행할까요?');
+}
+function updateControls() {
+  $('dirty-state').textContent = map
+    ? dirty()
+      ? '미저장 변경'
+      : map.id
+        ? '저장됨'
+        : '새 게임판'
+    : '';
+  $('map-identity').textContent = map?.id ? `${map.name} · v${map.revision}` : map?.name || '새 맵';
+  $('publication-state').textContent = map?.id
+    ? `${mapStatus(publication)}${publication?.publishedRevision ? ` · 게시 v${publication.publishedRevision}` : ''}`
+    : '';
+  $('save-map').disabled = !map || busy;
+  const alreadyPublished = map?.id && publication?.publishedRevision === map.revision;
+  $('publish-map').textContent = alreadyPublished
+    ? '게시 완료'
+    : publication?.publishedRevision
+      ? '게시 갱신'
+      : '맵 게시';
+  const publishHelp = !map?.id
+    ? '게시하려면 맵을 먼저 저장하세요.'
+    : dirty()
+      ? '미저장 변경이 있습니다. 맵을 저장한 뒤 게시하세요.'
+      : alreadyPublished
+        ? publication.enabled
+          ? '현재 저장된 버전이 사용자에게 노출 중입니다.'
+          : '현재 버전은 게시됐지만 비노출 상태입니다. 다시 노출은 맵 관리에서 진행하세요.'
+        : publication?.publishedRevision && !publication.enabled
+          ? '저장된 초안을 게시합니다. 비노출 상태는 유지됩니다.'
+          : '저장된 초안을 게시하면 사용자 맵 목록에 노출됩니다.';
+  $('publish-map').disabled = busy || !map?.id || dirty() || alreadyPublished || !publication;
+  $('publish-map').title = publishHelp;
+  $('publish-help').textContent = publishHelp;
+  $('edit-options').disabled = !map || busy;
+  $('tools').disabled = !map || busy;
+  $('undo').disabled = !undo.length || busy;
+  $('redo').disabled = !redo.length || busy;
+  for (const id of ['zoom-out', 'zoom-in', 'fit']) $(id).disabled = !map;
+  $('open-maps').disabled = busy;
+  $('import-json').disabled = busy;
+  $('export-json').disabled = !map || busy;
+  $('import-array').disabled = busy;
+  $('export-array').disabled = !map || busy;
+  for (const element of $('create-map').elements) element.disabled = busy;
+  $('coin-value').disabled = !map || tool !== 'coin' || busy;
+}
+function resizeBoard() {
+  if (!map) return;
+  const viewport = $('board-viewport');
+  const fit = Math.min(
+    (viewport.clientWidth - 34) / map.columns,
+    (viewport.clientHeight - 34) / map.rows,
+    64,
+  );
+  $('board').style.setProperty('--cell', `${zoom ?? fit}px`);
+}
+function preview(index) {
+  for (const cell of cells) cell.classList.remove('preview', 'blocked');
+  if (!map || busy || index === undefined) return;
+  const indices = placementIndices(map.columns, map.rows, index, $('symmetry').checked);
+  const blocked =
+    tool !== 'erase' && indices.some((i) => starts(map.columns, map.rows).includes(i));
+  for (const i of indices) {
+    cells[i].classList.add('preview');
+    cells[i].classList.toggle('blocked', blocked);
+  }
+}
+function renderTiles() {
+  const report = inspectMap(map);
+  const issues = new Set([...report.asymmetric, ...report.isolated]);
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i],
+      value = map.tiles[i];
+    cell.classList.toggle('wall', value === -1);
+    cell.classList.toggle('issue', $('show-issues').checked && issues.has(i));
+    cell.replaceChildren();
+    if (value > 0 && coinImages.has(value)) {
+      const img = document.createElement('img');
+      img.src = coinImages.get(value);
+      img.alt = '';
+      cell.append(img);
+    }
+    const label =
+      value === -1
+        ? '벽'
+        : value > 0
+          ? `${value}점 코인`
+          : cell.classList.contains('start')
+            ? '시작 칸'
+            : '빈칸';
+    cell.setAttribute(
+      'aria-label',
+      `${(i % map.columns) + 1}열 ${Math.floor(i / map.columns) + 1}행, ${label}`,
+    );
+    cell.title = label;
+    cell.disabled = busy;
+  }
+  $('map-stats').textContent =
+    `코인 ${report.coins}개 · ${report.score.toLocaleString()}점 / 벽 ${report.walls}개`;
+  const messages = [];
+  if (!report.coins) messages.push('코인을 하나 이상 배치하세요');
+  if (report.asymmetric.length) messages.push(`대칭 불일치 ${report.asymmetric.length}칸`);
+  if (report.isolated.length)
+    messages.push(`시작점과 연결되지 않은 공간 ${report.isolated.length}칸`);
+  $('map-validation').textContent = messages.length
+    ? `게시 전 확인: ${messages.join(' · ')}. 초안 저장은 가능합니다.`
+    : '게시 검사 통과. 저장은 초안으로 이루어집니다.';
+  updateControls();
+}
+function openMap(document, saved = false, state = null, editBaseline = '') {
+  map = structuredClone(document);
+  publication = state;
+  window.history.replaceState(
+    null,
+    '',
+    map.id ? `/admin/maps/editor?mapId=${encodeURIComponent(map.id)}` : '/admin/maps/editor',
+  );
+  undo = [];
+  redo = [];
+  selected = 0;
+  zoom = null;
+  baseline = saved ? snapshot() : editBaseline;
+  $('columns').value = map.columns;
+  $('rows').value = map.rows;
+  $('board').hidden = false;
+  $('board-empty').hidden = true;
+  $('board-size').textContent = `${map.columns} × ${map.rows}`;
+  $('board').style.setProperty('--columns', map.columns);
+  cells = Array.from({ length: map.tiles.length }, (_, index) => {
+    const cell = documentElement('button');
+    cell.type = 'button';
+    cell.className = 'map-cell';
+    cell.dataset.index = index;
+    cell.tabIndex = index === 0 ? 0 : -1;
+    cell.classList.toggle('start', starts(map.columns, map.rows).includes(index));
+    return cell;
+  });
+  $('board').replaceChildren(...cells);
+  $('board-viewport').scrollTo(0, 0);
+  renderTiles();
+  resizeBoard();
+}
+const documentElement = (tag) => document.createElement(tag);
+async function validateJson(document) {
+  return (
+    await api('/api/admin/maps/validate-json', {
+      method: 'POST',
+      body: JSON.stringify(document),
+    })
+  ).map;
+}
+$('import-json').onclick = () => {
+  if (!busy) $('map-json-file').click();
+};
+$('map-json-file').onchange = async () => {
+  const file = $('map-json-file').files[0];
+  $('map-json-file').value = '';
+  if (!file || busy) return;
+  busy = true;
+  updateControls();
+  try {
+    if (file.size > 64 * 1024) throw new Error('맵 JSON 파일은 64 KiB 이하로 선택하세요.');
+    let input;
+    try {
+      input = JSON.parse((await file.text()).replace(/^\uFEFF/, ''));
+    } catch {
+      throw new Error('JSON 형식이 올바르지 않습니다.');
+    }
+    const imported = await validateJson(input);
+    if (!mayReplace()) return;
+    // Import as a new editable map, never overwrite a file's original identity.
+    const { id, revision, ...content } = imported;
+    openMap(content);
+    feedback('JSON을 새 맵으로 가져왔습니다. 맵 저장 후 맵 게시를 진행하세요.');
+  } catch (error) {
+    feedback(`가져오기 실패: ${error.message}`, true);
+  } finally {
+    busy = false;
+    if (map) renderTiles();
+    else updateControls();
+  }
+};
+async function transferDocument() {
+  optionDefaults ??= await api('/api/admin/maps/default-settings');
+  return validateJson({
+    schemaVersion: 1,
+    id: map.id ?? `map-${crypto.randomUUID()}`,
+    revision: map.revision ?? 1,
+    name: map.name || '새 맵',
+    description: map.description || '',
+    columns: map.columns,
+    rows: map.rows,
+    tiles: map.tiles,
+    settings: map.settings ?? optionDefaults.settings,
+  });
+}
+initializeMapArrayTransfer({
+  currentMap: () => map,
+  transferDocument,
+  replaceMap: (document) => {
+    $('show-issues').checked = true;
+    openMap(document);
+  },
+  mayReplace,
+  isBusy: () => busy,
+  setBusy: (value) => {
+    busy = value;
+    if (map) renderTiles();
+    else updateControls();
+  },
+  feedback,
+});
+$('export-json').onclick = async () => {
+  if (!map || busy) return;
+  busy = true;
+  updateControls();
+  try {
+    const document = await transferDocument();
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(document, null, 2) + '\n'], {
+        type: 'application/json;charset=utf-8',
+      }),
+    );
+    const link = documentElement('a');
+    link.href = url;
+    link.download = `${document.id}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    feedback(
+      '현재 배치와 적용한 옵션을 JSON으로 내보냈습니다. 서버 저장 상태는 변경되지 않습니다.',
+    );
+  } catch (error) {
+    feedback(`내보내기 실패: ${error.message}`, true);
+  } finally {
+    busy = false;
+    updateControls();
+  }
+};
+$('create-map').onsubmit = (event) => {
+  event.preventDefault();
+  if (busy || !mayReplace()) return;
+  const columns = Number($('columns').value),
+    rows = Number($('rows').value);
+  if (
+    !Number.isInteger(columns) ||
+    columns < 4 ||
+    columns > 40 ||
+    !Number.isInteger(rows) ||
+    rows < 4 ||
+    rows > 30
+  )
+    return;
+  openMap({ columns, rows, tiles: Array(columns * rows).fill(0), name: '', description: '' });
+  feedback('빈 게임판을 만들었습니다. 도구를 선택하고 바닥을 클릭하세요.');
+};
+for (const preset of [...RANDOM_MAP_TEMPLATES, { id: 'custom', name: '직접 설정' }]) {
+  const option = document.createElement('option');
+  option.value = preset.id;
+  option.textContent = preset.name;
+  $('random-template').append(option);
+}
+$('random-template').onchange = () => {
+  const preset = RANDOM_MAP_TEMPLATES.find((entry) => entry.id === $('random-template').value);
+  if (!preset) return;
+  $('wall-density').value = preset.wallDensity;
+  $('coin-density').value = preset.coinDensity;
+  $('random-coin-value').value = preset.coinValue;
+  $('random-error').textContent = '';
+};
+for (const id of ['wall-density', 'coin-density', 'random-coin-value']) {
+  $(id).addEventListener('input', () => {
+    $('random-template').value = 'custom';
+  });
+}
+$('open-random').onclick = () => {
+  if (busy) return;
+  $('random-columns').value = $('columns').value;
+  $('random-rows').value = $('rows').value;
+  $('random-error').textContent = '';
+  $('random-save-note').textContent = map?.id
+    ? '현재 맵의 배치를 다시 생성합니다. 이름·경기 옵션을 유지하며 저장할 때 덮어쓰기 또는 새로 저장을 선택합니다.'
+    : '새 맵의 배치를 생성합니다. 경기 옵션은 기본값을 사용하며 저장·게시는 별도로 진행합니다.';
+  $('random-dialog').showModal();
+};
+$('random-form').onsubmit = (event) => {
+  event.preventDefault();
+  if (busy) return;
+  try {
+    // Finish construction before asking to discard or replacing the active draft.
+    const generated = generateSymmetricMap({
+      columns: Number($('random-columns').value),
+      rows: Number($('random-rows').value),
+      wallDensity: Number($('wall-density').value),
+      coinDensity: Number($('coin-density').value),
+      coinValue: $('random-coin-value').value.startsWith('mixed')
+        ? $('random-coin-value').value
+        : Number($('random-coin-value').value),
+    });
+    if (!mayReplace()) return;
+    const existing = map?.id ? map : null;
+    openMap(
+      existing
+        ? { ...existing, ...generated, name: existing.name, description: existing.description }
+        : generated,
+      false,
+      existing ? publication : null,
+      existing ? baseline : '',
+    );
+    $('symmetry').checked = true;
+    $('random-dialog').close();
+    const report = inspectMap(generated);
+    const eligible = generated.tiles.length - 4;
+    feedback(
+      `대칭 랜덤 맵을 만들었습니다. 실제 벽 밀도 ${Math.round((report.walls / eligible) * 100)}% · 코인 밀도 ${Math.round((report.coins / (eligible - report.walls)) * 100)}%. 편집 후 초안으로 저장하세요.`,
+    );
+  } catch (error) {
+    $('random-error').textContent = error.message;
+  }
+};
+function selectCell(index) {
+  cells[selected].tabIndex = -1;
+  selected = index;
+  cells[index].tabIndex = 0;
+}
+$('board').onclick = (event) => {
+  const cell = event.target.closest('.map-cell');
+  if (!cell || busy) return;
+  const index = Number(cell.dataset.index);
+  selectCell(index);
+  const value = tool === 'wall' ? -1 : tool === 'erase' ? 0 : Number($('coin-value').value);
+  if (value !== 0 && starts(map.columns, map.rows).includes(index)) {
+    feedback('시작 칸에는 코인이나 벽을 배치할 수 없습니다.', true);
+    return;
+  }
+  const changes = applyTile(map, index, value, $('symmetry').checked);
+  if (changes.length) {
+    undo.push(changes);
+    if (undo.length > 200) undo.shift();
+    redo = [];
+    renderTiles();
+    feedback('');
+  }
+  preview(index);
+};
+$('board').onpointerover = (event) => {
+  const cell = event.target.closest('.map-cell');
+  if (cell) preview(Number(cell.dataset.index));
+};
+$('board').onpointerleave = () => preview();
+$('board').onfocusin = (event) => {
+  const cell = event.target.closest('.map-cell');
+  if (cell) preview(Number(cell.dataset.index));
+};
+$('board').onkeydown = (event) => {
+  if (!map || busy || !event.target.closest('.map-cell')) return;
+  const index = Number(event.target.closest('.map-cell').dataset.index),
+    x = index % map.columns;
+  const next = {
+    ArrowLeft: x > 0 ? index - 1 : index,
+    ArrowRight: x < map.columns - 1 ? index + 1 : index,
+    ArrowUp: Math.max(0, index - map.columns),
+    ArrowDown: Math.min(cells.length - 1, index + map.columns),
+  }[event.key];
+  if (next !== undefined) {
+    event.preventDefault();
+    selectCell(next);
+    cells[next].focus();
+  }
+};
+for (const button of document.querySelectorAll('[data-tool]'))
+  button.onclick = () => {
+    tool = button.dataset.tool;
+    for (const other of document.querySelectorAll('[data-tool]'))
+      other.setAttribute('aria-pressed', String(other === button));
+    updateControls();
+    preview();
+  };
+function history(back) {
+  if (!map || busy) return;
+  const from = back ? undo : redo,
+    to = back ? redo : undo;
+  const changes = from.pop();
+  if (!changes) return;
+  for (const change of changes) map.tiles[change.index] = back ? change.before : change.after;
+  to.push(changes);
+  renderTiles();
+  preview();
+}
+$('undo').onclick = () => history(true);
+$('redo').onclick = () => history(false);
+document.addEventListener('keydown', (event) => {
+  if (document.querySelector('dialog[open]') || event.target.matches('input, textarea, select'))
+    return;
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+    event.preventDefault();
+    history(!event.shiftKey);
+  }
+});
+$('symmetry').onchange = () => preview();
+$('show-issues').onchange = () => {
+  if (map) renderTiles();
+};
+$('fit').onclick = () => {
+  zoom = null;
+  resizeBoard();
+};
+for (const [id, multiplier] of [
+  ['zoom-out', 0.8],
+  ['zoom-in', 1.25],
+])
+  $(id).onclick = () => {
+    zoom = Math.max(
+      8,
+      Math.min(96, parseFloat($('board').style.getPropertyValue('--cell')) * multiplier),
+    );
+    resizeBoard();
+  };
+new ResizeObserver(resizeBoard).observe($('board-viewport'));
+window.addEventListener('beforeunload', (event) => {
+  if (dirty()) {
+    event.preventDefault();
+    event.returnValue = '';
+  }
+});
+for (const button of document.querySelectorAll('[data-close]'))
+  button.onclick = () => {
+    if (!busy) $(button.dataset.close).close();
+  };
+$('save-dialog').addEventListener('cancel', (event) => {
+  if (busy) event.preventDefault();
+});
+function updateSaveMode() {
+  const overwrite = map?.id && $('save-form').querySelector('input[value="overwrite"]').checked;
+  $('map-save-note').textContent = overwrite
+    ? '현재 맵의 초안을 갱신합니다. 게시 중인 버전은 유지되며 저장 후 게시 갱신을 진행합니다.'
+    : '현재 배치와 경기 옵션을 별도 맵의 초안으로 저장합니다. 저장 후 새 맵을 계속 편집하며 맵 게시를 진행할 수 있습니다.';
+}
+for (const radio of $('save-form').querySelectorAll('[name="map-save-kind"]'))
+  radio.onchange = updateSaveMode;
+$('save-map').onclick = () => {
+  $('map-save-mode').hidden = !map.id;
+  $('save-form').querySelector('input[value="overwrite"]').checked = Boolean(map.id);
+  $('save-form').querySelector('input[value="new"]').checked = !map.id;
+  $('map-overwrite-label').textContent = `“${map.name}” 덮어쓰기`;
+  $('map-name').value = map.name;
+  $('map-description').value = map.description;
+  $('save-error').textContent = '';
+  updateSaveMode();
+  $('save-dialog').showModal();
+};
+$('save-form').onsubmit = async (event) => {
+  event.preventDefault();
+  if (busy) return;
+  const name = $('map-name').value.trim();
+  if (!name) {
+    $('save-error').textContent = '맵 이름을 입력하세요.';
+    return;
+  }
+  const overwrite = Boolean(
+    map.id && $('save-form').querySelector('input[value="overwrite"]').checked,
+  );
+  busy = true;
+  renderTiles();
+  for (const control of $('save-form').elements) control.disabled = true;
+  const input = {
+    name,
+    description: $('map-description').value,
+    columns: map.columns,
+    rows: map.rows,
+    tiles: [...map.tiles],
+    ...(overwrite ? { expectedRevision: map.revision } : {}),
+    ...(map.settings ? { settings: map.settings } : {}),
+  };
+  try {
+    const result = await api(overwrite ? `/api/admin/maps/${map.id}/draft` : '/api/admin/maps', {
+      method: overwrite ? 'PUT' : 'POST',
+      body: JSON.stringify(input),
+    });
+    map = result.map;
+    publication = result.state;
+    window.history.replaceState(null, '', `/admin/maps/editor?mapId=${encodeURIComponent(map.id)}`);
+    baseline = snapshot();
+    $('save-dialog').close();
+    feedback(overwrite ? '현재 맵의 초안을 갱신했습니다.' : '새 맵의 초안으로 저장했습니다.');
+  } catch (error) {
+    $('save-error').textContent = error.message;
+  } finally {
+    busy = false;
+    for (const control of $('save-form').elements) control.disabled = false;
+    renderTiles();
+  }
+};
+$('publish-dialog').addEventListener('cancel', (event) => {
+  if (busy) event.preventDefault();
+});
+$('publish-dialog').addEventListener('close', () => {
+  publishPending = null;
+});
+$('publish-map').onclick = () => {
+  if (busy || !map?.id || dirty() || !publication || publication.publishedRevision === map.revision)
+    return;
+  publishPending = {
+    id: map.id,
+    revision: map.revision,
+    expected: {
+      draftRevision: publication.draftRevision,
+      publishedRevision: publication.publishedRevision,
+      enabled: publication.enabled,
+    },
+  };
+  const updating = publication.publishedRevision !== null;
+  $('publish-title').textContent = updating ? '게시 버전 갱신' : '맵 게시';
+  $('publish-description').textContent =
+    `“${map.name}”의 저장된 초안 v${map.revision}을 게시합니다. ${!updating || publication.enabled ? '사용자 맵 목록에 노출됩니다.' : '비노출 상태는 유지됩니다. 다시 노출은 맵 관리에서 진행하세요.'}`;
+  $('confirm-publish').textContent = updating ? '게시 갱신' : '게시';
+  $('publish-error').textContent = '';
+  $('publish-dialog').showModal();
+};
+$('publish-form').onsubmit = async (event) => {
+  event.preventDefault();
+  if (
+    busy ||
+    !publishPending ||
+    dirty() ||
+    map?.id !== publishPending.id ||
+    map.revision !== publishPending.revision
+  )
+    return;
+  const pending = publishPending;
+  busy = true;
+  renderTiles();
+  for (const control of $('publish-form').elements) control.disabled = true;
+  try {
+    const result = await api(`/api/admin/maps/${pending.id}/publish`, {
+      method: 'POST',
+      body: JSON.stringify({ revision: pending.revision, expected: pending.expected }),
+    });
+    publication = result.state;
+    $('publish-dialog').close();
+    feedback(
+      publication.enabled
+        ? `초안 v${pending.revision}을 게시했습니다. 사용자 맵 목록에 노출됩니다.`
+        : `게시 버전을 v${pending.revision}으로 갱신했습니다. 비노출 상태는 유지됩니다.`,
+    );
+  } catch (error) {
+    $('publish-error').textContent =
+      error.status === 409
+        ? `${error.message} 저장된 맵을 다시 불러온 뒤 확인하세요.`
+        : error.message;
+    $('show-issues').checked = true;
+  } finally {
+    busy = false;
+    for (const control of $('publish-form').elements) control.disabled = false;
+    renderTiles();
+  }
+};
+function renderList() {
+  const query = $('map-search').value.trim().toLowerCase();
+  const visible = savedMaps.filter((entry) => entry.name.toLowerCase().includes(query));
+  $('saved-maps').replaceChildren();
+  for (const entry of visible) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'saved-map';
+    button.disabled = busy;
+    const title = document.createElement('strong');
+    title.textContent = entry.name;
+    const subtitle = document.createElement('small');
+    subtitle.textContent = `${entry.columns} × ${entry.rows} · 초안 v${entry.draftRevision} · ${entry.publishedRevision === null ? '미게시' : entry.enabled ? '노출 중' : '비노출'}${entry.publishedRevision !== null ? ` (게시 v${entry.publishedRevision})` : ''}`;
+    button.append(title, subtitle);
+    button.onclick = async () => {
+      if (busy || !mayReplace()) return;
+      busy = true;
+      renderList();
+      updateControls();
+      let failure = '';
+      try {
+        const result = await api(`/api/admin/maps/${entry.id}/draft`);
+        openMap(result.map, true, result.state);
+        $('load-dialog').close();
+        feedback('저장된 맵을 불러왔습니다.');
+      } catch (error) {
+        failure = error.message;
+      } finally {
+        busy = false;
+        renderList();
+        if (failure) $('load-status').textContent = failure;
+        updateControls();
+        if (map) renderTiles();
+      }
+    };
+    $('saved-maps').append(button);
+  }
+  if (!visible.length)
+    $('load-status').textContent = savedMaps.length
+      ? '검색 조건에 맞는 맵이 없습니다.'
+      : '저장된 맵이 없습니다.';
+  else $('load-status').textContent = `${visible.length}개의 맵`;
+}
+$('map-search').oninput = renderList;
+$('load-dialog').addEventListener('cancel', (event) => {
+  if (busy) event.preventDefault();
+});
+$('open-maps').onclick = async () => {
+  $('load-dialog').showModal();
+  $('map-search').value = '';
+  $('load-status').textContent = '목록을 불러오고 있습니다…';
+  $('saved-maps').replaceChildren();
+  busy = true;
+  updateControls();
+  try {
+    savedMaps = (await api('/api/admin/maps')).maps;
+    savedMaps.sort((a, b) => a.name.localeCompare(b.name));
+    busy = false;
+    renderList();
+  } catch (error) {
+    $('load-status').textContent = error.message;
+  } finally {
+    busy = false;
+    updateControls();
+  }
+};
+try {
+  busy = true;
+  updateControls();
+  const session = await accountBar();
+  if (!session.user || session.user.role !== 'admin') location.replace('/admin');
+  else {
+    await loadCoins();
+    for (const value of COIN_VALUES) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 64;
+      drawCoinSample(canvas.getContext('2d'), value);
+      coinImages.set(value, canvas.toDataURL());
+    }
+    if (map) renderTiles();
+    const id = new URLSearchParams(location.search).get('mapId');
+    if (id !== null) {
+      if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(id)) throw new Error('불러올 맵 ID를 확인하세요.');
+      const result = await api(`/api/admin/maps/${id}/draft`);
+      openMap(result.map, true, result.state);
+      feedback('저장된 맵을 불러왔습니다.');
+    }
+  }
+} catch (error) {
+  feedback(error.message, true);
+} finally {
+  busy = false;
+  if (map) renderTiles();
+  else updateControls();
+}

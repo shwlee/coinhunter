@@ -4,12 +4,12 @@ import { readFile } from 'node:fs/promises';
 import {
   loadAlgorithmContract,
   promptContentVersion,
-} from '../src/algorithm-assistant/contract.js';
-import { TURN_LIMIT_MS, ALGORITHM_MEMORY_LIMIT_BYTES } from '../src/runtime/policy.js';
-import { validateAlgorithm } from '../src/runtime/preflight.js';
-import { AlgorithmSandbox } from '../src/runtime/sandbox.js';
-import { DEFAULT_MAP_SETTINGS, validateMap } from '../src/game/maps.js';
-import { GameState } from '../src/game/state.js';
+} from '../backend/node/src/algorithm-assistant/contract.js';
+import { TURN_LIMIT_MS, ALGORITHM_MEMORY_LIMIT_BYTES } from '../backend/node/src/runtime/policy.js';
+import { validateAlgorithm } from '../backend/node/src/runtime/preflight.js';
+import { AlgorithmSandbox } from '../backend/node/src/runtime/sandbox.js';
+import { DEFAULT_MAP_SETTINGS, validateMap } from '../backend/node/src/game/maps.js';
+import { GameState } from '../backend/node/src/game/state.js';
 
 test('authoring sections separate full rules, a short continuation reminder and a runnable skeleton', async () => {
   const contract = await loadAlgorithmContract();

@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
 
 const run = promisify(execFile);
 

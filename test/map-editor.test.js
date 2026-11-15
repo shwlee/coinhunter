@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { placementIndices, applyTile, inspectMap } from '../public/map-editing.js';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { MapRepository } from '../src/game/map-repository.js';
-import { DEFAULT_MAP_SETTINGS } from '../src/game/maps.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { createGameServer } from '../src/server.js';
+import { placementIndices, applyTile, inspectMap } from '../shared/map-editing.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { MapRepository } from '../backend/node/src/game/map-repository.js';
+import { DEFAULT_MAP_SETTINGS } from '../backend/node/src/game/maps.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
+import { createGameServer } from '../backend/node/src/server.js';
 
 test('symmetric placement handles odd axes, erasing and protected starts', () => {
   const map = { columns: 5, rows: 5, tiles: Array(25).fill(0) };

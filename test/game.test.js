@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GameState } from '../src/game/state.js';
-import { Match } from '../src/game/match.js';
+import { GameState } from '../backend/node/src/game/state.js';
+import { Match } from '../backend/node/src/game/match.js';
 
 function map() {
   const tiles = Array(36).fill(0);

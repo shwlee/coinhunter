@@ -6,7 +6,7 @@
 - 사용자 확정 기준: 플레이어별 독립 실행과 실제 계산 속도의 경쟁 이점을 유지한다. 계산 완료 즉시 액션을 시작하고 액션 완료 즉시 다음 판단을 시작한다. 공통 판단 지연·결과 적용 대기·계산 시간을 제외하는 논리 시간 스케줄러는 이번 요구에서 제외한다. 호출 인프라 편차는 실행기/입력 전달 경로의 설계·최적화로 줄인다.
 - 재현: `node scripts/measure-algorithm-call-overhead.js`.
 - 원시 집계 결과: [측정 JSON](benchmarks/algorithm-call-overhead-2026-11-15.json). 재실행 결과는 `artifacts/algorithm-call-overhead-results.json`에 별도 생성한다.
-- 대상 구현: [PlayerProcess](../src/runtime/player-process.js), [AlgorithmSandbox](../src/runtime/sandbox.js), [게임 진행](../src/game/match.js).
+- 대상 구현: [PlayerProcess](../backend/node/src/runtime/player-process.js), [AlgorithmSandbox](../backend/node/src/runtime/sandbox.js), [게임 진행](../backend/node/src/game/match.js).
 - 구현 계획: [실행기 추상화·독립 실행·호출 비용 최적화](algorithm-runner-independence-plan.md). 이 측정과 요구사항을 게임 실행 분리/다국어 검증의 작업 항목으로 연결한다.
 
 ## 1. 현재 실행 경로에서 추가되는 비용

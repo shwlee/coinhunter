@@ -17,8 +17,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { withFileLock } from '../src/persistence/file-lock.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { withFileLock } from '../backend/node/src/persistence/file-lock.js';
 
 const run = promisify(execFile);
 const deferred = () => {
@@ -56,7 +56,7 @@ function message(child, predicate) {
 }
 async function worker(t, file) {
   const script = `
-    import { FileAccountRepository } from ${JSON.stringify(new URL('../src/persistence/file-account-repository.js', import.meta.url).href)};
+    import { FileAccountRepository } from ${JSON.stringify(new URL('../backend/node/src/persistence/file-account-repository.js', import.meta.url).href)};
     import { randomUUID } from 'node:crypto';
     const repository = new FileAccountRepository(process.argv[1]);
     let release;

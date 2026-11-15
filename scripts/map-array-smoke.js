@@ -3,11 +3,11 @@ import { mkdtemp, rm, mkdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { MapRepository } from '../src/game/map-repository.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { createGameServer } from '../src/server.js';
-import { parseMapArray } from '../public/map-array.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { MapRepository } from '../backend/node/src/game/map-repository.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
+import { createGameServer } from '../backend/node/src/server.js';
+import { parseMapArray } from '../shared/map-array.js';
 
 const dir = await mkdtemp(join(tmpdir(), 'coinhunter-map-array-ui-'));
 const accounts = new FileAccountRepository(join(dir, 'accounts.json'));

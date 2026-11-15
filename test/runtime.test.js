@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PlayerProcess } from '../src/runtime/player-process.js';
+import { PlayerProcess } from '../backend/node/src/runtime/player-process.js';
 
 const wrap = (body) => `module.exports = class {
   initialize(n,c,r) { this.n=n; this.calls=0; }

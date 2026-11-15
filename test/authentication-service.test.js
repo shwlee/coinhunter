@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createMemorySessionStore } from '../src/auth/memory-session-store.js';
-import { createAuthenticationService } from '../src/auth/authentication-service.js';
-import { createMockProvider } from '../src/auth/mock-provider.js';
+import { createMemorySessionStore } from '../backend/node/src/auth/memory-session-store.js';
+import { createAuthenticationService } from '../backend/node/src/auth/authentication-service.js';
+import { createMockProvider } from '../backend/node/src/auth/mock-provider.js';
 
 const request = (cookie = '', address = '127.0.0.1') => ({
   headers: { cookie },

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createGameServer } from '../src/server.js';
+import { createGameServer } from '../backend/node/src/server.js';
 
 test('guest gameplay validation executes code, reports locations and clears temporary uploads', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'coinhunter-game-check-'));
@@ -33,7 +33,10 @@ test('guest gameplay validation executes code, reports locations and clears temp
   );
   assert.equal(exception.status, 400);
   assert.match((await exception.json()).error, /예외/);
-  const source = await readFile(new URL('../examples/nearest-coin.js', import.meta.url), 'utf8');
+  const source = await readFile(
+    new URL('../backend/node/examples/nearest-coin.js', import.meta.url),
+    'utf8',
+  );
   const valid = await check(source);
   assert.equal(valid.status, 200);
   assert.equal((await valid.json()).ok, true);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rankLivePlayers } from '../public/leaderboard.js';
+import { rankLivePlayers } from '../frontend/public/leaderboard.js';
 
 test('live ranks use competition ranks and preserve prior order on ties', () => {
   const players = [

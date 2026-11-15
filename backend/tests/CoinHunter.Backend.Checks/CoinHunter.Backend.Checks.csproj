@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/CoinHunter.Infrastructure/CoinHunter.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/CoinHunter.Operations.Api/CoinHunter.Operations.Api.csproj" />
+    <ProjectReference Include="../../src/CoinHunter.Execution.Host/CoinHunter.Execution.Host.csproj" />
+  </ItemGroup>
+</Project>

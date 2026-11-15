@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createOpenAiGeneration } from '../src/ai/openai-generation.js';
-import { createAiRequestService } from '../src/ai/request-service.js';
-import { readAiConfig } from '../src/ai/config.js';
-import { validateGenerationInput, buildGenerationInput } from '../src/ai/input.js';
-import { openAiLimitError } from '../src/ai/providers.js';
+import { createOpenAiGeneration } from '../backend/node/src/ai/openai-generation.js';
+import { createAiRequestService } from '../backend/node/src/ai/request-service.js';
+import { readAiConfig } from '../backend/node/src/ai/config.js';
+import { validateGenerationInput, buildGenerationInput } from '../backend/node/src/ai/input.js';
+import { openAiLimitError } from '../backend/node/src/ai/providers.js';
 import { openAiStreamResponse } from '../scripts/fixtures/openai-stream.js';
-import { readOpenAiStream } from '../src/ai/response-stream.js';
+import { readOpenAiStream } from '../backend/node/src/ai/response-stream.js';
 
 const source = `module.exports = class Player { initialize(n,c,r){ this.c=c; } getName(){ return 'AI'; } moveNext(map,p,items){ return -1; } };`;
 const input = {

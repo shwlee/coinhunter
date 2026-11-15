@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MapRepository, MAPS } from '../src/game/map-repository.js';
-import { FileAccountRepository } from '../src/persistence/file-account-repository.js';
-import { createAuthoring } from '../src/authoring-api.js';
-import { createGameServer } from '../src/server.js';
-import { Match } from '../src/game/match.js';
+import { MapRepository, MAPS } from '../backend/node/src/game/map-repository.js';
+import { FileAccountRepository } from '../backend/node/src/persistence/file-account-repository.js';
+import { createAuthoring } from '../backend/node/src/authoring-api.js';
+import { createGameServer } from '../backend/node/src/server.js';
+import { Match } from '../backend/node/src/game/match.js';
 
 test('map settings create independent drafts, validate input, enforce ownership roles and preserve publication', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'coinhunter-options-'));

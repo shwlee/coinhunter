@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GameState } from '../src/game/state.js';
-import { Match } from '../src/game/match.js';
-import { MAPS } from '../src/game/map-repository.js';
+import { GameState } from '../backend/node/src/game/state.js';
+import { Match } from '../backend/node/src/game/match.js';
+import { MAPS } from '../backend/node/src/game/map-repository.js';
 
 function state(count = 1) {
   const map = structuredClone(MAPS[0]);
