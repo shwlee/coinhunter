@@ -1,6 +1,10 @@
 import { EventEmitter } from 'node:events';
 import { performance } from 'node:perf_hooks';
-import { PlayerProcess } from '../runtime/player-process.js';
+import { randomUUID } from 'node:crypto';
+import { JavaScriptArtifacts } from '../runtime/javascript-artifacts.js';
+import { createJavaScriptRegistry } from '../runtime/runner-registry.js';
+import { ALGORITHM_MEMORY_LIMIT_BYTES } from '../runtime/policy.js';
+import { RunnerFault } from '../runtime/contracts/validation.js';
 import { GameState } from './state.js';
 
 export class Match extends EventEmitter {
@@ -13,7 +17,12 @@ export class Match extends EventEmitter {
     this.runners = [];
     this.sequence = 0;
     this.logs = [];
-    this.runnerFactory = options.runnerFactory || (() => new PlayerProcess());
+    this.gameId = options.gameId ?? randomUUID();
+    this.artifacts = new JavaScriptArtifacts();
+    this.registry = createJavaScriptRegistry({ resolveArtifact: this.artifacts.resolve });
+    this.runnerFactory = options.runnerFactory || ((context) => this.registry.create(context));
+    this.contexts = [];
+    this.callIds = sources.map(() => 0);
     this.record = options.record || (() => {});
   }
 
@@ -22,14 +31,41 @@ export class Match extends EventEmitter {
     this.run();
   }
 
-  async prepare() {
-    if (this.prepared) return;
+  prepare() {
+    if (!this.preparing) this.preparing = this.prepareRunners();
+    return this.preparing;
+  }
+
+  async prepareRunners() {
     try {
-      // All children are accounted for before initialization can fail.
-      this.runners = this.sources.map(() => this.runnerFactory());
+      for (let index = 0; index < this.sources.length; index++) {
+        if (this.stopping) throw new RunnerFault('cancelled', 'initialize');
+        const participant = this.options.participants?.[index];
+        const language = participant?.language ?? 'javascript';
+        if (!this.registry.supportedLanguages.includes(language))
+          throw new RunnerFault('unavailable', 'initialize');
+        const artifact = await this.artifacts.register(this.sources[index], participant?.source);
+        if (this.stopping) throw new RunnerFault('cancelled', 'initialize');
+        const context = {
+          contractVersion: 1,
+          gameId: this.gameId,
+          playerId: index,
+          runId: participant?.runId ?? randomUUID(),
+          language,
+          artifact,
+          limits: { turnMs: 500, algorithmMemoryBytes: ALGORITHM_MEMORY_LIMIT_BYTES },
+        };
+        this.contexts.push(context);
+        // A later factory failure cannot lose earlier created resources.
+        this.runners.push(this.runnerFactory(context));
+      }
       const initialized = await Promise.allSettled(
-        this.runners.map((runner, index) =>
-          runner.initialize(this.sources[index], index, this.map.columns, this.map.rows),
+        this.runners.map(async (runner, index) =>
+          runner.initialize({
+            playerNumber: index,
+            columns: this.map.columns,
+            rows: this.map.rows,
+          }),
         ),
       );
       const failure = initialized.find((result) => result.status === 'rejected');
@@ -37,11 +73,12 @@ export class Match extends EventEmitter {
       if (this.stopping) throw new Error('경기 종료 중입니다.');
       this.state = new GameState(
         this.map,
-        this.runners.map((runner) => runner.name),
+        initialized.map((result) => result.value.name),
         this.options,
       );
       this.prepared = true;
       this.record('prepared', {
+        runners: this.runners.map((runner) => runner.info),
         players: this.state.players,
         map: this.map,
         options: {
@@ -51,7 +88,11 @@ export class Match extends EventEmitter {
         },
       });
     } catch (error) {
-      await Promise.all(this.runners.map((runner) => runner.close()));
+      this.prepared = false;
+      const cleanup = await Promise.allSettled(this.runners.map(async (runner) => runner.close()));
+      this.artifacts.clear();
+      if (cleanup.some((result) => result.status === 'rejected'))
+        throw new RunnerFault('unresponsive', 'close');
       throw error;
     }
   }
@@ -111,9 +152,17 @@ export class Match extends EventEmitter {
     }
     let result;
     try {
-      result = await this.runners[id].move([...this.state.tiles], player.position, [
-        ...this.state.items,
-      ]);
+      const context = this.contexts[id];
+      result = await this.runners[id].move({
+        contractVersion: 1,
+        gameId: context.gameId,
+        playerId: id,
+        runId: context.runId,
+        callId: ++this.callIds[id],
+        map: [...this.state.tiles],
+        myPosition: player.position,
+        items: [...this.state.items],
+      });
     } catch {
       if (!this.stopping) await this.stop('runtime-failure');
       return;
@@ -123,20 +172,26 @@ export class Match extends EventEmitter {
       return;
     }
     this.record('algorithm-result', { player: id, turn: player.turn, result });
-    this.state.recordAlgorithmResult(id, result);
-    if (result.logs.length || result.status !== 'ok' || result.value === -1) {
+    // Game rules retain their existing action DTO; runner/transport details stop here.
+    const actionResult = {
+      status: result.status,
+      value: result.direction,
+      elapsedMs: result.timings.executionMs,
+    };
+    this.state.recordAlgorithmResult(id, actionResult);
+    if (result.logs.length || result.status !== 'ok' || result.direction === -1) {
       this.logs.push({
         player: id,
         turn: player.turn,
         status: result.status,
-        direction: result.value,
-        elapsedMs: Math.round(result.elapsedMs * 10) / 10,
+        direction: result.direction,
+        elapsedMs: Math.round(result.timings.executionMs * 10) / 10,
         lines: result.logs,
         dropped: result.droppedLogs,
       });
       this.logs = this.logs.slice(-40);
     }
-    this.state.beginAction(id, result, performance.now());
+    this.state.beginAction(id, actionResult, performance.now());
     this.record('action-started', { player: id, turn: player.turn, action: player.action });
   }
 
@@ -157,7 +212,14 @@ export class Match extends EventEmitter {
     this.state?.finish(reason);
     this.record('finished', { reason, game: this.state?.snapshot(performance.now()) || null });
     this.publish();
-    this.closed = Promise.all(this.runners.map((runner) => runner.close()));
+    this.closed = (async () => {
+      // A preparation already in flight may still be registering/initializing resources.
+      await this.preparing?.catch(() => {});
+      const results = await Promise.allSettled(this.runners.map(async (runner) => runner.close()));
+      this.artifacts.clear();
+      if (results.some((result) => result.status === 'rejected'))
+        throw new RunnerFault('host-exited', 'close');
+    })();
     await this.closed;
     this.emit('closed');
   }

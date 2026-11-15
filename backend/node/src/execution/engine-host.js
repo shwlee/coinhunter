@@ -95,6 +95,7 @@ async function handle(message) {
       throw new Error('invalid-request');
     const sources = [];
     for (const participant of request.participants) {
+      if (participant.language !== 'javascript') throw new Error('unsupported-language');
       const source = participant.source;
       if (!/^[a-f0-9-]{36}$/.test(source.sourceKey)) throw new Error('invalid-source');
       const path = join(process.env.COINHUNTER_ENGINE_SOURCES, source.sourceKey + '.js');
@@ -123,6 +124,8 @@ async function handle(message) {
     });
     match = new Match(request.map, sources, {
       ...request.options,
+      gameId: matchId,
+      participants: request.participants,
       startSlot: request.participants[0].startSlot,
       characterId: request.participants[0].characterId,
       playerStartSlots: request.participants.map((player) => player.startSlot),

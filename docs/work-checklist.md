@@ -14,7 +14,7 @@
 
 ## 1. 현재 상태와 즉시 작업
 
-현재 BE 분리/폴더 정리는 `1183977`로 커밋/푸시했고, [엔진·언어별 실행기 계획](game-engine-language-runners-plan.md)의 1단계 공통 계약·JS 기준선을 완료했다. [결과/검증](runner-stage1-results.md). 새 코드의 게임 연결은 다음 2단계다. 실제 데이터 이전/배포는 별도다.
+현재 BE 분리/폴더 정리는 `1183977`로 커밋/푸시했고, [엔진·언어별 실행기 계획](game-engine-language-runners-plan.md)의 1단계를 `81f3a94`로 커밋했다. [2단계 JS 어댑터·registry 연결/검증](runner-stage2-results.md)도 완료했으며 다음은 3단계다. 실제 데이터 이전/배포는 별도다.
 
 - [x] BE 우선 9단계 작업 계획·산출물·완료 기준 문서화.
 - [x] 1단계 API/메시지 계약과 닷넷 솔루션 뼈대. [실행법](../backend/README.md), [검증](backend-stage1-verification.md).
@@ -31,14 +31,15 @@
 
 - [x] 실제 계산 성능을 유지하는 독립 턴·제외할 시간 보정 정책·후속 작업 계획 문서화.
 - [x] 공통 실행 인터페이스·수명·입력/반환·계측 경계 정의. 타입/검증 모듈과 [계약 v1](algorithm-runner-contract.md), 현 JS 대응·기준선 보관.
-- [x] 기존 JS PlayerProcess를 기본 생성/주입 경계로 분리. 정식 registry/언어 선택은 새 2단계에서 확장.
+- [x] 기존 JS PlayerProcess를 공통 계약의 JS 어댑터·정식 registry로 연결. 현재 활성 언어는 javascript 하나.
 - [x] 기존 JS 빠른/느린 참가자의 독립 진행 검증. 새 계약/혼합 언어·스케줄링 변경 후 다시 검증.
 - [ ] 변환/복사·대기·호출/응답·tick 비용 분해와 불필요한 공통 큐/락 최적화.
 - [x] 기존 JS 500ms 실제 중단·동일 인스턴스 재호출과 게임 규칙/종료 회귀. 신규 언어는 새 계획의 미완료 항목.
 - [ ] 다국어 착수 시 직접 호스팅/IPC 후보의 언어별 편차·자원/중단 검증.
 - [x] 최신 엔진/실행기 10단계 계획·산출물·선행 조건·미통과 언어 처리 기준 보관.
 - [x] 새 1단계 타입/구조·수명 검증과 JS 기준선 구현/검증. [결과](runner-stage1-results.md).
-- [ ] 새 2~10단계 구현/검증. 상세 체크는 [최신 계획](game-engine-language-runners-plan.md#7-진행-체크리스트)에서 관리.
+- [x] 새 2단계 JS 어댑터/registry·부분 실패/종료·코드 검사 연결. [결과](runner-stage2-results.md).
+- [ ] 새 3~10단계 구현/검증. 상세 체크는 [최신 계획](game-engine-language-runners-plan.md#7-진행-체크리스트)에서 관리.
 
 - [x] 전체 기획·작업 순서 문서 작성.
 - [x] 아키텍처 설계안 보관.

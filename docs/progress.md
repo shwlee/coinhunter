@@ -1,5 +1,13 @@
 # 구현 진행 결과
 
+## 2026-11-15 — 실행기 2단계 JS 어댑터·registry 연결 완료
+
+- 선행 1단계는 `81f3a94`로 커밋했다. [2단계 결과/구조·제한](runner-stage2-results.md).
+- JavaScriptRunner/정식 registry와 세션별 파일 참조 descriptor를 추가하고 Match·코드 검사를 공통 계약으로 연결했다. 실제 worker가 host/instance ID를 발급하며 C#의 game/run ID와 독립 callId를 유지한다.
+- 일부 생성/초기화 실패·준비 중 stop·미응답/단절·늦은/잘못된 응답·반복 close를 보강했다. 정상 500ms timeout은 같은 객체/프로세스를 재사용하며 호스트 실패와 전체 종료의 강제 정리를 구분한다.
+- OS 환경만 child에 전달하고 사용자 오류 상세는 검사 전용으로 유지했다. 화면/통계·기존 source 파일·게임 규칙·독립 턴·20ms tick은 유지한다.
+- Node 259건, C# 44건, 프로토콜 5건·분리 BE 통합 13그룹과 정식 runtime 검증 통과. 다음은 3단계이며 이번 2단계는 아직 커밋/푸시하지 않았다.
+
 ## 2026-11-15 — 실행기 1단계 공통 계약·JS 기준선 완료
 
 - [계약 v1](algorithm-runner-contract.md)의 JSDoc·엄격한 구조/결과 검증·독립 수명 모델·언어 중립 manifest를 추가했다. 준비/컴파일과 플레이어 실행 수명, source/artifact·run/instance/call 결합, 실제 중단/close 확인을 구분했다.

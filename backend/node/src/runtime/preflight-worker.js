@@ -1,8 +1,18 @@
 import { readFile } from 'node:fs/promises';
 import { analyze } from 'eslint-scope';
 import { validateSource } from './policy.js';
-import { AlgorithmSandbox } from './sandbox.js';
+import { randomUUID } from 'node:crypto';
+import { JavaScriptArtifacts } from './javascript-artifacts.js';
+import { createJavaScriptRegistry } from './runner-registry.js';
+import { ALGORITHM_MEMORY_LIMIT_BYTES } from './policy.js';
 import { validationDiagnostic } from './validation-diagnostic.js';
+
+let currentRunner,
+  cancelled = false,
+  started = false;
+function checkCancellation() {
+  if (cancelled) throw new Error('코드 검사가 취소되었습니다.');
+}
 
 // Only globals available to player.js; host APIs and disabled dynamic execution are excluded.
 const globals = new Set(
@@ -42,26 +52,52 @@ async function inspect(source) {
     throw error;
   }
   let calls = 0;
+  const artifacts = new JavaScriptArtifacts();
+  const artifact = await artifacts.register(source);
+  const registry = createJavaScriptRegistry({
+    resolveArtifact: artifacts.resolve,
+    diagnostics: true,
+  });
   for (const filename of ['crossroads', 'four-courtyards']) {
     const map = JSON.parse(
       await readFile(new URL(`../../maps/samples/${filename}.json`, import.meta.url), 'utf8'),
     );
     const starts = [0, map.columns - 1, map.columns * (map.rows - 1), map.tiles.length - 1];
     for (let player = 0; player < 4; player++) {
-      let sandbox,
+      let runner,
         checkedTurn = null;
       try {
-        sandbox = await AlgorithmSandbox.create(source, player, map.columns, map.rows, {
-          diagnostics: true,
-        });
+        checkCancellation();
+        const context = {
+          contractVersion: 1,
+          gameId: randomUUID(),
+          playerId: player,
+          runId: randomUUID(),
+          language: 'javascript',
+          artifact,
+          limits: { turnMs: 500, algorithmMemoryBytes: ALGORITHM_MEMORY_LIMIT_BYTES },
+        };
+        runner = registry.create(context);
+        currentRunner = runner;
+        await runner.initialize({ playerNumber: player, columns: map.columns, rows: map.rows });
         let position = starts[player];
         const tiles = [...map.tiles];
         for (let turn = 0; turn < 3; turn++) {
+          checkCancellation();
           checkedTurn = turn + 1;
           // Include both absent items and present items, plus a coin-free board.
           if (turn === 2) for (let i = 0; i < tiles.length; i++) if (tiles[i] > 0) tiles[i] = 0;
           const items = turn === 1 ? [...starts] : [-1, -1, -1, -1];
-          const result = sandbox.invoke('moveNext', [tiles, position, items]);
+          const result = await runner.move({
+            contractVersion: 1,
+            gameId: context.gameId,
+            playerId: player,
+            runId: context.runId,
+            callId: turn + 1,
+            map: [...tiles],
+            myPosition: position,
+            items,
+          });
           if (result.status !== 'ok') {
             const reason =
               {
@@ -75,14 +111,14 @@ async function inspect(source) {
             error.validation = {
               stage: 'moveNext',
               status: result.status,
-              detail: result.exceptionMessage || reason,
+              detail: runner.lastExceptionMessage || reason,
               logs: [...result.logs],
               droppedLogs: result.droppedLogs,
             };
             throw error;
           }
           calls++;
-          const direction = result.value;
+          const direction = result.direction;
           const next = position + [-1, -map.columns, 1, map.columns][direction];
           if (
             direction !== -1 &&
@@ -97,20 +133,32 @@ async function inspect(source) {
           }
         }
       } catch (error) {
+        if (error.validation && error.code === 'initialization-failed') {
+          const info = error.validation;
+          error.message = `${info.stage === 'load' ? '코드 로딩' : info.stage} 실패: ${info.status}${info.detail ? ' · ' + info.detail : ''}`;
+        }
         error.validation = {
           ...error.validation,
           context: { columns: map.columns, rows: map.rows, player: player + 1, call: checkedTurn },
         };
         throw error;
       } finally {
-        sandbox?.dispose();
+        await runner?.close();
+        currentRunner = null;
       }
     }
   }
   return { ok: true, calls };
 }
 
-process.once('message', async ({ source, sourcePath }) => {
+process.on('message', async ({ source, sourcePath, cancel }) => {
+  if (cancel) {
+    cancelled = true;
+    await currentRunner?.close().catch(() => {});
+    return;
+  }
+  if (started) return;
+  started = true;
   let result;
   try {
     result = await inspect(sourcePath ? await readFile(sourcePath, 'utf8') : source);

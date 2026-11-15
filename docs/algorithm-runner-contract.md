@@ -8,7 +8,7 @@
 - [언어 중립 manifest](../backend/contracts/runner-contract-v1.json)
 - [검사](../test/runner-contract.test.js), [현 JS 기준선](runner-stage1-results.md)
 
-**구현 범위:** 타입·구조/상태 검증·현 JS 대응/측정까지다. 아직 `Match`, 코드 검사, `PlayerProcess`를 새 계약으로 연결하지 않았다. 정식 JS 어댑터/registry는 2단계, 다른 언어는 4단계 이후다. manifest의 candidateLanguages는 지원 목록이 아니다.
+**현재 구현:** 1단계의 타입·구조/상태 검증·JS 기준선에 이어 [2단계 JS 어댑터/registry](runner-stage2-results.md)를 Match와 코드 검사에 연결했다. 다른 언어는 4단계 이후다. 아래 기존 구현 대응표는 1단계 시점의 비교 자료이며 manifest의 candidateLanguages는 지원 목록이 아니다.
 
 ## 1. 두 인터페이스와 소유권
 
@@ -33,7 +33,7 @@ factory는 호출마다 다른 플레이어의 runner를 생성한다. 같은 �
 
 UUID는 공백 없는 소문자 canonical UUID이며 empty UUID를 거부한다. gameId는 기존 matchId와 같은 값이다. playerId는 0~3, runId는 게임의 해당 참가자 수명이다. callId는 **move 호출만** run별 1부터 증가하는 안전한 정수이며 재사용하지 않는다. 호스트 IPC command 순번과는 별개다.
 
-instanceId는 실제 생성한 Player 객체, hostId는 그 객체를 호스팅하는 실행 호스트의 수명을 식별한다. 실제 객체/호스트 생성 시 한 번 발급하고 timeout 뒤에도 동일해야 한다. PID만으로 재사용을 증명하지 않으며 PID는 별도 진단 값으로 사용할 수 있다. 기존 JS는 아직 이 UUID들을 발급하지 않으므로 1단계 측정/검증에서 있다고 가장하지 않는다.
+instanceId는 실제 생성한 Player 객체, hostId는 그 객체를 호스팅하는 실행 호스트의 수명을 식별한다. 실제 객체/호스트 생성 시 한 번 발급하고 timeout 뒤에도 동일해야 한다. PID만으로 재사용을 증명하지 않으며 PID는 별도 진단 값으로 사용할 수 있다. 2단계 worker가 실제 UUID를 발급하며, 발급 전인 1단계 기준 측정에는 이를 소급해 넣지 않는다.
 
 `SourceReference`는 기존과 같은 sourceKey/sha256/byteLength다. byteLength는 0 이상의 안전한 정수이며 64KiB 같은 새 코드 크기 제한을 두지 않는다. SHA-256은 소문자 64자리다. 실제 bytes/hash 검증은 파일 저장/준비 계층에서 수행한다.
 

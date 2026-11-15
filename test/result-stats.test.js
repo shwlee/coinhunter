@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { GameState } from '../backend/node/src/game/state.js';
 import { Match } from '../backend/node/src/game/match.js';
 import { MAPS } from '../backend/node/src/game/map-repository.js';
@@ -63,12 +64,13 @@ test('competing wall destruction counts once and interrupted actions are exclude
 test('runtime results count without debug logs, and random jump skips computation statistics', async () => {
   const match = new Match(MAPS[0], ['unused']);
   match.state = state();
+  match.contexts = [{ gameId: match.gameId, runId: randomUUID() }];
   match.runners = [
     {
       move: async () => ({
         status: 'timeout',
-        value: -1,
-        elapsedMs: 500,
+        direction: -1,
+        timings: { executionMs: 500 },
         logs: [],
         droppedLogs: 0,
       }),
@@ -81,8 +83,8 @@ test('runtime results count without debug logs, and random jump skips computatio
   assert.equal(p.stats.algorithmTotalMs, 500);
   match.runners[0].move = async () => ({
     status: 'ok',
-    value: 2,
-    elapsedMs: 2,
+    direction: 2,
+    timings: { executionMs: 2 },
     logs: [],
     droppedLogs: 0,
   });

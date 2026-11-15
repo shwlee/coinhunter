@@ -400,11 +400,9 @@ test(
       assert.equal(first.pid, timeout.pid);
       assert.equal(first.pid, next.pid);
       assert.ok(next.roundTripMs >= 0);
-      assert.equal(
-        Object.hasOwn(next, 'instanceId'),
-        false,
-        'No new production identity is fabricated by stage 1',
-      );
+      assert.equal(first.instanceId, next.instanceId);
+      assert.equal(timeout.instanceId, next.instanceId);
+      assert.equal(first.hostId, next.hostId);
     } finally {
       await runner.close();
     }

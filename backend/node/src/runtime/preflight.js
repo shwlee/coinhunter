@@ -1,4 +1,5 @@
 import { fork } from 'node:child_process';
+import { algorithmHostEnvironment } from './player-process.js';
 
 const active = new Set();
 
@@ -18,18 +19,24 @@ export async function validateAlgorithm(source, owner, sourcePath = null, signal
         stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
         execArgv: [],
         windowsHide: true,
+        env: algorithmHostEnvironment(),
       });
       let result;
       let failure;
+      let killTimer;
+      const requestCleanup = () => {
+        if (worker.connected) worker.send({ cancel: true }, () => {});
+        killTimer ||= setTimeout(() => worker.kill('SIGKILL'), 4000);
+      };
       const cancel = () => {
         failure = Object.assign(new Error('코드 검사가 취소되었습니다.'), { code: 'cancelled' });
-        worker.kill();
+        requestCleanup();
       };
       signal?.addEventListener('abort', cancel, { once: true });
       if (signal?.aborted) cancel();
       const timer = setTimeout(() => {
         failure = new Error('검사 전체 대기 시간을 초과했습니다. 코드를 확인하고 다시 검사하세요.');
-        worker.kill();
+        requestCleanup();
       }, 30000);
       worker.once('message', (message) => {
         result = message;
@@ -39,6 +46,7 @@ export async function validateAlgorithm(source, owner, sourcePath = null, signal
       });
       worker.once('close', () => {
         clearTimeout(timer);
+        clearTimeout(killTimer);
         signal?.removeEventListener('abort', cancel);
         if (failure) reject(failure);
         else if (!result) reject(new Error('코드 검사 프로세스가 비정상 종료되었습니다.'));

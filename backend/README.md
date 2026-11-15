@@ -2,7 +2,7 @@
 
 현재 폴더 배치: `src/`는 C# 서비스, `node/`는 Node 게임/실행기·샘플 알고리즘·기본 맵이다. 화면/에셋·정적 웹 중계는 루트 `frontend/`로, 공용 순수 JavaScript는 `shared/`로 이동했다. [전체 폴더 구조](../docs/project-layout.md). 기존 데이터/로컬 설정 경로는 유지한다.
 
-BE 분리 1~9단계를 로컬 파일 어댑터와 기존 화면 기준으로 구현했다. **리뷰 대기 중이며 커밋·실제 데이터 전환·외부 배포는 수행하지 않았다.** [단계별 결과·제한](../docs/backend-split-completion.md), [전환·복귀 절차](../docs/backend-cutover-runbook.md).
+BE 분리 1~9단계와 폴더 정리는 `1183977`로 커밋/푸시했다. 이후 실행기 1~2단계의 공통 계약·JS 어댑터/registry를 게임과 코드 검사에 연결했다. [실행기 결과/검증](../docs/runner-stage2-results.md), [BE 분리 결과·제한](../docs/backend-split-completion.md), [전환·복귀 절차](../docs/backend-cutover-runbook.md). 실제 데이터 전환·외부 배포는 별도다.
 
 ```text
 브라우저 → Node 정적 웹/중계 :3000 → C# 운영 API :3101
@@ -10,7 +10,7 @@ BE 분리 1~9단계를 로컬 파일 어댑터와 기존 화면 기준으로 구
                                   C# 실행 관리 :3102
                                      ↓ 경기별 프레임 채널
                                   Node 게임 엔진
-                                     ├─ 플레이어별 기존 JS/QuickJS 실행기
+                                     ├─ 공통 registry → 플레이어별 JS 어댑터/QuickJS 실행기
                                      └─ 독립 수집 인터페이스 → JSONL/완결 receipt
 ```
 
