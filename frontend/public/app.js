@@ -11,6 +11,8 @@ import { api, accountBar } from './account.js';
 import { renderResultAnalysis } from './result-analysis.js';
 import { renderLeaderboard } from './leaderboard.js';
 import { loadCoins, drawCoin, drawCoinPickup, drawCoinSample } from './coin-renderer.js';
+import { GamePresentation } from './game-presentation.js';
+const presentation = new GamePresentation();
 const $ = (id) => document.getElementById(id);
 const testMode =
   window.parent !== window && new URLSearchParams(location.search).get('editor') === '1';
@@ -75,8 +77,6 @@ let maps = [],
   game = null,
   matchId = null,
   events = null,
-  receivedAt = 0,
-  serverAt = 0,
   lastLogKey = '',
   busy = false;
 
@@ -326,8 +326,7 @@ function preview() {
     status: 'ready',
     remainingMs: map.settings.runningTimeMs,
   };
-  serverAt = 0;
-  receivedAt = performance.now();
+  presentation.reset(game);
   $('arena-title').textContent = map.name;
   $('map-size').textContent = `${map.columns} × ${map.rows}`;
   $('arena-message').innerHTML =
@@ -396,6 +395,7 @@ function connect() {
   events = new EventSource(`/api/matches/${matchId}/events`);
   events.addEventListener('snapshot', (event) => {
     const data = JSON.parse(event.data);
+    if (!presentation.push(data, performance.now())) return;
     game = data.game;
     selectedStartSlot = game.players[0]?.startSlot ?? 0;
     for (const input of document.querySelectorAll('input[name="start-slot"]'))
@@ -406,8 +406,6 @@ function connect() {
       for (const input of document.querySelectorAll('input[name="character"]'))
         input.checked = input.value === characterId;
     }
-    serverAt = game.serverTime;
-    receivedAt = performance.now();
     renderInfo();
     renderLogs(data.logs);
     controls();
@@ -596,6 +594,8 @@ function draw() {
   drawBoard();
 }
 function drawBoard() {
+  const view = presentation.sample(performance.now());
+  const game = view?.game;
   if (!game) return;
   // Preparation fully covers the board. Avoid animating hidden tiles and coins.
   if (game.status === 'ready' && !$('arena-overlay').classList.contains('counting-down')) return;
@@ -610,7 +610,7 @@ function drawBoard() {
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = '#92a99d';
   ctx.fillRect(pad, pad, game.columns * cell, game.rows * cell);
-  const now = game.status === 'finished' ? serverAt : serverAt + (performance.now() - receivedAt);
+  const now = view.time;
   for (let y = 0; y < game.rows; y++)
     for (let x = 0; x < game.columns; x++) {
       const px = pad + x * cell,

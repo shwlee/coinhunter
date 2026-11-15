@@ -28,6 +28,38 @@ public sealed class ExecutionRecord
     public string? StopReason { get; set; }
     public DateTimeOffset CreatedAt { get; } = DateTimeOffset.UtcNow;
     public object Gate { get; } = new();
+    private TaskCompletionSource snapshotChanged = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public void NotifySnapshotChanged()
+    {
+        lock (Gate)
+        {
+            var previous = snapshotChanged;
+            snapshotChanged = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            previous.TrySetResult();
+        }
+    }
+    public async Task WaitForSnapshot(int afterSequence, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        // Bound an idle wait so Operations can recheck session/owner and send heartbeats.
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (true)
+            {
+                Task changed;
+                lock (Gate)
+                {
+                    if ((Snapshot?.Int("sequence", -1) ?? -1) > afterSequence || Result is not null || Closed.Task.IsCompleted) return;
+                    changed = snapshotChanged.Task;
+                }
+                // Capture and check under the same gate: an update before this await is not lost.
+                await changed.WaitAsync(deadline.Token);
+            }
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested) { }
+    }
 }
 
 public sealed class ExecutionManager : IHostedService, IDisposable
@@ -168,6 +200,7 @@ public sealed class ExecutionManager : IHostedService, IDisposable
                         default: throw new InvalidDataException("Unexpected engine reply.");
                     }
                 }
+                record.NotifySnapshotChanged();
                 if (message.Type == "closed") break;
             }
             if (record.Result is null) throw new IOException("Engine disconnected.");
@@ -179,6 +212,7 @@ public sealed class ExecutionManager : IHostedService, IDisposable
                 record.State = "failed";
                 record.Result ??= Failure(record, record.StopReason ?? "runtime-failure", new JsonObject { ["status"] = "partial", ["key"] = record.Request.MatchId.ToString(), ["durableThroughSeq"] = 0 });
             }
+            record.NotifySnapshotChanged();
         }
         finally
         {
@@ -193,7 +227,7 @@ public sealed class ExecutionManager : IHostedService, IDisposable
                 if (record.Result?["recording"]?.Text("status") != "complete") record.Result!["recording"] = await JournalRecovery.Recover(settings.ExecutionRoot, record.Request.MatchId);
                 await Persist(record);
             }
-            finally { record.Closed.TrySetResult(); }
+            finally { record.Closed.TrySetResult(); record.NotifySnapshotChanged(); }
         }
     }
     private static async Task DiscardDiagnostics(StreamReader reader) { var buffer = new char[4096]; while (await reader.ReadAsync(buffer) != 0) { } }

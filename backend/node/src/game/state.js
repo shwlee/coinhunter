@@ -90,6 +90,7 @@ export class GameState {
   }
 
   start(now) {
+    if (this.status !== 'ready') throw new Error('Invalid game state');
     this.status = 'playing';
     this.startedAt = now;
     this.nextItemsAt = now + this.settings.itemFirstMs;
@@ -298,6 +299,7 @@ export class GameState {
     if (!this.tiles.some((value) => value > 0)) this.finish('coins-collected');
   }
   finish(reason) {
+    if (this.status === 'finished') return;
     this.status = 'finished';
     this.reason = reason;
     for (const player of this.players) {

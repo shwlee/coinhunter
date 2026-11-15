@@ -51,7 +51,7 @@ public sealed class MatchesController(SessionService sessions, MatchService matc
             while (!HttpContext.RequestAborted.IsCancellationRequested)
             {
                 if (scope.Kind == "user" && (await sessions.Current(HttpContext))?.Text("id") != scope.SubjectId.ToString()) break;
-                var snapshot = await matches.View(id.ToString(), scope);
+                var snapshot = await matches.View(id.ToString(), scope, sequence, HttpContext.RequestAborted);
                 if (snapshot.Int("sequence") != sequence)
                 {
                     sequence = snapshot.Int("sequence");
@@ -65,7 +65,6 @@ public sealed class MatchesController(SessionService sessions, MatchService matc
                     using var deadline = CancellationTokenSource.CreateLinkedTokenSource(HttpContext.RequestAborted); deadline.CancelAfter(TimeSpan.FromSeconds(3));
                     await Response.WriteAsync(": heartbeat\n\n", deadline.Token); await Response.Body.FlushAsync(deadline.Token); heartbeat = DateTimeOffset.UtcNow;
                 }
-                await Task.Delay(60, HttpContext.RequestAborted);
             }
         }
         catch (Exception error) when (error is OperationCanceledException or IOException) { HttpContext.Abort(); }

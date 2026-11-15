@@ -64,16 +64,32 @@ test('competing wall destruction counts once and interrupted actions are exclude
 test('runtime results count without debug logs, and random jump skips computation statistics', async () => {
   const match = new Match(MAPS[0], ['unused']);
   match.state = state();
-  match.contexts = [{ gameId: match.gameId, runId: randomUUID() }];
+  match.phase = 'running';
+  const context = { gameId: match.gameId, playerId: 0, runId: randomUUID() };
+  const info = { ...context, instanceId: randomUUID() };
+  const result = (request, status, direction, executionMs) => ({
+    contractVersion: 1,
+    ...info,
+    callId: request.callId,
+    status,
+    direction,
+    completion: status === 'timeout' ? 'interrupted' : 'returned',
+    logs: [],
+    droppedLogs: 0,
+    timings: {
+      executionMs,
+      executionBoundary: 'quickjs-call-v1',
+      roundTripMs: null,
+      inputPreparationMs: null,
+      responseProcessingMs: null,
+      engineApplyDelayMs: null,
+    },
+  });
+  match.contexts = [context];
   match.runners = [
     {
-      move: async () => ({
-        status: 'timeout',
-        direction: -1,
-        timings: { executionMs: 500 },
-        logs: [],
-        droppedLogs: 0,
-      }),
+      info,
+      move: async (request) => result(request, 'timeout', -1, 500),
     },
   ];
   await match.requestTurn(0);
@@ -81,13 +97,7 @@ test('runtime results count without debug logs, and random jump skips computatio
   match.state.completeAction(0, p.action.endsAt);
   assert.equal(p.stats.timeouts, 1);
   assert.equal(p.stats.algorithmTotalMs, 500);
-  match.runners[0].move = async () => ({
-    status: 'ok',
-    direction: 2,
-    timings: { executionMs: 2 },
-    logs: [],
-    droppedLogs: 0,
-  });
+  match.runners[0].move = async (request) => result(request, 'ok', 2, 2);
   await match.requestTurn(0);
   match.state.completeAction(0, p.action.endsAt);
   assert.equal(p.stats.algorithmCalls, 2);

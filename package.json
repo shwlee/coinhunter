@@ -14,6 +14,7 @@
     "backend:web": "node scripts/backend.js web",
     "backend:maintenance": "node scripts/backend-maintenance.js",
     "backend:test:browser": "node scripts/backend-browser-smoke.js",
+    "backend:test:motion": "node scripts/game-motion-smoke.js",
     "backend:test:load": "node scripts/backend-load-smoke.js",
     "start:legacy": "node scripts/start.js legacy",
     "build:editor": "node scripts/build-editor.js",
@@ -40,6 +41,7 @@
     "format:check": "prettier --check frontend backend/node shared scripts test package.json .prettierrc.json .github",
     "verify:runtime": "node scripts/verify-runtime.js",
     "runner:baseline": "node scripts/measure-runner-baseline.js",
+    "engine:scheduling": "node scripts/measure-engine-turn-scheduling.js",
     "demo": "node scripts/demo-match.js"
   },
   "dependencies": {

@@ -2,7 +2,7 @@
 
 현재 폴더 배치: `src/`는 C# 서비스, `node/`는 Node 게임/실행기·샘플 알고리즘·기본 맵이다. 화면/에셋·정적 웹 중계는 루트 `frontend/`로, 공용 순수 JavaScript는 `shared/`로 이동했다. [전체 폴더 구조](../docs/project-layout.md). 기존 데이터/로컬 설정 경로는 유지한다.
 
-BE 분리 1~9단계와 폴더 정리는 `1183977`로 커밋/푸시했다. 이후 실행기 1~2단계의 공통 계약·JS 어댑터/registry를 게임과 코드 검사에 연결했다. [실행기 결과/검증](../docs/runner-stage2-results.md), [BE 분리 결과·제한](../docs/backend-split-completion.md), [전환·복귀 절차](../docs/backend-cutover-runbook.md). 실제 데이터 전환·외부 배포는 별도다.
+BE 분리 1~9단계와 폴더 정리는 `1183977`로 커밋/푸시했다. 이후 실행기 1~3단계의 공통 계약·JS 어댑터/registry·엔진 수명/독립 진행을 구현했다. [최신 실행기 결과/검증](../docs/runner-stage3-results.md)은 리뷰 대기다. [BE 분리 결과·제한](../docs/backend-split-completion.md), [전환·복귀 절차](../docs/backend-cutover-runbook.md). 실제 데이터 전환·외부 배포는 별도다.
 
 ```text
 브라우저 → Node 정적 웹/중계 :3000 → C# 운영 API :3101
@@ -109,9 +109,13 @@ Google 관리자는 먼저 Google 로그인해 sub 신원을 등록한 계정이
 ```sh
 npm run backend:test
 npm run backend:test:browser
+npm run backend:test:motion
 npm run backend:test:load
+npm run engine:scheduling
 node scripts/backend-launcher-smoke.js
 node --test --test-concurrency=1 test
 ```
 
 브라우저/부하 검사는 먼저 `backend:build`와 에디터 빌드가 필요하다. 테스트는 합성 계정·임시 디렉터리·임시 포트만 사용한다. 실제 Google 인증·사내 배포·DB 전환·컨테이너·개인정보 운영 준비는 [남은 작업](../docs/remaining-work.md)으로 구분한다.
+
+턴 경계 끊김의 전달/표시 수정과 별도 빌드 검증은 [측정·적용 문서](../docs/game-motion-fix.md)를 참고한다. 개발 서버 실행 중에는 선택적 `COINHUNTER_BUILD_ROOT=artifacts/<별도 이름>`으로 빌드/테스트 출력을 분리할 수 있다. 실제 서비스 반영에는 서버 재시작이 필요하다.

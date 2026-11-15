@@ -29,6 +29,7 @@ export const assets = new Map([
   ['/editor.css', ['editor.css', 'text/css; charset=utf-8']],
   ['/account.js', ['account.js', 'text/javascript; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
+  ['/game-presentation.js', ['game-presentation.js', 'text/javascript; charset=utf-8']],
   ['/coin-renderer.js', ['coin-renderer.js', 'text/javascript; charset=utf-8']],
   ['/podium.js', ['podium.js', 'text/javascript; charset=utf-8']],
   ['/result-analysis.js', ['result-analysis.js', 'text/javascript; charset=utf-8']],

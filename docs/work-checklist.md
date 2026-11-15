@@ -14,7 +14,7 @@
 
 ## 1. 현재 상태와 즉시 작업
 
-현재 BE 분리/폴더 정리는 `1183977`로 커밋/푸시했고, [엔진·언어별 실행기 계획](game-engine-language-runners-plan.md)의 1단계를 `81f3a94`로 커밋했다. [2단계 JS 어댑터·registry 연결/검증](runner-stage2-results.md)도 완료했으며 다음은 3단계다. 실제 데이터 이전/배포는 별도다.
+현재 BE 분리/폴더 정리는 `1183977`로 커밋/푸시했고, [엔진·언어별 실행기 계획](game-engine-language-runners-plan.md)의 1단계를 `81f3a94`, 2단계를 `61f92f2`로 커밋했다. [3단계 엔진 수명·독립 진행/측정·검증](runner-stage3-results.md)을 완료했으며 리뷰 대기다. 실제 데이터 이전/배포는 별도다.
 
 - [x] BE 우선 9단계 작업 계획·산출물·완료 기준 문서화.
 - [x] 1단계 API/메시지 계약과 닷넷 솔루션 뼈대. [실행법](../backend/README.md), [검증](backend-stage1-verification.md).
@@ -39,7 +39,8 @@
 - [x] 최신 엔진/실행기 10단계 계획·산출물·선행 조건·미통과 언어 처리 기준 보관.
 - [x] 새 1단계 타입/구조·수명 검증과 JS 기준선 구현/검증. [결과](runner-stage1-results.md).
 - [x] 새 2단계 JS 어댑터/registry·부분 실패/종료·코드 검사 연결. [결과](runner-stage2-results.md).
-- [ ] 새 3~10단계 구현/검증. 상세 체크는 [최신 계획](game-engine-language-runners-plan.md#7-진행-체크리스트)에서 관리.
+- [x] 새 3단계 엔진 독립 진행·수명·규칙 회귀와 스케줄링 측정. [결과](runner-stage3-results.md). 리뷰 대기.
+- [ ] 새 4~10단계 구현/검증. 상세 체크는 [최신 계획](game-engine-language-runners-plan.md#7-진행-체크리스트)에서 관리.
 
 - [x] 전체 기획·작업 순서 문서 작성.
 - [x] 아키텍처 설계안 보관.

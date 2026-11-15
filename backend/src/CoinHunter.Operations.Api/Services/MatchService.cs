@@ -117,11 +117,11 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
         var item = await store.Read(data => JsonData.Array(data, "matches").OfType<JsonObject>().SingleOrDefault(item => item.Text("id") == id && item.Text("owner") == Owner(scope))?.CloneObject());
         return item ?? throw new ServiceFault(404, "게임을 찾을 수 없습니다.");
     }
-    public async Task<JsonObject> View(string id, ExecutionScope scope)
+    public async Task<JsonObject> View(string id, ExecutionScope scope, int? afterSequence = null, CancellationToken token = default)
     {
         var item = await Owned(id, scope);
         if (item["finalSnapshot"] is JsonObject final) return final;
-        var view = await execution.Call(HttpMethod.Get, $"/internal/v1/matches/{Guid.Parse(id)}");
+        var view = await execution.Call(HttpMethod.Get, $"/internal/v1/matches/{Guid.Parse(id)}" + (afterSequence.HasValue ? $"?afterSequence={afterSequence.Value}" : ""), token: token, waitForSnapshot: afterSequence.HasValue);
         if (view["result"] is JsonObject)
         {
             await Apply(item, view);

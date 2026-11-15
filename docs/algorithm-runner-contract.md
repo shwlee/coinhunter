@@ -8,7 +8,7 @@
 - [언어 중립 manifest](../backend/contracts/runner-contract-v1.json)
 - [검사](../test/runner-contract.test.js), [현 JS 기준선](runner-stage1-results.md)
 
-**현재 구현:** 1단계의 타입·구조/상태 검증·JS 기준선에 이어 [2단계 JS 어댑터/registry](runner-stage2-results.md)를 Match와 코드 검사에 연결했다. 다른 언어는 4단계 이후다. 아래 기존 구현 대응표는 1단계 시점의 비교 자료이며 manifest의 candidateLanguages는 지원 목록이 아니다.
+**현재 구현:** 1단계의 타입·구조/상태 검증·JS 기준선에 이어 [2단계 JS 어댑터/registry](runner-stage2-results.md)를 Match와 코드 검사에 연결했고, [3단계 엔진 수명·독립 진행](runner-stage3-results.md)을 완료했다. 다른 언어는 4단계 이후다. 아래 기존 구현 대응표는 1단계 시점의 비교 자료이며 manifest의 candidateLanguages는 지원 목록이 아니다.
 
 ## 1. 두 인터페이스와 소유권
 
@@ -120,7 +120,7 @@ created → initializing → ready → computing → ready → ...
 
 - initialize는 한 번만 수행한다. ready인 runner에만 move를 요청하고 callId는 증가한다.
 - computing은 해당 호출의 실제 반환/중단 확인 전까지 유지한다. cancel 요청만으로 ready로 바꾸지 않는다.
-- 엔진의 acting과 runner의 ready는 다르다. runner가 준비됐더라도 액션이 끝나기 전에 엔진이 다음 move를 요청하면 안 된다. acting/독립 진행의 실행 연결은 3단계다.
+- 엔진의 acting과 runner의 ready는 다르다. runner가 준비됐더라도 액션이 끝나기 전에 엔진이 다음 move를 요청하면 안 된다. [3단계](runner-stage3-results.md)에서 엔진의 pending 판단·thinking·진행 중 액션을 확인하고 종료 시 늦은 결과 생산자를 drain한 후 기록을 seal한다.
 - 잘못된 run/instance/call의 응답을 거부해도 pending call을 풀지 않는다. 어댑터가 protocol fault와 실제 자원 정리를 처리해야 한다.
 - close는 초기화/판단 중에도 요청 가능하다. 뒤늦게 정상 초기화/판단이 끝나도 closing에서 ready로 돌아가지 않는다.
 - fail도 active call이나 자원이 실제 해제됐다고 간주하지 않는다. 실패 후 close/cleanup이 필요하며 새 객체로 재초기화해 계속하지 않는다.

@@ -52,6 +52,36 @@ async function resources(pids) {
   const rows = JSON.parse(stdout);
   return Array.isArray(rows) ? rows : [rows];
 }
+async function playerProcesses(enginePids) {
+  assert.ok(enginePids.every((pid) => Number.isSafeInteger(pid) && pid > 0));
+  if (process.platform === 'win32') {
+    const filter = enginePids.map((pid) => `ParentProcessId = ${pid}`).join(' OR ');
+    const { stdout } = await run(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `$ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process -Filter '${filter}' | Select-Object ProcessId,ParentProcessId,CommandLine) | ConvertTo-Json -Compress`,
+      ],
+      { windowsHide: true },
+    );
+    const rows = stdout.trim() ? JSON.parse(stdout) : [];
+    return (Array.isArray(rows) ? rows : [rows])
+      .filter(
+        (row) =>
+          enginePids.includes(row.ParentProcessId) && row.CommandLine?.includes('player-worker.js'),
+      )
+      .map((row) => row.ProcessId);
+  }
+  const { stdout } = await run('ps', ['-eo', 'pid=,ppid=,args=']);
+  return stdout.split('\n').flatMap((line) => {
+    const row = line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/);
+    return row && enginePids.includes(Number(row[2])) && row[3].includes('player-worker.js')
+      ? [Number(row[1])]
+      : [];
+  });
+}
 try {
   expect(await admin('/api/auth/mock', json({ email: 'admin@company.test' })), 200);
   const tiles = Array(100).fill(100);
@@ -109,16 +139,28 @@ try {
     }),
     429,
   );
-  const streams = ids.map((id, i) => clients[i](`/api/matches/${id}/events`));
+  // Observe rejections immediately; fixture cleanup may abort streams after any failed assertion.
+  const streams = ids.map((id, i) =>
+    clients[i](`/api/matches/${id}/events`).then(
+      (response) => ({ response }),
+      (error) => ({ error }),
+    ),
+  );
   await wait(800);
   const rows = await Promise.all(ids.map(journal));
-  const actorPids = [
-    ...new Set(
-      rows.flatMap((log) =>
-        log.filter((row) => row.type === 'algorithm-result').map((row) => row.payload.result.pid),
+  const actorPids = await playerProcesses(enginePids);
+  assert.equal(
+    actorPids.length,
+    16,
+    'Four persistent player hosts per isolated engine: ' +
+      JSON.stringify(
+        rows.map((log) => ({
+          reason: log.find((row) => row.type === 'finished')?.payload.reason,
+          fault: log.find((row) => row.type === 'runtime-failure')?.payload,
+          last: log.at(-1)?.type,
+        })),
       ),
-    ),
-  ];
+  );
   const pids = [
     ...new Set([app.operations.child.pid, app.execution.child.pid, ...enginePids, ...actorPids]),
   ];
@@ -150,8 +192,8 @@ try {
       .map((row) => row.payload.result);
     assert.ok(results.some((result) => result.status === 'timeout'));
     assert.ok(results.length >= 3);
-    assert.equal(new Set(results.map((result) => result.pid)).size, 1);
-    assert.equal(results[2].value, 3, 'Same object retains fields after interruption');
+    assert.equal(new Set(results.map((result) => result.instanceId)).size, 1);
+    assert.equal(results[2].direction, 3, 'Same object retains fields after interruption');
     const timeout = log.find(
       (row) =>
         row.type === 'algorithm-result' &&
@@ -168,7 +210,9 @@ try {
       'Fast opponents progress during slow algorithm',
     );
   }
-  for (const response of await Promise.all(streams)) {
+  for (const settled of await Promise.all(streams)) {
+    if (settled.error) throw settled.error;
+    const response = settled.response;
     expect(response, 200);
     assert.match(response.text, /finished/);
   }
@@ -194,8 +238,8 @@ try {
     before,
     after,
     timing: {
-      algorithmMs: calls.map((call) => call.elapsedMs),
-      roundTripMs: calls.map((call) => call.roundTripMs),
+      algorithmMs: calls.map((call) => call.timings.executionMs),
+      roundTripMs: calls.map((call) => call.timings.roundTripMs),
     },
     interpretation:
       'Working set includes shared runtime pages; sum is not unique resident memory. CPU samples cover sampler interval only, not a service capacity guarantee.',
@@ -214,14 +258,9 @@ try {
     201,
   ).id;
   await wait(500);
-  const faultActors = [
-    ...new Set(
-      (await journal(faultId))
-        .filter((row) => row.type === 'algorithm-result')
-        .map((row) => row.payload.result.pid),
-    ),
-  ];
   const faultView = expect(await internal(`/internal/v1/matches/${faultId}`), 200);
+  const faultActors = await playerProcesses([faultView.enginePid]);
+  assert.equal(faultActors.length, 4);
   process.kill(faultView.enginePid);
   await wait(1200);
   const failed = expect(await internal(`/internal/v1/matches/${faultId}`), 200);

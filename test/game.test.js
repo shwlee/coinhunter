@@ -289,6 +289,7 @@ test('HurryUp starts at the time limit and removes cheapest coins until the game
 test('random jump turn does not invoke user runtime at all', async () => {
   const m = new Match(map(), ['unused']);
   m.state = state();
+  m.phase = 'running';
   effect(m.state, 3);
   m.runners = [
     {

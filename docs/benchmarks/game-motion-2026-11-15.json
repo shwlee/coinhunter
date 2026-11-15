@@ -1,0 +1,98 @@
+{
+  "measuredAt": "2026-11-15T11:44:00.722Z",
+  "renderDelayMs": 40,
+  "cases": [
+    {
+      "mapId": "crossroads",
+      "frames": 389,
+      "snapshotIntervalMs": {
+        "samples": 251,
+        "p50": 30.799999713897705,
+        "p95": 33.200000286102295,
+        "max": 37.40000009536743
+      },
+      "frameIntervalMs": {
+        "samples": 388,
+        "p50": 16.699999809265137,
+        "p95": 17.5,
+        "max": 21.199999809265137
+      },
+      "newMoveFirstSnapshotAgeMs": {
+        "samples": 16,
+        "p50": 0.5216002464294434,
+        "p95": 17.179200172424316,
+        "max": 17.179200172424316
+      },
+      "holdRunFrames": {
+        "samples": 11,
+        "p50": 1,
+        "p95": 2,
+        "max": 2
+      },
+      "sameActionProgressBacksteps": 0,
+      "heldFrames": 15
+    },
+    {
+      "mapId": "four-courtyards",
+      "frames": 391,
+      "snapshotIntervalMs": {
+        "samples": 256,
+        "p50": 30.90000009536743,
+        "p95": 33.30000019073486,
+        "max": 38.299999713897705
+      },
+      "frameIntervalMs": {
+        "samples": 390,
+        "p50": 16.699999809265137,
+        "p95": 17.199999809265137,
+        "max": 18.700000286102295
+      },
+      "newMoveFirstSnapshotAgeMs": {
+        "samples": 16,
+        "p50": 0.029300212860107422,
+        "p95": 4.832699775695801,
+        "max": 4.832699775695801
+      },
+      "holdRunFrames": {
+        "samples": 9,
+        "p50": 1,
+        "p95": 2,
+        "max": 2
+      },
+      "sameActionProgressBacksteps": 0,
+      "heldFrames": 12
+    }
+  ],
+  "baseline": {
+    "snapshots": 103,
+    "frames": 389,
+    "frameIntervalMs": {
+      "samples": 388,
+      "p50": 16.69999999999891,
+      "p95": 16.80000000000109,
+      "max": 16.899999999999636
+    },
+    "snapshotIntervalMs": {
+      "samples": 102,
+      "p50": 62.30000019073486,
+      "p95": 72.09999990463257,
+      "max": 76.30000019073486
+    },
+    "newMoveFirstSnapshotAgeMs": {
+      "samples": 16,
+      "p50": 30.045300006866455,
+      "p95": 62.08449983596802,
+      "max": 62.08449983596802
+    },
+    "endpointOrThinkingFrames": 49,
+    "endpointOrThinkingFraction": 0.12596401028277635,
+    "holdRunFrames": {
+      "samples": 15,
+      "p50": 3,
+      "p95": 6,
+      "max": 6
+    },
+    "sameActionProgressBacksteps": 6
+  },
+  "limitations": "Local synthetic browser reference; real algorithm computation and OS scheduling gaps remain authoritative."
+}

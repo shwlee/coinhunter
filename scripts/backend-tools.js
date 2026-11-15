@@ -6,6 +6,10 @@ import { buildBackendContent } from './backend-content.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const backend = resolve(root, 'backend');
+// Optional isolated build for testing while the normal development server holds its DLLs.
+const buildRoot = process.env.COINHUNTER_BUILD_ROOT
+  ? resolve(root, process.env.COINHUNTER_BUILD_ROOT)
+  : null;
 export const dotnetEnvironment = {
   ...process.env,
   DOTNET_CLI_HOME: resolve(root, 'artifacts/dotnet-home'),
@@ -14,6 +18,7 @@ export const dotnetEnvironment = {
   DOTNET_GENERATE_ASPNET_CERTIFICATE: 'false',
   DOTNET_ADD_GLOBAL_TOOLS_TO_PATH: 'false',
   DOTNET_NOLOGO: '1',
+  ...(buildRoot ? { ArtifactsPath: buildRoot } : {}),
 };
 
 export function serviceEnvironment(overrides = {}, base = dotnetEnvironment) {
@@ -91,5 +96,6 @@ export async function buildBackend() {
 }
 
 export function serviceAssembly(name) {
+  if (buildRoot) return resolve(buildRoot, 'bin', name, 'debug', `${name}.dll`);
   return resolve(backend, 'src', name, 'bin/Debug/net10.0', `${name}.dll`);
 }

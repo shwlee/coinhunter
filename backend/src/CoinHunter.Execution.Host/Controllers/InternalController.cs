@@ -17,9 +17,11 @@ public sealed class InternalController(ExecutionManager manager, StorageSettings
     [HttpPost("matches")]
     public async Task<IActionResult> Accept([FromBody] ExecutionRequest request) => StatusCode(202, manager.View(await manager.Accept(request, HttpContext.RequestAborted)));
     [HttpGet("matches/{id:guid}")]
-    public async Task<IActionResult> Get(Guid id)
+    public async Task<IActionResult> Get(Guid id, [FromQuery] int? afterSequence = null)
     {
         var record = manager.Get(id);
+        if (afterSequence < -1) throw new ServiceFault(400, "Snapshot sequence is invalid.");
+        if (afterSequence.HasValue) await record.WaitForSnapshot(afterSequence.Value, HttpContext.RequestAborted);
         if (record.Snapshot?["game"]?.Text("status") == "finished" && !record.Closed.Task.IsCompleted)
             await record.Closed.Task.WaitAsync(TimeSpan.FromSeconds(10), HttpContext.RequestAborted);
         return Ok(manager.View(record));

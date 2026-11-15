@@ -1,0 +1,566 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-11-15T10:42:08.681Z",
+  "environment": {
+    "node": "v18.20.2",
+    "os": "win32",
+    "release": "10.0.26200",
+    "architecture": "x64",
+    "cpu": "Intel(R) Core(TM) i7-10700F CPU @ 2.90GHz"
+  },
+  "configuration": {
+    "tickMs": 20,
+    "actionMs": 200,
+    "players": 4,
+    "slowPlayer": 0,
+    "slowCallLimitMs": 500,
+    "turnBarrier": false
+  },
+  "hashes": {
+    "source": "5f8b305405a215f59ee377743b03fc42043acbd8250bb93e5395fb0b58f9bec9",
+    "match.js": "3fd6abd48af1a1e0b22474938eeac2606105ddc9b077f6f599a72ecdc4b0d08d",
+    "state.js": "cbeb0d30b467dd0e2803e15d6c625254769dd0e667a2be3c36cf93848e1bfab5",
+    "match-clock.js": "9fe1c6d40243ec236a4841825ac7aea79082757114685f02be3b1b3c230f9744",
+    "match-output.js": "7e498036e662724262d82b2146317124c95632387f00b983627144965e170d84"
+  },
+  "boundaries": {
+    "completionDetectionDelayMs": "First engine tick observing completed action minus action.endsAt.",
+    "completionToDispatchMs": "Next runner.move invocation start minus completion detection, same engine monotonic clock.",
+    "acceptanceToDispatchMs": "Runner invocation start minus engine turn acceptance; includes snapshot preparation and turn-requested enqueue.",
+    "actionToDispatchMs": "Next runner.move invocation start minus prior action.endsAt. Includes tick detection and engine dispatch, excludes the next algorithm execution.",
+    "limitations": "Single local synthetic match with four persistent JS processes; not an OS latency guarantee, cross-language measurement or scheduling optimization."
+  },
+  "metrics": {
+    "completionDetectionDelayMs": {
+      "samples": 42,
+      "minMs": 2.217900276184082,
+      "p50Ms": 14.076600074768066,
+      "p95Ms": 18.181800365447998,
+      "p99Ms": 18.3882999420166,
+      "maxMs": 18.3882999420166
+    },
+    "completionToDispatchMs": {
+      "samples": 42,
+      "minMs": 0.2304997444152832,
+      "p50Ms": 0.7310996055603027,
+      "p95Ms": 1.0673999786376953,
+      "p99Ms": 1.314000129699707,
+      "maxMs": 1.314000129699707
+    },
+    "acceptanceToDispatchMs": {
+      "samples": 42,
+      "minMs": 0.008600234985351562,
+      "p50Ms": 0.012399673461914062,
+      "p95Ms": 0.030699729919433594,
+      "p99Ms": 0.05429983139038086,
+      "maxMs": 0.05429983139038086
+    },
+    "actionToDispatchMs": {
+      "samples": 42,
+      "minMs": 2.4484000205993652,
+      "p50Ms": 14.679699897766113,
+      "p95Ms": 19.06589984893799,
+      "p99Ms": 19.09529972076416,
+      "maxMs": 19.09529972076416
+    }
+  },
+  "players": [
+    {
+      "player": 0,
+      "turns": 4,
+      "algorithmCalls": 4,
+      "timeouts": 4,
+      "completedActions": 3
+    },
+    {
+      "player": 1,
+      "turns": 14,
+      "algorithmCalls": 13,
+      "timeouts": 0,
+      "completedActions": 13
+    },
+    {
+      "player": 2,
+      "turns": 14,
+      "algorithmCalls": 13,
+      "timeouts": 0,
+      "completedActions": 13
+    },
+    {
+      "player": 3,
+      "turns": 14,
+      "algorithmCalls": 13,
+      "timeouts": 0,
+      "completedActions": 13
+    }
+  ],
+  "terminal": {
+    "phase": "closed",
+    "pendingJobs": 0,
+    "allHostsClosed": true
+  },
+  "samples": [
+    {
+      "player": 1,
+      "turn": 2,
+      "actionEndedAt": 425.01500034332275,
+      "completionDetectedAt": 442.39200019836426,
+      "dispatchStartedAt": 443.24380016326904,
+      "completionDetectionDelayMs": 17.376999855041504,
+      "completionToDispatchMs": 0.8517999649047852,
+      "acceptanceToDispatchMs": 0.054200172424316406,
+      "actionToDispatchMs": 18.22879981994629
+    },
+    {
+      "player": 2,
+      "turn": 2,
+      "actionEndedAt": 425.74040031433105,
+      "completionDetectedAt": 442.39200019836426,
+      "dispatchStartedAt": 443.45940017700195,
+      "completionDetectionDelayMs": 16.651599884033203,
+      "completionToDispatchMs": 1.0673999786376953,
+      "acceptanceToDispatchMs": 0.019999980926513672,
+      "actionToDispatchMs": 17.7189998626709
+    },
+    {
+      "player": 3,
+      "turn": 2,
+      "actionEndedAt": 426.0176000595093,
+      "completionDetectedAt": 442.39200019836426,
+      "dispatchStartedAt": 443.70600032806396,
+      "completionDetectionDelayMs": 16.37440013885498,
+      "completionToDispatchMs": 1.314000129699707,
+      "acceptanceToDispatchMs": 0.02610015869140625,
+      "actionToDispatchMs": 17.688400268554688
+    },
+    {
+      "player": 1,
+      "turn": 3,
+      "actionEndedAt": 644.5269002914429,
+      "completionDetectedAt": 652.5251002311707,
+      "dispatchStartedAt": 653.0789999961853,
+      "completionDetectionDelayMs": 7.998199939727783,
+      "completionToDispatchMs": 0.5538997650146484,
+      "acceptanceToDispatchMs": 0.029900074005126953,
+      "actionToDispatchMs": 8.552099704742432
+    },
+    {
+      "player": 2,
+      "turn": 3,
+      "actionEndedAt": 644.681300163269,
+      "completionDetectedAt": 652.5251002311707,
+      "dispatchStartedAt": 653.2639999389648,
+      "completionDetectionDelayMs": 7.843800067901611,
+      "completionToDispatchMs": 0.7388997077941895,
+      "acceptanceToDispatchMs": 0.018999576568603516,
+      "actionToDispatchMs": 8.5826997756958
+    },
+    {
+      "player": 3,
+      "turn": 3,
+      "actionEndedAt": 644.9232001304626,
+      "completionDetectedAt": 652.5251002311707,
+      "dispatchStartedAt": 653.5097002983093,
+      "completionDetectionDelayMs": 7.601900100708008,
+      "completionToDispatchMs": 0.9846000671386719,
+      "acceptanceToDispatchMs": 0.02310037612915039,
+      "actionToDispatchMs": 8.58650016784668
+    },
+    {
+      "player": 1,
+      "turn": 4,
+      "actionEndedAt": 853.9123001098633,
+      "completionDetectedAt": 864.3647003173828,
+      "dispatchStartedAt": 865.0957999229431,
+      "completionDetectionDelayMs": 10.452400207519531,
+      "completionToDispatchMs": 0.7310996055603027,
+      "acceptanceToDispatchMs": 0.030699729919433594,
+      "actionToDispatchMs": 11.183499813079834
+    },
+    {
+      "player": 2,
+      "turn": 4,
+      "actionEndedAt": 854.0587000846863,
+      "completionDetectedAt": 864.3647003173828,
+      "dispatchStartedAt": 865.2768001556396,
+      "completionDetectionDelayMs": 10.306000232696533,
+      "completionToDispatchMs": 0.9120998382568359,
+      "acceptanceToDispatchMs": 0.018599987030029297,
+      "actionToDispatchMs": 11.21810007095337
+    },
+    {
+      "player": 3,
+      "turn": 4,
+      "actionEndedAt": 854.1902003288269,
+      "completionDetectedAt": 864.3647003173828,
+      "dispatchStartedAt": 865.4005999565125,
+      "completionDetectionDelayMs": 10.174499988555908,
+      "completionToDispatchMs": 1.0358996391296387,
+      "acceptanceToDispatchMs": 0.01789999008178711,
+      "actionToDispatchMs": 11.210399627685547
+    },
+    {
+      "player": 0,
+      "turn": 2,
+      "actionEndedAt": 924.0406002998352,
+      "completionDetectedAt": 926.6710000038147,
+      "dispatchStartedAt": 927.118800163269,
+      "completionDetectionDelayMs": 2.630399703979492,
+      "completionToDispatchMs": 0.4478001594543457,
+      "acceptanceToDispatchMs": 0.05429983139038086,
+      "actionToDispatchMs": 3.078199863433838
+    },
+    {
+      "player": 1,
+      "turn": 5,
+      "actionEndedAt": 1066.0666999816895,
+      "completionDetectedAt": 1073.5954003334045,
+      "dispatchStartedAt": 1074.0917000770569,
+      "completionDetectionDelayMs": 7.528700351715088,
+      "completionToDispatchMs": 0.49629974365234375,
+      "acceptanceToDispatchMs": 0.019899845123291016,
+      "actionToDispatchMs": 8.025000095367432
+    },
+    {
+      "player": 2,
+      "turn": 5,
+      "actionEndedAt": 1066.2355999946594,
+      "completionDetectedAt": 1073.5954003334045,
+      "dispatchStartedAt": 1074.2375001907349,
+      "completionDetectionDelayMs": 7.359800338745117,
+      "completionToDispatchMs": 0.6420998573303223,
+      "acceptanceToDispatchMs": 0.009200096130371094,
+      "actionToDispatchMs": 8.00190019607544
+    },
+    {
+      "player": 3,
+      "turn": 5,
+      "actionEndedAt": 1066.3680000305176,
+      "completionDetectedAt": 1073.5954003334045,
+      "dispatchStartedAt": 1074.3411002159119,
+      "completionDetectionDelayMs": 7.227400302886963,
+      "completionToDispatchMs": 0.7456998825073242,
+      "acceptanceToDispatchMs": 0.009600162506103516,
+      "actionToDispatchMs": 7.973100185394287
+    },
+    {
+      "player": 1,
+      "turn": 6,
+      "actionEndedAt": 1275.0088000297546,
+      "completionDetectedAt": 1289.0854001045227,
+      "dispatchStartedAt": 1289.6828999519348,
+      "completionDetectionDelayMs": 14.076600074768066,
+      "completionToDispatchMs": 0.5974998474121094,
+      "acceptanceToDispatchMs": 0.013199806213378906,
+      "actionToDispatchMs": 14.674099922180176
+    },
+    {
+      "player": 2,
+      "turn": 6,
+      "actionEndedAt": 1275.1400003433228,
+      "completionDetectedAt": 1289.0854001045227,
+      "dispatchStartedAt": 1289.8197002410889,
+      "completionDetectionDelayMs": 13.945399761199951,
+      "completionToDispatchMs": 0.7343001365661621,
+      "acceptanceToDispatchMs": 0.009200096130371094,
+      "actionToDispatchMs": 14.679699897766113
+    },
+    {
+      "player": 3,
+      "turn": 6,
+      "actionEndedAt": 1275.2694001197815,
+      "completionDetectedAt": 1289.0854001045227,
+      "dispatchStartedAt": 1289.9140000343323,
+      "completionDetectionDelayMs": 13.815999984741211,
+      "completionToDispatchMs": 0.8285999298095703,
+      "acceptanceToDispatchMs": 0.009099960327148438,
+      "actionToDispatchMs": 14.644599914550781
+    },
+    {
+      "player": 1,
+      "turn": 7,
+      "actionEndedAt": 1490.2493000030518,
+      "completionDetectedAt": 1507.445400238037,
+      "dispatchStartedAt": 1508.2610001564026,
+      "completionDetectionDelayMs": 17.19610023498535,
+      "completionToDispatchMs": 0.8155999183654785,
+      "acceptanceToDispatchMs": 0.016399860382080078,
+      "actionToDispatchMs": 18.01170015335083
+    },
+    {
+      "player": 2,
+      "turn": 7,
+      "actionEndedAt": 1490.4426002502441,
+      "completionDetectedAt": 1507.445400238037,
+      "dispatchStartedAt": 1508.4142003059387,
+      "completionDetectionDelayMs": 17.00279998779297,
+      "completionToDispatchMs": 0.9688000679016113,
+      "acceptanceToDispatchMs": 0.009700298309326172,
+      "actionToDispatchMs": 17.97160005569458
+    },
+    {
+      "player": 3,
+      "turn": 7,
+      "actionEndedAt": 1490.5629000663757,
+      "completionDetectedAt": 1507.445400238037,
+      "dispatchStartedAt": 1508.5145001411438,
+      "completionDetectionDelayMs": 16.882500171661377,
+      "completionToDispatchMs": 1.0690999031066895,
+      "acceptanceToDispatchMs": 0.00930023193359375,
+      "actionToDispatchMs": 17.951600074768066
+    },
+    {
+      "player": 0,
+      "turn": 3,
+      "actionEndedAt": 1627.9918999671936,
+      "completionDetectedAt": 1630.2098002433777,
+      "dispatchStartedAt": 1630.440299987793,
+      "completionDetectionDelayMs": 2.217900276184082,
+      "completionToDispatchMs": 0.2304997444152832,
+      "acceptanceToDispatchMs": 0.014499664306640625,
+      "actionToDispatchMs": 2.4484000205993652
+    },
+    {
+      "player": 1,
+      "turn": 8,
+      "actionEndedAt": 1708.8461003303528,
+      "completionDetectedAt": 1724.8256001472473,
+      "dispatchStartedAt": 1725.292799949646,
+      "completionDetectionDelayMs": 15.979499816894531,
+      "completionToDispatchMs": 0.46719980239868164,
+      "acceptanceToDispatchMs": 0.012599945068359375,
+      "actionToDispatchMs": 16.446699619293213
+    },
+    {
+      "player": 2,
+      "turn": 8,
+      "actionEndedAt": 1708.9569001197815,
+      "completionDetectedAt": 1724.8256001472473,
+      "dispatchStartedAt": 1725.4342999458313,
+      "completionDetectionDelayMs": 15.86870002746582,
+      "completionToDispatchMs": 0.6086997985839844,
+      "acceptanceToDispatchMs": 0.00919961929321289,
+      "actionToDispatchMs": 16.477399826049805
+    },
+    {
+      "player": 3,
+      "turn": 8,
+      "actionEndedAt": 1709.0625,
+      "completionDetectedAt": 1724.8256001472473,
+      "dispatchStartedAt": 1725.5313000679016,
+      "completionDetectionDelayMs": 15.763100147247314,
+      "completionToDispatchMs": 0.7056999206542969,
+      "acceptanceToDispatchMs": 0.00950002670288086,
+      "actionToDispatchMs": 16.46880006790161
+    },
+    {
+      "player": 1,
+      "turn": 9,
+      "actionEndedAt": 1926.1442003250122,
+      "completionDetectedAt": 1938.1399002075195,
+      "dispatchStartedAt": 1938.6150999069214,
+      "completionDetectionDelayMs": 11.995699882507324,
+      "completionToDispatchMs": 0.47519969940185547,
+      "acceptanceToDispatchMs": 0.012299537658691406,
+      "actionToDispatchMs": 12.47089958190918
+    },
+    {
+      "player": 2,
+      "turn": 9,
+      "actionEndedAt": 1926.2757000923157,
+      "completionDetectedAt": 1938.1399002075195,
+      "dispatchStartedAt": 1938.75670003891,
+      "completionDetectionDelayMs": 11.864200115203857,
+      "completionToDispatchMs": 0.6167998313903809,
+      "acceptanceToDispatchMs": 0.009299755096435547,
+      "actionToDispatchMs": 12.480999946594238
+    },
+    {
+      "player": 3,
+      "turn": 9,
+      "actionEndedAt": 1926.3983001708984,
+      "completionDetectedAt": 1938.1399002075195,
+      "dispatchStartedAt": 1938.851300239563,
+      "completionDetectionDelayMs": 11.741600036621094,
+      "completionToDispatchMs": 0.711400032043457,
+      "acceptanceToDispatchMs": 0.009099960327148438,
+      "actionToDispatchMs": 12.45300006866455
+    },
+    {
+      "player": 1,
+      "turn": 10,
+      "actionEndedAt": 2139.432899951935,
+      "completionDetectedAt": 2152.1628003120422,
+      "dispatchStartedAt": 2152.9237999916077,
+      "completionDetectionDelayMs": 12.729900360107422,
+      "completionToDispatchMs": 0.7609996795654297,
+      "acceptanceToDispatchMs": 0.013599872589111328,
+      "actionToDispatchMs": 13.490900039672852
+    },
+    {
+      "player": 2,
+      "turn": 10,
+      "actionEndedAt": 2139.5443000793457,
+      "completionDetectedAt": 2152.1628003120422,
+      "dispatchStartedAt": 2153.0882000923157,
+      "completionDetectionDelayMs": 12.618500232696533,
+      "completionToDispatchMs": 0.9253997802734375,
+      "acceptanceToDispatchMs": 0.009999752044677734,
+      "actionToDispatchMs": 13.54390001296997
+    },
+    {
+      "player": 3,
+      "turn": 10,
+      "actionEndedAt": 2139.642899990082,
+      "completionDetectedAt": 2152.1628003120422,
+      "dispatchStartedAt": 2153.1860003471375,
+      "completionDetectionDelayMs": 12.51990032196045,
+      "completionToDispatchMs": 1.0232000350952148,
+      "acceptanceToDispatchMs": 0.009400367736816406,
+      "actionToDispatchMs": 13.543100357055664
+    },
+    {
+      "player": 0,
+      "turn": 4,
+      "actionEndedAt": 2331.2778000831604,
+      "completionDetectedAt": 2339.4068002700806,
+      "dispatchStartedAt": 2339.6522002220154,
+      "completionDetectionDelayMs": 8.129000186920166,
+      "completionToDispatchMs": 0.24539995193481445,
+      "acceptanceToDispatchMs": 0.014600276947021484,
+      "actionToDispatchMs": 8.37440013885498
+    },
+    {
+      "player": 1,
+      "turn": 11,
+      "actionEndedAt": 2353.536499977112,
+      "completionDetectedAt": 2370.7028999328613,
+      "dispatchStartedAt": 2371.184700012207,
+      "completionDetectionDelayMs": 17.16639995574951,
+      "completionToDispatchMs": 0.4818000793457031,
+      "acceptanceToDispatchMs": 0.012799739837646484,
+      "actionToDispatchMs": 17.648200035095215
+    },
+    {
+      "player": 2,
+      "turn": 11,
+      "actionEndedAt": 2353.6431999206543,
+      "completionDetectedAt": 2370.7028999328613,
+      "dispatchStartedAt": 2371.4553003311157,
+      "completionDetectionDelayMs": 17.05970001220703,
+      "completionToDispatchMs": 0.7524003982543945,
+      "acceptanceToDispatchMs": 0.010200023651123047,
+      "actionToDispatchMs": 17.812100410461426
+    },
+    {
+      "player": 3,
+      "turn": 11,
+      "actionEndedAt": 2353.7467002868652,
+      "completionDetectedAt": 2370.7028999328613,
+      "dispatchStartedAt": 2371.5666003227234,
+      "completionDetectionDelayMs": 16.956199645996094,
+      "completionToDispatchMs": 0.8637003898620605,
+      "acceptanceToDispatchMs": 0.010000228881835938,
+      "actionToDispatchMs": 17.819900035858154
+    },
+    {
+      "player": 1,
+      "turn": 12,
+      "actionEndedAt": 2572.0994000434875,
+      "completionDetectedAt": 2588.3004002571106,
+      "dispatchStartedAt": 2588.766799926758,
+      "completionDetectionDelayMs": 16.201000213623047,
+      "completionToDispatchMs": 0.4663996696472168,
+      "acceptanceToDispatchMs": 0.012399673461914062,
+      "actionToDispatchMs": 16.667399883270264
+    },
+    {
+      "player": 2,
+      "turn": 12,
+      "actionEndedAt": 2572.2087001800537,
+      "completionDetectedAt": 2588.3004002571106,
+      "dispatchStartedAt": 2588.9057002067566,
+      "completionDetectionDelayMs": 16.091700077056885,
+      "completionToDispatchMs": 0.6052999496459961,
+      "acceptanceToDispatchMs": 0.010000228881835938,
+      "actionToDispatchMs": 16.69700002670288
+    },
+    {
+      "player": 3,
+      "turn": 12,
+      "actionEndedAt": 2572.3083000183105,
+      "completionDetectedAt": 2588.3004002571106,
+      "dispatchStartedAt": 2589.0069003105164,
+      "completionDetectionDelayMs": 15.992100238800049,
+      "completionToDispatchMs": 0.7065000534057617,
+      "acceptanceToDispatchMs": 0.008600234985351562,
+      "actionToDispatchMs": 16.69860029220581
+    },
+    {
+      "player": 1,
+      "turn": 13,
+      "actionEndedAt": 2789.3475003242493,
+      "completionDetectedAt": 2807.735800266266,
+      "dispatchStartedAt": 2808.4134001731873,
+      "completionDetectionDelayMs": 18.3882999420166,
+      "completionToDispatchMs": 0.6775999069213867,
+      "acceptanceToDispatchMs": 0.012599945068359375,
+      "actionToDispatchMs": 19.06589984893799
+    },
+    {
+      "player": 2,
+      "turn": 13,
+      "actionEndedAt": 2789.4545001983643,
+      "completionDetectedAt": 2807.735800266266,
+      "dispatchStartedAt": 2808.5497999191284,
+      "completionDetectionDelayMs": 18.28130006790161,
+      "completionToDispatchMs": 0.8139996528625488,
+      "acceptanceToDispatchMs": 0.00919961929321289,
+      "actionToDispatchMs": 19.09529972076416
+    },
+    {
+      "player": 3,
+      "turn": 13,
+      "actionEndedAt": 2789.553999900818,
+      "completionDetectedAt": 2807.735800266266,
+      "dispatchStartedAt": 2808.6440000534058,
+      "completionDetectionDelayMs": 18.181800365447998,
+      "completionToDispatchMs": 0.9081997871398926,
+      "acceptanceToDispatchMs": 0.008999824523925781,
+      "actionToDispatchMs": 19.09000015258789
+    },
+    {
+      "player": 1,
+      "turn": 14,
+      "actionEndedAt": 3009.003300189972,
+      "completionDetectedAt": 3026.0848002433777,
+      "dispatchStartedAt": 3026.6556000709534,
+      "completionDetectionDelayMs": 17.08150005340576,
+      "completionToDispatchMs": 0.5707998275756836,
+      "acceptanceToDispatchMs": 0.012599945068359375,
+      "actionToDispatchMs": 17.652299880981445
+    },
+    {
+      "player": 2,
+      "turn": 14,
+      "actionEndedAt": 3009.1129002571106,
+      "completionDetectedAt": 3026.0848002433777,
+      "dispatchStartedAt": 3026.815400123596,
+      "completionDetectionDelayMs": 16.97189998626709,
+      "completionToDispatchMs": 0.7305998802185059,
+      "acceptanceToDispatchMs": 0.009299755096435547,
+      "actionToDispatchMs": 17.702499866485596
+    },
+    {
+      "player": 3,
+      "turn": 14,
+      "actionEndedAt": 3009.211200237274,
+      "completionDetectedAt": 3026.0848002433777,
+      "dispatchStartedAt": 3027.0578002929688,
+      "completionDetectionDelayMs": 16.873600006103516,
+      "completionToDispatchMs": 0.9730000495910645,
+      "acceptanceToDispatchMs": 0.01920032501220703,
+      "actionToDispatchMs": 17.84660005569458
+    }
+  ]
+}

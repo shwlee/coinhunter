@@ -121,6 +121,40 @@ Check("invalid trusted proxy rejected", () => Throws<InvalidOperationException>(
 
 Directory.CreateDirectory(Path.Combine(root, "artifacts"));
 await File.WriteAllBytesAsync(Path.Combine(root, "artifacts/dotnet-engine-fixture.bin"), encoded);
+await CheckAsync("snapshot wait returns immediately for a newer snapshot", async () =>
+{
+    var record = new CoinHunter.Execution.Host.Services.ExecutionRecord { Request = request, Fingerprint = "snapshot-test", Snapshot = new System.Text.Json.Nodes.JsonObject { ["sequence"] = 2 } };
+    await record.WaitForSnapshot(1, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2));
+});
+await CheckAsync("snapshot signal wakes all subscribers without losing an update before await", async () =>
+{
+    var record = new CoinHunter.Execution.Host.Services.ExecutionRecord { Request = request, Fingerprint = "snapshot-test", Snapshot = new System.Text.Json.Nodes.JsonObject { ["sequence"] = 1 } };
+    var first = record.WaitForSnapshot(1, CancellationToken.None);
+    var second = record.WaitForSnapshot(1, CancellationToken.None);
+    if (first.IsCompleted || second.IsCompleted) throw new Exception("Wait skipped unchanged snapshot.");
+    lock (record.Gate) record.Snapshot!["sequence"] = 2;
+    record.NotifySnapshotChanged();
+    await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(2));
+    await record.WaitForSnapshot(1, CancellationToken.None);
+});
+await CheckAsync("snapshot subscriber cancellation is isolated and idle wait is bounded", async () =>
+{
+    var record = new CoinHunter.Execution.Host.Services.ExecutionRecord { Request = request, Fingerprint = "snapshot-test" };
+    using var cancellation = new CancellationTokenSource();
+    var cancelled = record.WaitForSnapshot(-1, cancellation.Token);
+    var remaining = record.WaitForSnapshot(-1, CancellationToken.None);
+    cancellation.Cancel();
+    try { await cancelled; throw new Exception("Expected cancellation."); } catch (OperationCanceledException) { }
+    if (remaining.IsCompleted) throw new Exception("Another subscriber was cancelled.");
+    await remaining.WaitAsync(TimeSpan.FromSeconds(2));
+});
+await CheckAsync("terminal execution wakes an unchanged-snapshot subscriber", async () =>
+{
+    var record = new CoinHunter.Execution.Host.Services.ExecutionRecord { Request = request, Fingerprint = "snapshot-test" };
+    var waiting = record.WaitForSnapshot(-1, CancellationToken.None);
+    record.Closed.TrySetResult(); record.NotifySnapshotChanged();
+    await waiting.WaitAsync(TimeSpan.FromSeconds(2));
+});
 Console.WriteLine($"Backend contract checks passed: {checks}");
 await BusinessChecks.Run(root);
 
