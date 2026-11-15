@@ -2,6 +2,7 @@
 
 - 정리일: 2026-11-15
 - 상태: 추천안과 개발 순서. DB 제품 채택·설치·어댑터 구현·배포는 아직 하지 않았다.
+- 최신 실행 순서: [BE 분리 계획](backend-separation-implementation-plan.md)을 먼저 진행한다. C# 운영 서비스에는 처음에 파일 저장 어댑터를 구현하고 DB 제품 채택/전환은 후속으로 분리한다. 아래 Node 드라이버 예시는 분석 당시 후보이며 C# 전환 뒤 실제 드라이버/제품은 그 환경에서 선정한다.
 - 기준: [백엔드 책임 경계](game-backend-boundaries.md), [현재 저장 어댑터](storage-adapters.md), [실행 로그 수집 모듈](game-log-collection-modules.md).
 
 ## 1. 범위와 추천

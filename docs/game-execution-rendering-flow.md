@@ -6,6 +6,7 @@
 - 열람: [차트 포함 HTML](game-execution-rendering-flow.html), [전체 구성도 SVG](diagrams/game-execution-architecture.svg), [서비스별 기능 배치 SVG](diagrams/game-service-functional-layout.svg), [시간순 흐름 SVG](diagrams/game-execution-sequence.svg).
 - 관련: [FE 요구사항](frontend-deployment-requirements.md), [운영·실행 책임](game-backend-boundaries.md), [로그 수집 계약](game-log-collection-modules.md), [운영 DB 계획](game-operations-database-plan.md).
 - 실행 계약/작업 순서: [실행기 추상화·독립 실행·호출 비용 최적화](algorithm-runner-independence-plan.md). 차트의 참가자별 프로세스는 기존 격리안이며 직접 호스팅/IPC의 최종 선택은 이 계획의 검증과 함께 정한다. 실제 계산 성능을 없애는 시간 보정은 적용하지 않는다.
+- BE 구현 단계: [9단계 작업 계획](backend-separation-implementation-plan.md)에 이 목표를 구현할 순서·계약·전환/검증 기준을 보관했다. 다음 실제 작업은 계약/닷넷 솔루션 뼈대이며 FE 독립 제공/배포는 후속이다.
 
 ## 1. 전체 구성과 책임
 

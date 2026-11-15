@@ -3,6 +3,7 @@
 - 작성일: 2026-11-15
 - 범위 변경: 사용자 결정으로 FE/BE 분리를 배포 준비 범위에 포함한다. 기존 구현 보류 결정을 대체한다.
 - 상태: 현재 코드에 근거한 FE 요구사항·작업 순서 정리. 별도 FE 서버 구현·실행·배포는 아직 하지 않았다.
+- 최신 작업 순서: [BE 분리 9단계 계획](backend-separation-implementation-plan.md)을 먼저 수행한다. BE 통합 중 기존 화면 연결용 최소 프록시/페이지 접근 확인을 준비하고, 이 문서의 독립 FE 제공/빌드/배포는 후속 작업으로 진행한다.
 - 후속 목표 보완: [전체 실행·렌더링 흐름](game-execution-rendering-flow.md)에 운영 BE의 C# 전환과 게임별 Node.js 엔진 프로세스 분리를 함께 고려한 구조를 정리했다. 아래 초기 통합 BE 경유안은 해당 목표와 대조해 단계별 구현 계획을 갱신한다. 현재 구조가 이미 분리됐다는 의미는 아니다.
 - 게임 실행 기준: [독립 실행·호출 비용 최적화 계획](algorithm-runner-independence-plan.md)을 함께 적용한다. FE 중계/화면 정책이 플레이어별 실제 계산 완료에 따른 액션 시작을 고정 판단 지연이나 공통 라운드로 바꾸지 않게 검증한다.
 - 관련: [분리 계획](frontend-backend-separation-plan.md), [운영·실행 경계](game-backend-boundaries.md), [운영 DB 계획](game-operations-database-plan.md).

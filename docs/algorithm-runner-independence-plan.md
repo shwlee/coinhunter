@@ -3,6 +3,7 @@
 - 작성일: 2026-11-15
 - 상태: 요구사항과 후속 작업 계획 문서화. 실행기 리팩터링·닷넷 호스팅·다국어 구현은 아직 하지 않았다.
 - 적용: FE/BE·게임 실행 영역의 분리와 향후 다국어 실행기 선정/구현에서 유지할 기준이다. 다국어 전체 구현의 기존 보류를 해제하지 않는다.
+- 실행 순서 연결: [BE 분리 계획](backend-separation-implementation-plan.md)의 1단계에서 공통 계약을 정의하고 4단계에서 현재 JS 생성/주입·독립 진행을 적용한다. 비용/부하와 통합 회귀는 BE 계획 9단계에서 확인하며 다른 언어 후보 구현은 후속 범위를 유지한다.
 - 관련: [전체 구현 계획](implementation-plan.md), [FE/BE 분리 계획](frontend-backend-separation-plan.md), [실행·렌더링 흐름](game-execution-rendering-flow.md), [호출 비용 분석](algorithm-invocation-cost-analysis.md).
 
 ## 1. 확정된 게임 진행 규칙
