@@ -1,7 +1,7 @@
 # 프롬프트 분량 축소 — 새 대화·후속 요청 작업 계획
 
 - 작성일: 2026-11-14
-- 상태: 1~4단계 완료. 새 대화/후속 요청의 생성·복사·규약 확인·문서 전환과 조합/실패/실제 경기 회귀를 검증했다. 5단계 실제 외부 AI 출력 평가는 남아 있다. [구현 계약](prompt-contract.md), [4단계 검증 기록](prompt-assistant-verification.md).
+- 상태: 1~4단계 완료. 2026-11-15 사용자 결정으로 프롬프트 수정은 현재 범위에서 마감하며 5단계 실제 외부 AI 출력 비교 평가는 미완료 보류한다. 자동 착수하지 않는다. [구현 계약](prompt-contract.md), [4단계 검증 기록](prompt-assistant-verification.md), [프롬프트 외 남은 작업](remaining-work.md).
 - 목표: 처음에는 필요한 규약을 전달하고 같은 외부 AI 대화의 후속 요청에서는 중복 규칙·예제를 생략한다. 사용자가 선택한 원문과 요청은 임의로 줄이지 않는다.
 - 관련: [전체 프롬프트 개선 계획](prompt-authoring-improvement-plan.md), [개선 아이디어](prompt-first-improvement-ideas.md), [현재 사용법](local-authoring.md).
 

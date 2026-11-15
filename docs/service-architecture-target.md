@@ -6,7 +6,11 @@
 - 열람 형식: [독립 HTML 문서](service-architecture-target.html).
 - 관련 계획: [고도화 작업 보관 목록](enhancement-backlog.md), [FE·BE 분리 계획](frontend-backend-separation-plan.md).
 
+2026-11-15 최신 목표: 운영 BE의 C# 전환, 상주 실행 관리자, 경기별 독립 Node.js 엔진과 렌더링 전달 과정은 [전체 실행·화면 흐름](game-execution-rendering-flow.md)과 [오프라인 HTML/차트](game-execution-rendering-flow.html)를 우선한다. FE/BE 분리는 배포 준비 범위로 전환했으며 다국어는 아직 미구현이다. 아래는 이전 목표를 기록한 설명이다.
+
 ## 1. 전체 방향과 전제
+
+2026-11-15 백엔드 경계 보완: 서비스 관리 영역은 **게임 운영**, 실제 엔진·언어별 실행과 전량 데이터 수집/저장은 **게임 실행** 영역으로 구분한다. 운영 NoSQL과 실행 저장소·수집 계약은 독립적으로 설계한다. 아래 기존 단일 BE 표기의 책임 구분은 [최신 백엔드·데이터 경계](game-backend-boundaries.md)를 우선한다.
 
 2026-11-14 제품 변경: 직접 AI API 연결은 현재 서비스에서 제거했다. 이 문서의 직접 연결 구성은 당시 목표 기록이며, 작성 지원은 [프롬프트 후속 계획](prompt-authoring-improvement-plan.md)을 따른다. FE·BE 분리와 다국어 구현 보류 상태는 유지한다.
 

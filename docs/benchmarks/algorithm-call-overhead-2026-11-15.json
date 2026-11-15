@@ -1,0 +1,283 @@
+{
+  "purpose": "Same QuickJS in-process invocation versus existing child-process IPC wrapper",
+  "limitations": [
+    "Not a .NET direct-hosting benchmark or a comparison between algorithm languages.",
+    "No-op algorithm, no debug output, warmed instances; preparation is excluded.",
+    "IPC minus direct is an observed difference between these configurations, not pure IPC cost.",
+    "Guest elapsedMs includes QuickJS dispatch and JSON.parse; it is not pure user-function time.",
+    "No running Match, 20ms engine tick, HTTP/SSE, log writer or loaded-service benchmark.",
+    "Uncontrolled Windows desktop environment; not a throughput or hard-real-time guarantee."
+  ],
+  "environment": {
+    "measuredAt": "2026-11-15T03:29:44.518Z",
+    "node": "v18.20.2",
+    "platform": "win32",
+    "osRelease": "10.0.26200",
+    "cpu": "Intel(R) Core(TM) i7-10700F CPU @ 2.90GHz",
+    "logicalCpus": 16,
+    "freeMemoryBytesAtStart": 16819720192
+  },
+  "rounds": 3,
+  "callsPerRound": 400,
+  "warmupCalls": 120,
+  "cases": [
+    {
+      "columns": 12,
+      "rows": 10,
+      "cells": 120,
+      "payloadJsonBytes": 341,
+      "modes": {
+        "directQuickJs": {
+          "total": {
+            "samples": 1200,
+            "meanMs": 0.042168831825256346,
+            "p50Ms": 0.03859996795654297,
+            "p95Ms": 0.053499698638916016,
+            "p99Ms": 0.09749984741210938,
+            "maxMs": 0.5847997665405273
+          },
+          "guestReported": {
+            "samples": 1200,
+            "meanMs": 0.02472166617711385,
+            "p50Ms": 0.02310037612915039,
+            "p95Ms": 0.03170013427734375,
+            "p99Ms": 0.04670000076293945,
+            "maxMs": 0.46610021591186523
+          },
+          "outsideGuestTimer": {
+            "samples": 1200,
+            "meanMs": 0.017447165648142495,
+            "p50Ms": 0.015300273895263672,
+            "p95Ms": 0.022600173950195312,
+            "p99Ms": 0.04290008544921875,
+            "maxMs": 0.5515995025634766
+          }
+        },
+        "ipcOnePlayer": {
+          "total": {
+            "samples": 1200,
+            "meanMs": 0.15804874618848164,
+            "p50Ms": 0.14980030059814453,
+            "p95Ms": 0.21049976348876953,
+            "p99Ms": 0.3287997245788574,
+            "maxMs": 1.2857999801635742
+          },
+          "guestReported": {
+            "samples": 1200,
+            "meanMs": 0.02941608468691508,
+            "p50Ms": 0.026799678802490234,
+            "p95Ms": 0.042400360107421875,
+            "p99Ms": 0.06059980392456055,
+            "maxMs": 0.31439971923828125
+          },
+          "outsideGuestTimer": {
+            "samples": 1200,
+            "meanMs": 0.12863266150156658,
+            "p50Ms": 0.12239980697631836,
+            "p95Ms": 0.17139959335327148,
+            "p99Ms": 0.27559995651245117,
+            "maxMs": 0.9744000434875488
+          }
+        },
+        "ipcFourPlayers": {
+          "total": {
+            "samples": 4800,
+            "meanMs": 0.17092954566081364,
+            "p50Ms": 0.153900146484375,
+            "p95Ms": 0.25229978561401367,
+            "p99Ms": 0.36880016326904297,
+            "maxMs": 2.464600086212158
+          },
+          "guestReported": {
+            "samples": 4800,
+            "meanMs": 0.031232834359010062,
+            "p50Ms": 0.02870035171508789,
+            "p95Ms": 0.04809999465942383,
+            "p99Ms": 0.059599876403808594,
+            "maxMs": 0.3133997917175293
+          },
+          "outsideGuestTimer": {
+            "samples": 4800,
+            "meanMs": 0.13969671130180358,
+            "p50Ms": 0.12470006942749023,
+            "p95Ms": 0.21029996871948242,
+            "p99Ms": 0.31730031967163086,
+            "maxMs": 2.434199810028076
+          }
+        }
+      }
+    },
+    {
+      "columns": 20,
+      "rows": 16,
+      "cells": 320,
+      "payloadJsonBytes": 795,
+      "modes": {
+        "directQuickJs": {
+          "total": {
+            "samples": 1200,
+            "meanMs": 0.07336825211842855,
+            "p50Ms": 0.06510019302368164,
+            "p95Ms": 0.11810016632080078,
+            "p99Ms": 0.13490009307861328,
+            "maxMs": 0.9398999214172363
+          },
+          "guestReported": {
+            "samples": 1200,
+            "meanMs": 0.04683982769648234,
+            "p50Ms": 0.04239988327026367,
+            "p95Ms": 0.07620000839233398,
+            "p99Ms": 0.08549976348876953,
+            "maxMs": 0.15830039978027344
+          },
+          "outsideGuestTimer": {
+            "samples": 1200,
+            "meanMs": 0.02652842442194621,
+            "p50Ms": 0.02270030975341797,
+            "p95Ms": 0.041699886322021484,
+            "p99Ms": 0.05079984664916992,
+            "maxMs": 0.8521995544433594
+          }
+        },
+        "ipcOnePlayer": {
+          "total": {
+            "samples": 1200,
+            "meanMs": 0.19065641125043234,
+            "p50Ms": 0.1810002326965332,
+            "p95Ms": 0.2620997428894043,
+            "p99Ms": 0.3459000587463379,
+            "maxMs": 0.6651997566223145
+          },
+          "guestReported": {
+            "samples": 1200,
+            "meanMs": 0.04955109079678854,
+            "p50Ms": 0.047100067138671875,
+            "p95Ms": 0.06409978866577148,
+            "p99Ms": 0.08599996566772461,
+            "maxMs": 0.3682999610900879
+          },
+          "outsideGuestTimer": {
+            "samples": 1200,
+            "meanMs": 0.1411053204536438,
+            "p50Ms": 0.13380002975463867,
+            "p95Ms": 0.19700002670288086,
+            "p99Ms": 0.28800010681152344,
+            "maxMs": 0.5981993675231934
+          }
+        },
+        "ipcFourPlayers": {
+          "total": {
+            "samples": 4800,
+            "meanMs": 0.1991454365849495,
+            "p50Ms": 0.18089962005615234,
+            "p95Ms": 0.281400203704834,
+            "p99Ms": 0.42330026626586914,
+            "maxMs": 2.4956002235412598
+          },
+          "guestReported": {
+            "samples": 4800,
+            "meanMs": 0.053418247401714324,
+            "p50Ms": 0.05019998550415039,
+            "p95Ms": 0.07869958877563477,
+            "p99Ms": 0.09870004653930664,
+            "maxMs": 0.3138999938964844
+          },
+          "outsideGuestTimer": {
+            "samples": 4800,
+            "meanMs": 0.14572718918323516,
+            "p50Ms": 0.1305994987487793,
+            "p95Ms": 0.20940017700195312,
+            "p99Ms": 0.3429999351501465,
+            "maxMs": 2.4468002319335938
+          }
+        }
+      }
+    },
+    {
+      "columns": 40,
+      "rows": 30,
+      "cells": 1200,
+      "payloadJsonBytes": 2777,
+      "modes": {
+        "directQuickJs": {
+          "total": {
+            "samples": 1200,
+            "meanMs": 0.20538807392120362,
+            "p50Ms": 0.19659996032714844,
+            "p95Ms": 0.2593998908996582,
+            "p99Ms": 0.35430002212524414,
+            "maxMs": 0.38180017471313477
+          },
+          "guestReported": {
+            "samples": 1200,
+            "meanMs": 0.13696708798408508,
+            "p50Ms": 0.1312999725341797,
+            "p95Ms": 0.17150020599365234,
+            "p99Ms": 0.23740005493164062,
+            "maxMs": 0.26419973373413086
+          },
+          "outsideGuestTimer": {
+            "samples": 1200,
+            "meanMs": 0.06842098593711853,
+            "p50Ms": 0.0652003288269043,
+            "p95Ms": 0.09070014953613281,
+            "p99Ms": 0.1176004409790039,
+            "maxMs": 0.16570043563842773
+          }
+        },
+        "ipcOnePlayer": {
+          "total": {
+            "samples": 1200,
+            "meanMs": 0.35054207921028135,
+            "p50Ms": 0.33489990234375,
+            "p95Ms": 0.4366002082824707,
+            "p99Ms": 0.6093997955322266,
+            "maxMs": 0.7738003730773926
+          },
+          "guestReported": {
+            "samples": 1200,
+            "meanMs": 0.14332725445429484,
+            "p50Ms": 0.13969993591308594,
+            "p95Ms": 0.15890026092529297,
+            "p99Ms": 0.2368001937866211,
+            "maxMs": 0.44659996032714844
+          },
+          "outsideGuestTimer": {
+            "samples": 1200,
+            "meanMs": 0.20721482475598654,
+            "p50Ms": 0.19449996948242188,
+            "p95Ms": 0.274899959564209,
+            "p99Ms": 0.3733997344970703,
+            "maxMs": 0.5715999603271484
+          }
+        },
+        "ipcFourPlayers": {
+          "total": {
+            "samples": 4800,
+            "meanMs": 0.36034879078467685,
+            "p50Ms": 0.34019994735717773,
+            "p95Ms": 0.4775996208190918,
+            "p99Ms": 0.6129999160766602,
+            "maxMs": 2.1644997596740723
+          },
+          "guestReported": {
+            "samples": 4800,
+            "meanMs": 0.14798910399278006,
+            "p50Ms": 0.14170026779174805,
+            "p95Ms": 0.18409967422485352,
+            "p99Ms": 0.2800002098083496,
+            "maxMs": 0.5412001609802246
+          },
+          "outsideGuestTimer": {
+            "samples": 4800,
+            "meanMs": 0.21235968679189682,
+            "p50Ms": 0.19729995727539062,
+            "p95Ms": 0.29010009765625,
+            "p99Ms": 0.38319969177246094,
+            "maxMs": 2.024599552154541
+          }
+        }
+      }
+    }
+  ]
+}

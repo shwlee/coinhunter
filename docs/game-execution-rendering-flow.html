@@ -1,0 +1,1658 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>코인 헌터 — 엔진 분리와 화면 렌더링</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #183047;
+        --muted: #506579;
+        --accent: #235a8a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: #eef3f8;
+        color: var(--ink);
+        font:
+          16px/1.8 system-ui,
+          'Malgun Gothic',
+          sans-serif;
+      }
+      header {
+        background: #17324e;
+        color: white;
+        padding: 40px max(24px, calc((100vw - 1420px) / 2));
+      }
+      header p {
+        color: #d0e1ee;
+      }
+      h1 {
+        font-size: clamp(26px, 4vw, 42px);
+        line-height: 1.35;
+        margin: 10px 0;
+      }
+      h2 {
+        font-size: 25px;
+      }
+      h3 {
+        font-size: 19px;
+        margin: 0 0 8px;
+      }
+      a {
+        color: var(--accent);
+        text-underline-offset: 3px;
+      }
+      header a {
+        color: #d5eaff;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 24px;
+      }
+      main {
+        max-width: 1470px;
+        margin: auto;
+        padding: 28px 24px 64px;
+      }
+      section {
+        margin-bottom: 28px;
+        background: white;
+        border: 1px solid #d8e2ec;
+        border-radius: 16px;
+        padding: 24px;
+      }
+      p {
+        margin: 8px 0 14px;
+      }
+      .notice {
+        padding: 15px 20px;
+        background: #fff2d9;
+        border-left: 4px solid #c88a23;
+        border-radius: 6px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+        gap: 16px;
+      }
+      .step {
+        background: #f3f7fb;
+        padding: 18px;
+        border-radius: 12px;
+      }
+      .step b {
+        color: #235a8a;
+      }
+      figure {
+        margin: 18px 0;
+      }
+      .chart {
+        overflow: auto;
+        border: 1px solid #dbe5ee;
+        border-radius: 10px;
+        background: white;
+      }
+      .chart svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        min-width: 1050px;
+      }
+      .sequence svg {
+        min-width: 1250px;
+      }
+      figcaption {
+        font-size: 14px;
+        color: var(--muted);
+        margin-top: 10px;
+      }
+      .table-wrap {
+        overflow: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 650px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 12px;
+        border-bottom: 1px solid #dce5ee;
+      }
+      th {
+        background: #eef4fa;
+      }
+      li {
+        margin-bottom: 10px;
+      }
+      .tag {
+        font-size: 13px;
+        letter-spacing: 0.08em;
+      }
+      a:focus-visible {
+        outline: 3px solid #cc9229;
+        outline-offset: 4px;
+      }
+      @media print {
+        body {
+          background: white;
+        }
+        header {
+          background: white;
+          color: #183047;
+          padding: 15px;
+        }
+        header p,
+        header a {
+          color: #183047;
+        }
+        main {
+          padding: 0;
+        }
+        section {
+          break-before: auto;
+          border: 0;
+          padding: 10px;
+        }
+        .chart {
+          overflow: visible;
+          border: 0;
+        }
+        .chart svg,
+        .sequence svg {
+          min-width: 0;
+          width: 100%;
+        }
+        nav {
+          display: none;
+        }
+        .sequence {
+          break-before: page;
+        }
+        .grid {
+          display: block;
+        }
+        .step {
+          margin: 10px 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="tag">COIN HUNTER · ARCHITECTURE · 2026-11-15</div>
+      <h1>게임별 엔진 분리와<br />브라우저 렌더링 전체 흐름</h1>
+      <p>운영 BE · 게임 엔진 · 알고리즘 실행기 · 전량 로그를 분리한 목표 설계</p>
+      <nav aria-label="목차">
+        <a href="#architecture">전체 구성도</a>
+        <a href="#services">서비스별 기능 배치</a><a href="#stages">실행 단계</a
+        ><a href="#sequence">시퀀스 차트</a><a href="#streams">화면과 기록</a
+        ><a href="#failure">장애·미구현 범위</a>
+      </nav>
+    </header>
+    <main>
+      <aside class="notice">
+        <strong>목표 구조 문서입니다.</strong> 현재는 통합 Node.js 서버와 참가자별 알고리즘 프로세스
+        구조입니다. C# 운영 BE·실행 관리자·게임별 엔진 프로세스·전량 수집은 아직 구현 전입니다. 이
+        HTML은 외부 스크립트/폰트/CDN 없이 세 SVG 차트를 포함합니다.
+      </aside>
+      <section id="architecture">
+        <h2>1. 전체 구성도</h2>
+        <p>
+          브라우저는 하나의 공개 주소로 접속합니다. 운영 BE는 C#, 게임 엔진은 Node.js를 유지하고
+          실행 관리자가 경기마다 독립 프로세스를 만듭니다. 수집기는 저장 구현과 분리된 계약을
+          사용합니다.
+        </p>
+        <figure>
+          <div
+            class="chart"
+            tabindex="0"
+            role="region"
+            aria-label="전체 구성도, 좁은 화면에서는 가로로 스크롤"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="1440"
+              height="1230"
+              viewBox="0 0 1440 1230"
+              role="img"
+              aria-labelledby="architecture-title architecture-description"
+            >
+              <title id="architecture-title">게임별 엔진 분리 전체 구성도</title>
+              <desc id="architecture-description">
+                브라우저와 FE, C# 운영 BE, 실행 관리자, 게임별 Node.js 엔진과 참가자별 실행기, 독립
+                로그 수집과 저장 경로를 보여 주는 목표 구조.
+              </desc>
+              <defs>
+                <marker
+                  id="architecture-arrow"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="8"
+                  markerHeight="8"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
+                </marker>
+              </defs>
+              <style>
+                text {
+                  font-family: 'Malgun Gothic', 'Segoe UI', sans-serif;
+                  fill: #183047;
+                }
+                .heading {
+                  font-size: 27px;
+                  font-weight: 700;
+                }
+                .label {
+                  font-size: 17px;
+                }
+                .small {
+                  font-size: 15px;
+                  fill: #4e6274;
+                }
+                .node-title {
+                  font-size: 21px;
+                  font-weight: 700;
+                }
+                .phase {
+                  font-size: 19px;
+                  font-weight: 700;
+                  fill: #245780;
+                }
+                .edge-label {
+                  font-size: 15px;
+                  paint-order: stroke;
+                  stroke: #fff;
+                  stroke-width: 7px;
+                  stroke-linejoin: round;
+                }
+                .line {
+                  fill: none;
+                  stroke: #47749b;
+                  stroke-width: 2;
+                  marker-end: url(#architecture-arrow);
+                }
+                .both {
+                  marker-start: url(#architecture-arrow);
+                }
+                .log {
+                  stroke: #a66b19;
+                  stroke-dasharray: 8 5;
+                }
+                .life {
+                  stroke: #bac7d2;
+                  stroke-width: 1.5;
+                  stroke-dasharray: 6 5;
+                }
+              </style>
+              <rect width="1440" height="1230" fill="#fff" />
+              <text x="40" y="40" class="heading" text-anchor="start">
+                경기별 프로세스 분리 · 화면 전달 · 데이터 보관
+              </text>
+              <text x="40" y="68" class="small" text-anchor="start">
+                목표 설계 · 현재 구현 아님 · 프로세스 경계와 컨테이너/호스트 경계는 별도
+              </text>
+              <rect
+                x="40"
+                y="110"
+                width="250"
+                height="118"
+                rx="14"
+                fill="#edf5fd"
+                stroke="#afc4d6"
+              />
+              <text x="165" y="144" class="node-title" text-anchor="middle">브라우저</text>
+              <text x="165" y="175" class="small" text-anchor="middle">JS 렌더링·이동 보간</text>
+              <text x="165" y="198" class="small" text-anchor="middle">점수·이펙트·게임오버</text>
+              <rect
+                x="350"
+                y="110"
+                width="250"
+                height="118"
+                rx="14"
+                fill="#edf5fd"
+                stroke="#afc4d6"
+              />
+              <text x="475" y="144" class="node-title" text-anchor="middle">FE 웹서버</text>
+              <text x="475" y="175" class="small" text-anchor="middle">HTML·JS·CSS·에셋</text>
+              <text x="475" y="198" class="small" text-anchor="middle">API·쿠키·SSE 중계</text>
+              <rect
+                x="660"
+                y="110"
+                width="320"
+                height="118"
+                rx="14"
+                fill="#edf5fd"
+                stroke="#afc4d6"
+              />
+              <text x="820" y="144" class="node-title" text-anchor="middle">게임 운영 BE · C#</text>
+              <text x="820" y="175" class="small" text-anchor="middle">
+                인증·소유권·고정 실행 요청
+              </text>
+              <text x="820" y="198" class="small" text-anchor="middle">경기 결과 조회·요약</text>
+              <rect
+                x="1120"
+                y="110"
+                width="280"
+                height="118"
+                rx="14"
+                fill="#f0f6ed"
+                stroke="#afc4d6"
+              />
+              <text x="1260" y="144" class="node-title" text-anchor="middle">운영 DB</text>
+              <text x="1260" y="175" class="small" text-anchor="middle">
+                계정·신원·맵·메타데이터
+              </text>
+              <text x="1260" y="198" class="small" text-anchor="middle">
+                경기 요약·실행 기록 참조
+              </text>
+              <rect
+                x="1120"
+                y="300"
+                width="280"
+                height="118"
+                rx="14"
+                fill="#f0f6ed"
+                stroke="#afc4d6"
+              />
+              <text x="1260" y="334" class="node-title" text-anchor="middle">코드 파일 저장</text>
+              <text x="1260" y="365" class="small" text-anchor="middle">
+                알고리즘 원문·경기 사본
+              </text>
+              <text x="1260" y="388" class="small" text-anchor="middle">DB에는 참조·버전만</text>
+              <rect
+                x="660"
+                y="330"
+                width="320"
+                height="118"
+                rx="14"
+                fill="#edf5fd"
+                stroke="#afc4d6"
+              />
+              <text x="820" y="364" class="node-title" text-anchor="middle">상주 실행 관리자</text>
+              <text x="820" y="395" class="small" text-anchor="middle">
+                수락·생성·준비·상태 중계
+              </text>
+              <text x="820" y="418" class="small" text-anchor="middle">
+                감시·결과 전달·자식 정리
+              </text>
+              <rect
+                x="120"
+                y="600"
+                width="320"
+                height="118"
+                rx="14"
+                fill="#eaf7f5"
+                stroke="#afc4d6"
+              />
+              <text x="280" y="634" class="node-title" text-anchor="middle">경기 A · Node.js</text>
+              <text x="280" y="665" class="small" text-anchor="middle">
+                독립 프로세스·이벤트 루프
+              </text>
+              <text x="280" y="688" class="small" text-anchor="middle">턴·판정·현재 상태</text>
+              <rect
+                x="600"
+                y="600"
+                width="320"
+                height="118"
+                rx="14"
+                fill="#eaf7f5"
+                stroke="#afc4d6"
+              />
+              <text x="760" y="634" class="node-title" text-anchor="middle">경기 B · Node.js</text>
+              <text x="760" y="665" class="small" text-anchor="middle">
+                독립 프로세스·이벤트 루프
+              </text>
+              <text x="760" y="688" class="small" text-anchor="middle">턴·판정·현재 상태</text>
+              <rect
+                x="120"
+                y="870"
+                width="320"
+                height="118"
+                rx="14"
+                fill="#f3effc"
+                stroke="#afc4d6"
+              />
+              <text x="280" y="904" class="node-title" text-anchor="middle">
+                경기 A 알고리즘 실행기
+              </text>
+              <text x="280" y="935" class="small" text-anchor="middle">참가자별 별도 프로세스</text>
+              <text x="280" y="958" class="small" text-anchor="middle">
+                현재 JS · 다국어는 후속 검증
+              </text>
+              <rect
+                x="600"
+                y="870"
+                width="320"
+                height="118"
+                rx="14"
+                fill="#f3effc"
+                stroke="#afc4d6"
+              />
+              <text x="760" y="904" class="node-title" text-anchor="middle">
+                경기 B 알고리즘 실행기
+              </text>
+              <text x="760" y="935" class="small" text-anchor="middle">참가자별 별도 프로세스</text>
+              <text x="760" y="958" class="small" text-anchor="middle">
+                동일 인스턴스·호출별 500ms
+              </text>
+              <rect
+                x="1080"
+                y="600"
+                width="320"
+                height="118"
+                rx="14"
+                fill="#fff5df"
+                stroke="#afc4d6"
+              />
+              <text x="1240" y="634" class="node-title" text-anchor="middle">
+                독립 로그 수집 모듈
+              </text>
+              <text x="1240" y="665" class="small" text-anchor="middle">
+                순서·큐·확인·완결·복구
+              </text>
+              <text x="1240" y="688" class="small" text-anchor="middle">
+                저장 구현은 어댑터로 교체
+              </text>
+              <rect
+                x="1080"
+                y="870"
+                width="320"
+                height="118"
+                rx="14"
+                fill="#fff5df"
+                stroke="#afc4d6"
+              />
+              <text x="1240" y="904" class="node-title" text-anchor="middle">실행 기록 저장소</text>
+              <text x="1240" y="935" class="small" text-anchor="middle">
+                전량 저널·실행 기록 목록
+              </text>
+              <text x="1240" y="958" class="small" text-anchor="middle">
+                원본 위치·내구 seq·완결 상태
+              </text>
+              <path d="M 290 165 H 350" class="line both" />
+              <text x="320" y="145" class="edge-label" text-anchor="middle">요청/표시</text>
+              <path d="M 600 165 H 660" class="line both" />
+              <text x="630" y="145" class="edge-label" text-anchor="middle">API/SSE</text>
+              <path d="M 980 165 H 1120" class="line both" />
+              <text x="1050" y="145" class="edge-label" text-anchor="middle">업무 데이터</text>
+              <path d="M 980 195 H 1040 V 359 H 1120" class="line both" />
+              <text x="1067" y="285" class="edge-label" text-anchor="middle">원문 참조</text>
+              <path d="M 820 228 V 330" class="line both" />
+              <text x="820" y="282" class="edge-label" text-anchor="middle">
+                실행 요청 / 상태·최종 결과
+              </text>
+              <path d="M 790 448 V 510 H 280 V 600" class="line both" />
+              <text x="455" y="494" class="edge-label" text-anchor="middle">
+                시작·중단 / 화면 상태
+              </text>
+              <path d="M 850 448 V 550 H 760 V 600" class="line both" />
+              <text x="905" y="535" class="edge-label" text-anchor="middle">별도 경기</text>
+              <path d="M 280 718 V 870" class="line both" />
+              <text x="280" y="810" class="edge-label" text-anchor="middle">
+                공통 호출 / 정규화 결과
+              </text>
+              <path d="M 760 718 V 870" class="line both" />
+              <text x="760" y="810" class="edge-label" text-anchor="middle">
+                공통 호출 / 정규화 결과
+              </text>
+              <path d="M 440 655 H 480 V 770 H 1240 V 718" class="line log" />
+              <text x="1020" y="755" class="edge-label" text-anchor="middle">
+                전량 실행 이벤트 · 논리 연결
+              </text>
+              <path d="M 920 655 H 1080" class="line log" />
+              <text x="1000" y="638" class="edge-label" text-anchor="middle">전량 이벤트</text>
+              <path d="M 1240 600 V 470 H 980" class="line log" />
+              <text x="1175" y="455" class="edge-label" text-anchor="middle">
+                내구·완결·실패 통지
+              </text>
+              <path d="M 1240 718 V 870" class="line log" />
+              <text x="1240" y="825" class="edge-label" text-anchor="middle">저장·동기화·검증</text>
+              <rect x="40" y="1040" width="1360" height="150" rx="14" fill="#f4f7fa" />
+              <text x="70" y="1075" class="node-title" text-anchor="start">화면 경로</text>
+              <text x="240" y="1075" class="label" text-anchor="start">
+                엔진 → 관리자 → 운영 BE → FE → 브라우저 · 최신 상태로 표시
+              </text>
+              <text x="70" y="1115" class="node-title" text-anchor="start">기록 경로</text>
+              <text x="240" y="1115" class="label" text-anchor="start">
+                엔진 → 수집 모듈 → 실행 저장소 · 화면 연결과 무관하게 전량 수집
+              </text>
+              <text x="70" y="1155" class="node-title" text-anchor="start">구현 전 결정</text>
+              <text x="240" y="1155" class="label" text-anchor="start">
+                내부 전송 방식·수집 배치·내구 수준·자원 한도·동시 경기 수
+              </text>
+            </svg>
+          </div>
+          <figcaption>
+            실행 관리자의 언어/배치와 내부 전송 방식은 구현 시 확정합니다. 화살표는 논리 연결이며
+            별도 컨테이너/호스트를 하나씩 요구하지 않습니다.
+            <a href="diagrams/game-execution-architecture.svg">구성도 SVG 원본</a>
+          </figcaption>
+        </figure>
+      </section>
+      <section id="services">
+        <h2>1.1 서비스별 기능 배치</h2>
+        <p id="engine-lifecycle" class="notice">
+          <strong>게임마다 새 Node.js 프로세스를 생성합니다.</strong> 상주 게임 실행 관리 서비스가
+          각 게임의 준비 시점에 프로세스를 만들고, 그 안에서 같은 게임 엔진 프로그램의 독립
+          인스턴스를 실행합니다. 한 게임 안에서는 매 턴 이 프로세스를 재생성하지 않으며 종료/실패
+          처리 후 정리합니다.
+        </p>
+        <p>
+          각 서비스 안에 어떤 기능이 들어가고, 웹서버·상주 서비스·경기별 프로세스·내부 모듈 중 어떤
+          형태로 실행되는지 표시합니다. 큰 박스는 별도 호스트/컨테이너를 의미하지 않습니다. 실행
+          관리자는 엔진과 별도 상주 서비스로 두는 권장안입니다.
+        </p>
+        <figure>
+          <div
+            class="chart"
+            tabindex="0"
+            role="region"
+            aria-label="서비스별 기능 배치, 좁은 화면에서는 가로로 스크롤"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="1500"
+              height="1610"
+              viewBox="0 0 1500 1610"
+              role="img"
+              aria-labelledby="services-title services-description"
+            >
+              <title id="services-title">서비스별 기능 배치와 실행 형태</title>
+              <desc id="services-description">
+                FE, C# 운영 BE, 독립 상주 실행 관리자, 게임별 Node.js 엔진, 참가자별 알고리즘
+                프로세스와 독립 수집 모듈의 내부 기능을 표시한 목표 차트. 호스트나 컨테이너 배포
+                단위는 지정하지 않음.
+              </desc>
+              <defs>
+                <marker
+                  id="services-arrow"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M0 0 L10 5 L0 10z" fill="context-stroke" />
+                </marker>
+              </defs>
+              <style>
+                text {
+                  font-family: 'Malgun Gothic', 'Segoe UI', sans-serif;
+                  fill: #183047;
+                }
+                .heading {
+                  font-size: 28px;
+                  font-weight: 700;
+                }
+                .service-title {
+                  font-size: 23px;
+                  font-weight: 700;
+                }
+                .form {
+                  font-size: 16px;
+                  font-weight: 700;
+                  fill: #245780;
+                }
+                .module-title {
+                  font-size: 19px;
+                  font-weight: 700;
+                }
+                .small {
+                  font-size: 15px;
+                  fill: #425e73;
+                }
+                .edge-label {
+                  font-size: 15px;
+                  paint-order: stroke;
+                  stroke: #fff;
+                  stroke-width: 7px;
+                  stroke-linejoin: round;
+                }
+                .edge {
+                  fill: none;
+                  stroke: #47749b;
+                  stroke-width: 2;
+                  marker-start: url(#services-arrow);
+                  marker-end: url(#services-arrow);
+                }
+                .log {
+                  stroke: #a66b19;
+                  stroke-dasharray: 8 5;
+                }
+              </style>
+              <rect width="1500" height="1610" fill="white" />
+              <text x="40" y="42" class="heading" text-anchor="start">
+                서비스별 기능 배치 · 실행 형태와 내부 모듈
+              </text>
+              <text x="40" y="72" class="small" text-anchor="start">
+                목표 설계 · 큰 박스: 실행 구성 요소 · 내부 박스: 기능 모듈 · 호스트/컨테이너 단위는
+                지정하지 않음
+              </text>
+              <rect
+                x="40"
+                y="120"
+                width="660"
+                height="350"
+                rx="16"
+                fill="#edf5fd"
+                stroke="#a8bfd2"
+                stroke-width="2"
+              />
+              <text x="62" y="156" class="service-title" text-anchor="start">01 · FE 서비스</text>
+              <rect x="60" y="172" width="620" height="34" rx="8" fill="#fff" fill-opacity=".8" />
+              <text x="72" y="196" class="form" text-anchor="start">상주 웹서버 프로세스</text>
+              <rect x="60" y="228" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="74" y="257" class="module-title" text-anchor="start">페이지·에셋 제공</text>
+              <text x="74" y="284" class="small" text-anchor="start">HTML·JS·CSS·이미지·영상</text>
+              <rect x="378" y="228" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="392" y="257" class="module-title" text-anchor="start">
+                API·파일·SSE 중계
+              </text>
+              <text x="392" y="284" class="small" text-anchor="start">브라우저 ↔ 운영 BE</text>
+              <rect x="60" y="324" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="74" y="353" class="module-title" text-anchor="start">페이지 접근 UX</text>
+              <text x="74" y="380" class="small" text-anchor="start">
+                로그인 이동·관리자 접근 표시
+              </text>
+              <rect x="378" y="324" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="392" y="353" class="module-title" text-anchor="start">화면 보안·캐시</text>
+              <text x="392" y="380" class="small" text-anchor="start">
+                CSP nonce·버전/캐시 정책
+              </text>
+              <text x="62" y="447" class="small" text-anchor="start">
+                브라우저는 FE 공개 주소로 접속 · 경기/계정 데이터는 보관하지 않음
+              </text>
+              <rect
+                x="800"
+                y="120"
+                width="660"
+                height="350"
+                rx="16"
+                fill="#edf5fd"
+                stroke="#a8bfd2"
+                stroke-width="2"
+              />
+              <text x="822" y="156" class="service-title" text-anchor="start">
+                02 · 게임 운영 서비스
+              </text>
+              <rect x="820" y="172" width="620" height="34" rx="8" fill="#fff" fill-opacity=".8" />
+              <text x="832" y="196" class="form" text-anchor="start">
+                C# / ASP.NET Core · 상주 API 프로세스
+              </text>
+              <rect x="820" y="228" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="834" y="257" class="module-title" text-anchor="start">
+                계정·Google 인증·권한
+              </text>
+              <text x="834" y="284" class="small" text-anchor="start">
+                내부 ID·역할·소유권 검사
+              </text>
+              <rect x="1138" y="228" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="1152" y="257" class="module-title" text-anchor="start">알고리즘 관리</text>
+              <text x="1152" y="284" class="small" text-anchor="start">
+                원문 파일 참조·버전·저장/조회
+              </text>
+              <rect x="820" y="324" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="834" y="353" class="module-title" text-anchor="start">맵·옵션·관리자</text>
+              <text x="834" y="380" class="small" text-anchor="start">초안/게시·사용자 관리</text>
+              <rect x="1138" y="324" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="1152" y="353" class="module-title" text-anchor="start">
+                경기 요청·결과 조회
+              </text>
+              <text x="1152" y="380" class="small" text-anchor="start">
+                고정 요청·인가·요약 멱등 반영
+              </text>
+              <text x="822" y="447" class="small" text-anchor="start">
+                운영 저장 어댑터 → 운영 DB / 코드 파일 · 턴별 원본 로그와 분리
+              </text>
+              <rect
+                x="40"
+                y="570"
+                width="660"
+                height="350"
+                rx="16"
+                fill="#edf5fd"
+                stroke="#a8bfd2"
+                stroke-width="2"
+              />
+              <text x="62" y="606" class="service-title" text-anchor="start">
+                03 · 게임 실행 관리 서비스
+              </text>
+              <rect x="60" y="622" width="620" height="34" rx="8" fill="#fff" fill-opacity=".8" />
+              <text x="72" y="646" class="form" text-anchor="start">
+                독립 상주 내부 서비스/프로세스 권장 · C# 구현 가능
+              </text>
+              <rect x="60" y="678" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="74" y="707" class="module-title" text-anchor="start">
+                실행 수락·자원 확인
+              </text>
+              <text x="74" y="734" class="small" text-anchor="start">동시 경기·준비 작업 한도</text>
+              <rect x="378" y="678" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="392" y="707" class="module-title" text-anchor="start">
+                게임 엔진 생성·준비
+              </text>
+              <text x="392" y="734" class="small" text-anchor="start">
+                경기 ID·고정 설정·ready 확인
+              </text>
+              <rect x="60" y="774" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="74" y="803" class="module-title" text-anchor="start">감시·중단·정리</text>
+              <text x="74" y="830" class="small" text-anchor="start">
+                장애·남은 실행기·임시 자원
+              </text>
+              <rect x="378" y="774" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="392" y="803" class="module-title" text-anchor="start">상태·결과 중계</text>
+              <text x="392" y="830" class="small" text-anchor="start">
+                화면 상태·완결 확인·미전달 대조
+              </text>
+              <text x="62" y="897" class="small" text-anchor="start">
+                엔진과 별도 프로세스 · 이동/점수/아이템 규칙을 직접 판정하지 않음
+              </text>
+              <rect
+                x="800"
+                y="570"
+                width="660"
+                height="350"
+                rx="16"
+                fill="#eaf7f5"
+                stroke="#a8bfd2"
+                stroke-width="2"
+              />
+              <text x="822" y="606" class="service-title" text-anchor="start">04 · 게임 엔진</text>
+              <rect x="820" y="622" width="620" height="34" rx="8" fill="#fff" fill-opacity=".8" />
+              <text x="832" y="646" class="form" text-anchor="start">
+                게임마다 Node.js 프로세스 생성 · 준비부터 종료까지 유지
+              </text>
+              <rect x="820" y="678" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="834" y="707" class="module-title" text-anchor="start">
+                맵·플레이어·독립 턴
+              </text>
+              <text x="834" y="734" class="small" text-anchor="start">
+                경기 상태와 서버 경과 시간
+              </text>
+              <rect x="1138" y="678" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="1152" y="707" class="module-title" text-anchor="start">
+                액션·기믹·점수 판정
+              </text>
+              <text x="1152" y="734" class="small" text-anchor="start">
+                이동·충돌·획득·Hurry Up
+              </text>
+              <rect x="820" y="774" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="834" y="803" class="module-title" text-anchor="start">
+                알고리즘 실행 인터페이스
+              </text>
+              <text x="834" y="830" class="small" text-anchor="start">
+                참가자별 실행기에 호출/결과 연결
+              </text>
+              <rect x="1138" y="774" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="1152" y="803" class="module-title" text-anchor="start">
+                화면 상태·원본 이벤트
+              </text>
+              <text x="1152" y="830" class="small" text-anchor="start">
+                SSE용 상태 / 전량 기록 DTO 생산
+              </text>
+              <text x="822" y="897" class="small" text-anchor="start">
+                경기 A/B는 별도 프로세스 · 경기 종료/실행 장애 때 정리
+              </text>
+              <rect
+                x="40"
+                y="1030"
+                width="660"
+                height="350"
+                rx="16"
+                fill="#fff5df"
+                stroke="#a8bfd2"
+                stroke-width="2"
+              />
+              <text x="62" y="1066" class="service-title" text-anchor="start">
+                05 · 로그 수집 계층
+              </text>
+              <rect x="60" y="1082" width="620" height="34" rx="8" fill="#fff" fill-opacity=".8" />
+              <text x="72" y="1106" class="form" text-anchor="start">
+                독립 공통 모듈 + 저장 어댑터 · 실행 호스트/서비스 배치 미정
+              </text>
+              <rect x="60" y="1138" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="74" y="1167" class="module-title" text-anchor="start">
+                수집 세션·순서·큐
+              </text>
+              <text x="74" y="1194" class="small" text-anchor="start">
+                경기별 seq·중복·바이트 한도
+              </text>
+              <rect x="378" y="1138" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="392" y="1167" class="module-title" text-anchor="start">
+                내구 확인·오류 통지
+              </text>
+              <text x="392" y="1194" class="small" text-anchor="start">
+                큐 접수와 내구 저장 확인 구분
+              </text>
+              <rect x="60" y="1234" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="74" y="1263" class="module-title" text-anchor="start">
+                완결·복구·기록 목록
+              </text>
+              <text x="74" y="1290" class="small" text-anchor="start">
+                끝난 기록·부분 기록·위치/상태
+              </text>
+              <rect x="378" y="1234" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="392" y="1263" class="module-title" text-anchor="start">
+                저장·조회·보관 어댑터
+              </text>
+              <text x="392" y="1290" class="small" text-anchor="start">
+                스트리밍·소유 범위·삭제·아카이브
+              </text>
+              <text x="62" y="1357" class="small" text-anchor="start">
+                별도 수집 서비스 또는 전용 worker 등은 추후 결정 · 엔진은 인터페이스 의존
+              </text>
+              <rect
+                x="800"
+                y="1030"
+                width="660"
+                height="350"
+                rx="16"
+                fill="#f3effc"
+                stroke="#a8bfd2"
+                stroke-width="2"
+              />
+              <text x="822" y="1066" class="service-title" text-anchor="start">
+                06 · 언어별 알고리즘 실행기
+              </text>
+              <rect x="820" y="1082" width="620" height="34" rx="8" fill="#fff" fill-opacity=".8" />
+              <text x="832" y="1106" class="form" text-anchor="start">
+                경기/참가자마다 별도 프로세스 · 경기 동안 인스턴스 유지
+              </text>
+              <rect x="820" y="1138" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="834" y="1167" class="module-title" text-anchor="start">
+                언어별 준비·로드
+              </text>
+              <text x="834" y="1194" class="small" text-anchor="start">
+                현재 JS/QuickJS · 다른 언어 미구현
+              </text>
+              <rect x="1138" y="1138" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="1152" y="1167" class="module-title" text-anchor="start">
+                플레이어 인스턴스
+              </text>
+              <text x="1152" y="1194" class="small" text-anchor="start">
+                initialize·getName·moveNext
+              </text>
+              <rect x="820" y="1234" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="834" y="1263" class="module-title" text-anchor="start">
+                호출별 실행 제어
+              </text>
+              <text x="834" y="1290" class="small" text-anchor="start">
+                500ms 초과는 해당 호출만 중단
+              </text>
+              <rect x="1138" y="1234" width="302" height="78" rx="9" fill="#fff" stroke="#d1dde7" />
+              <text x="1152" y="1263" class="module-title" text-anchor="start">
+                결과·출력 정규화
+              </text>
+              <text x="1152" y="1290" class="small" text-anchor="start">
+                방향·상태·시간·제한된 debug
+              </text>
+              <text x="822" y="1357" class="small" text-anchor="start">
+                턴마다 재컴파일/프로세스 재생성하지 않음 · 운영 DB에 직접 접속하지 않음
+              </text>
+              <path d="M 700 285 H 800" class="edge" />
+              <text x="750" y="268" class="edge-label" text-anchor="middle">API/SSE</text>
+              <path d="M 1130 470 V 520 H 370 V 570" class="edge" />
+              <text x="750" y="505" class="edge-label" text-anchor="middle">
+                실행 요청 / 상태·결과
+              </text>
+              <path d="M 700 745 H 800" class="edge" />
+              <text x="750" y="726" class="edge-label" text-anchor="middle">관리/상태</text>
+              <path d="M 1130 920 V 1030" class="edge" />
+              <text x="1130" y="972" class="edge-label" text-anchor="middle">
+                공통 호출 / 정규화 결과
+              </text>
+              <path d="M 800 860 H 750 V 980 H 370 V 1030" class="edge log" />
+              <text x="610" y="963" class="edge-label" text-anchor="middle">
+                전량 이벤트 · 확인/오류 계약
+              </text>
+              <rect x="40" y="1440" width="1420" height="135" rx="12" fill="#f2f5f8" />
+              <text x="62" y="1475" class="module-title" text-anchor="start">
+                저장 영역은 서비스 내부 모듈과 구분
+              </text>
+              <text x="62" y="1510" class="small" text-anchor="start">
+                운영 BE의 저장 어댑터 → 운영 DB(업무 메타데이터·맵·결과 요약) / 알고리즘 원문·경기
+                사본 파일
+              </text>
+              <text x="62" y="1540" class="small" text-anchor="start">
+                수집 계층의 저장 어댑터 → 실행 저널·실행 기록 목록 / 선택적 아카이브 · 구체 저장
+                구현은 교체 가능
+              </text>
+            </svg>
+          </div>
+          <figcaption>
+            로그 수집은 독립 모듈/저장 어댑터 경계이며 구체 실행 호스트나 별도 서비스 여부는
+            미정입니다.
+            <a href="diagrams/game-service-functional-layout.svg">서비스별 기능 배치 SVG 원본</a>
+          </figcaption>
+        </figure>
+        <p>
+          브라우저에는 렌더러·애니메이션·편집/관리 UI·상태 수신이 위치합니다. 기능의 실행 형태와
+          수명을 구분한 상세 표는
+          <a href="game-execution-rendering-flow.md#11-서비스별-기능-배치">Markdown 문서</a>에
+          보관합니다. Node.js 엔진과 실행 관리자 모두 현재 구현 전인 목표 구조입니다.
+        </p>
+      </section>
+      <section id="stages">
+        <h2>2. 화면이 그려지기까지</h2>
+        <p class="notice">
+          <strong>실제 계산 성능이 승부에 반영되는 독립 턴을 유지합니다.</strong>
+          계산 결과가 준비되면 해당 플레이어의 액션을 시작하고, 액션이 끝나면 같은 인스턴스의 다음
+          계산을 요청합니다. 공통 판단 지연·다른 플레이어의 결과 대기·계산 시간을 없애는 논리 시간
+          보정은 적용하지 않습니다. 호출 인프라 비용은 별도로 최소화·검증하며
+          <a href="algorithm-runner-independence-plan.md">실행기 추상화·독립 실행 작업 계획</a>에
+          단계별 작업과 완료 기준을 보관했습니다. 실행기 직접 호스팅/IPC의 최종 선택은 검증 후
+          확정합니다.
+        </p>
+        <div class="grid">
+          <article class="step">
+            <h3><b>01</b> 페이지·에셋 로드</h3>
+            <p>
+              FE가 HTML·JS·CSS·캐릭터/코인/아이템 이미지를 제공합니다. 브라우저는 렌더링 코드를
+              준비하고 실제 맵과 참가자 상태는 서버에서 받습니다.
+            </p>
+          </article>
+          <article class="step">
+            <h3><b>02</b> 경기 요청·프로세스 준비</h3>
+            <p>
+              운영 BE가 권한을 확인하고 코드·맵·옵션을 고정합니다. 실행 관리자가 게임 엔진을 만들고
+              엔진은 참가자 실행기를 준비합니다. 기록 세션은 준비 실패부터 수집합니다.
+            </p>
+          </article>
+          <article class="step">
+            <h3><b>03</b> 초기 상태·카운트다운</h3>
+            <p>
+              ready 이후 초기 전체 상태와 시작 기준을 전달합니다. 경기 ID로 SSE를 구독하고 자산/화면
+              준비와 서버 시작 시점을 맞춥니다. 응답과 구독 사이에는 최신 상태로 동기화합니다.
+            </p>
+          </article>
+          <article class="step">
+            <h3><b>04</b> 독립 턴·실제 판정</h3>
+            <p>
+              실행기가 방향·상태·소요 시간을 반환합니다. 엔진이 이동/충돌/망치/점프와 실제 액션
+              완료·점수·효과를 확정합니다. 점프는 알고리즘 호출을 생략하고 실제 목적지를 기록합니다.
+            </p>
+          </article>
+          <article class="step">
+            <h3><b>05</b> 상태 전달·프레임 보간</h3>
+            <p>
+              엔진 → 관리자 → 운영 BE → FE → 브라우저로 상태를 전달합니다. 브라우저는 출발/목표·서버
+              액션 시간으로 이동을 보간하고 이미지·이펙트를 표시합니다. 점수는 서버 확정값을
+              따릅니다.
+            </p>
+          </article>
+          <article class="step">
+            <h3><b>06</b> 게임오버·완결·정리</h3>
+            <p>
+              최종 상태로 약 3초 게임오버 후 포디엄을 표시합니다. 실행기 종료·로그 내구/완결
+              확인·결과 요약 반영을 별도로 수행하고 엔진을 정리합니다. 실패는 미완결/미반영 상태로
+              구분합니다.
+            </p>
+          </article>
+        </div>
+        <p>
+          브라우저에 영상 프레임을 보내는 방식이 아닙니다. 예를 들어 서버가 400ms 이동을 지정하면
+          브라우저가 중간 위치를 그립니다. 상태 전송의 전체 snapshot/변경분 방식과 주기는 부하 검증
+          후 결정하며, 지연 메시지 때문에 액션 시간을 매번 처음부터 다시 시작하지 않습니다.
+        </p>
+      </section>
+      <section id="sequence">
+        <h2>3. 시간순 시퀀스 차트</h2>
+        <p>
+          페이지 로드부터 경기 준비·독립 턴·렌더링·종료까지의 논리 순서입니다. 액션 시작과 완료는
+          서로 다른 시점이며, 종료 화면 표시와 기록/DB 완료도 구분합니다.
+        </p>
+        <figure>
+          <div
+            class="chart sequence"
+            tabindex="0"
+            role="region"
+            aria-label="시간순 시퀀스, 좁은 화면에서는 가로로 스크롤"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="1560"
+              height="2942"
+              viewBox="0 0 1560 2942"
+              role="img"
+              aria-labelledby="sequence-title sequence-description"
+            >
+              <title id="sequence-title">경기 실행과 화면 렌더링 시퀀스</title>
+              <desc id="sequence-description">
+                일곱 구성 요소 사이의 페이지 요청, 경기 준비, SSE 구독, 독립 턴, 화면 보간, 종료와
+                로그 완결의 논리 순서. 현재 구현이 아닌 목표 흐름.
+              </desc>
+              <defs>
+                <marker
+                  id="sequence-arrow"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="8"
+                  markerHeight="8"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
+                </marker>
+              </defs>
+              <style>
+                text {
+                  font-family: 'Malgun Gothic', 'Segoe UI', sans-serif;
+                  fill: #183047;
+                }
+                .heading {
+                  font-size: 27px;
+                  font-weight: 700;
+                }
+                .label {
+                  font-size: 17px;
+                }
+                .small {
+                  font-size: 15px;
+                  fill: #4e6274;
+                }
+                .node-title {
+                  font-size: 21px;
+                  font-weight: 700;
+                }
+                .phase {
+                  font-size: 19px;
+                  font-weight: 700;
+                  fill: #245780;
+                }
+                .edge-label {
+                  font-size: 15px;
+                  paint-order: stroke;
+                  stroke: #fff;
+                  stroke-width: 7px;
+                  stroke-linejoin: round;
+                }
+                .line {
+                  fill: none;
+                  stroke: #47749b;
+                  stroke-width: 2;
+                  marker-end: url(#sequence-arrow);
+                }
+                .both {
+                  marker-start: url(#sequence-arrow);
+                }
+                .log {
+                  stroke: #a66b19;
+                  stroke-dasharray: 8 5;
+                }
+                .life {
+                  stroke: #bac7d2;
+                  stroke-width: 1.5;
+                  stroke-dasharray: 6 5;
+                }
+              </style>
+              <rect width="1560" height="2942" fill="#fff" />
+              <text x="30" y="38" class="heading" text-anchor="start">
+                경기 요청에서 브라우저 렌더링·종료까지
+              </text>
+              <text x="30" y="68" class="small" text-anchor="start">
+                목표 시퀀스 · 실선: 요청/처리 · 점선: 상태/응답 · 갈색: 원본 로그 경로
+              </text>
+              <line x1="110" y1="140" x2="110" y2="2917" class="life" />
+              <line x1="330" y1="140" x2="330" y2="2917" class="life" />
+              <line x1="550" y1="140" x2="550" y2="2917" class="life" />
+              <line x1="770" y1="140" x2="770" y2="2917" class="life" />
+              <line x1="990" y1="140" x2="990" y2="2917" class="life" />
+              <line x1="1210" y1="140" x2="1210" y2="2917" class="life" />
+              <line x1="1430" y1="140" x2="1430" y2="2917" class="life" />
+              <rect x="17" y="90" width="186" height="50" rx="9" fill="#e9f2fa" stroke="#b8cbdc" />
+              <text x="110" y="122" class="label" text-anchor="middle">브라우저</text>
+              <rect x="237" y="90" width="186" height="50" rx="9" fill="#e9f2fa" stroke="#b8cbdc" />
+              <text x="330" y="122" class="label" text-anchor="middle">FE 웹서버</text>
+              <rect x="457" y="90" width="186" height="50" rx="9" fill="#e9f2fa" stroke="#b8cbdc" />
+              <text x="550" y="122" class="label" text-anchor="middle">C# 운영 BE</text>
+              <rect x="677" y="90" width="186" height="50" rx="9" fill="#e9f2fa" stroke="#b8cbdc" />
+              <text x="770" y="122" class="label" text-anchor="middle">실행 관리자</text>
+              <rect x="897" y="90" width="186" height="50" rx="9" fill="#e9f2fa" stroke="#b8cbdc" />
+              <text x="990" y="122" class="label" text-anchor="middle">게임 엔진</text>
+              <rect
+                x="1117"
+                y="90"
+                width="186"
+                height="50"
+                rx="9"
+                fill="#e9f2fa"
+                stroke="#b8cbdc"
+              />
+              <text x="1210" y="122" class="label" text-anchor="middle">참가자 실행기</text>
+              <rect
+                x="1337"
+                y="90"
+                width="186"
+                height="50"
+                rx="9"
+                fill="#fff0ce"
+                stroke="#b8cbdc"
+              />
+              <text x="1430" y="122" class="label" text-anchor="middle">로그 수집</text>
+              <rect x="20" y="150" width="1520" height="43" rx="8" fill="#eaf1f8" />
+              <text x="40" y="178" class="phase" text-anchor="start">
+                1 · 페이지 로드와 경기 요청
+              </text>
+              <path
+                d="M 110 237 H 330"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="220" y="227" class="edge-label" text-anchor="middle">페이지·에셋 요청</text>
+              <path
+                d="M 330 295 H 110"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="220" y="285" class="edge-label" text-anchor="middle">
+                HTML·JS·CSS·이미지
+              </text>
+              <path
+                d="M 110 353 H 330"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="220" y="343" class="edge-label" text-anchor="middle">경기 생성 요청</text>
+              <path
+                d="M 330 411 H 550"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="440" y="401" class="edge-label" text-anchor="middle">요청·쿠키 전달</text>
+              <path
+                d="M 550 469 h 82 v 23 h -82"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="562" y="461" class="edge-label" text-anchor="start">인가·맵/코드 고정</text>
+              <path
+                d="M 550 527 H 770"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="660" y="517" class="edge-label" text-anchor="middle">경기 실행 요청</text>
+              <path
+                d="M 770 585 H 990"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="880" y="575" class="edge-label" text-anchor="middle">
+                엔진 프로세스 생성
+              </text>
+              <rect x="20" y="618" width="1520" height="43" rx="8" fill="#eaf1f8" />
+              <text x="40" y="646" class="phase" text-anchor="start">
+                2 · 코드 준비·초기 상태·시작 동기화
+              </text>
+              <path
+                d="M 990 705 H 1430"
+                fill="none"
+                stroke="#a66b19"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="1210" y="695" class="edge-label" text-anchor="middle">
+                기록 세션 열기·준비 이벤트
+              </text>
+              <path
+                d="M 990 763 H 1210"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="1100" y="753" class="edge-label" text-anchor="middle">
+                코드 준비·initialize/getName
+              </text>
+              <path
+                d="M 1210 821 H 990"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="1100" y="811" class="edge-label" text-anchor="middle">준비 결과</text>
+              <path
+                d="M 990 879 H 770"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="880" y="869" class="edge-label" text-anchor="middle">ready·초기 상태</text>
+              <path
+                d="M 770 937 H 550"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="660" y="927" class="edge-label" text-anchor="middle">경기 ID·준비 상태</text>
+              <path
+                d="M 550 995 H 330"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="440" y="985" class="edge-label" text-anchor="middle">경기 생성 응답</text>
+              <path
+                d="M 330 1053 H 110"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="220" y="1043" class="edge-label" text-anchor="middle">경기 ID</text>
+              <path
+                d="M 110 1111 H 330"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="220" y="1101" class="edge-label" text-anchor="middle">경기 SSE 구독</text>
+              <path
+                d="M 330 1169 H 550"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="440" y="1159" class="edge-label" text-anchor="middle">
+                세션·조회 권한 확인
+              </text>
+              <path
+                d="M 550 1227 H 770"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="660" y="1217" class="edge-label" text-anchor="middle">상태 스트림 연결</text>
+              <path
+                d="M 770 1285 H 550"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="660" y="1275" class="edge-label" text-anchor="middle">
+                최신 전체 상태·시작 기준
+              </text>
+              <path
+                d="M 550 1343 H 330"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="440" y="1333" class="edge-label" text-anchor="middle">SSE 전달</text>
+              <path
+                d="M 330 1401 H 110"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="220" y="1391" class="edge-label" text-anchor="middle">
+                초기 화면·카운트다운
+              </text>
+              <rect x="30" y="1437" width="1500" height="38" rx="8" fill="#fff4d9" />
+              <text x="780" y="1462" class="small" text-anchor="middle">
+                ready 이후 시작 · 화면 자산 준비와 카운트다운/시작 표시를 서버 기준에 맞춤
+              </text>
+              <rect x="20" y="1492" width="1520" height="43" rx="8" fill="#eaf1f8" />
+              <text x="40" y="1520" class="phase" text-anchor="start">
+                3 · 참가자별 독립 턴 반복 — 액션 시작과 완료는 서로 다른 시점
+              </text>
+              <path
+                d="M 990 1579 H 1210"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="1100" y="1569" class="edge-label" text-anchor="middle">
+                맵·위치·아이템 호출
+              </text>
+              <path
+                d="M 1210 1637 H 990"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="1100" y="1627" class="edge-label" text-anchor="middle">
+                방향·상태·시간·출력
+              </text>
+              <path
+                d="M 990 1695 h 82 v 23 h -82"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="1002" y="1687" class="edge-label" text-anchor="start">
+                액션 종류·시작/종료 결정
+              </text>
+              <path
+                d="M 990 1753 H 770"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="880" y="1743" class="edge-label" text-anchor="middle">
+                현재 액션·화면 상태
+              </text>
+              <path
+                d="M 770 1811 H 550"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="660" y="1801" class="edge-label" text-anchor="middle">상태 중계</text>
+              <path
+                d="M 550 1869 H 330"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="440" y="1859" class="edge-label" text-anchor="middle">SSE 전달</text>
+              <path
+                d="M 330 1927 H 110"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="220" y="1917" class="edge-label" text-anchor="middle">현재 액션·시간</text>
+              <path
+                d="M 110 1985 h 82 v 23 h -82"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="122" y="1977" class="edge-label" text-anchor="start">
+                프레임 보간·방향/이펙트
+              </text>
+              <path
+                d="M 990 2043 h 82 v 23 h -82"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="1002" y="2035" class="edge-label" text-anchor="start">
+                액션 완료·점수/맵 확정
+              </text>
+              <path
+                d="M 990 2101 H 1430"
+                fill="none"
+                stroke="#a66b19"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="1210" y="2091" class="edge-label" text-anchor="middle">
+                전량 결과·실제 랜덤 결과
+              </text>
+              <rect x="30" y="2137" width="1500" height="38" rx="8" fill="#fff4d9" />
+              <text x="780" y="2162" class="small" text-anchor="middle">
+                확정 점수/맵도 동일 경로로 전달 · 랜덤점프는 알고리즘 호출 생략 · 모든 참가자 공통
+                라운드 아님
+              </text>
+              <rect x="20" y="2192" width="1520" height="43" rx="8" fill="#eaf1f8" />
+              <text x="40" y="2220" class="phase" text-anchor="start">
+                4 · 종료 화면·실행기 정리·기록 완결·결과 반영
+              </text>
+              <path
+                d="M 990 2279 H 770"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="880" y="2269" class="edge-label" text-anchor="middle">
+                최종 상태·새 턴 차단
+              </text>
+              <path
+                d="M 770 2337 H 550"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="660" y="2327" class="edge-label" text-anchor="middle">경기 종료 상태</text>
+              <path
+                d="M 550 2395 H 330"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="440" y="2385" class="edge-label" text-anchor="middle">SSE 전달</text>
+              <path
+                d="M 330 2453 H 110"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="220" y="2443" class="edge-label" text-anchor="middle">
+                게임오버 → 포디엄
+              </text>
+              <path
+                d="M 990 2511 H 1210"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="1100" y="2501" class="edge-label" text-anchor="middle">
+                남은 호출 정리·실행기 종료
+              </text>
+              <path
+                d="M 990 2569 H 1430"
+                fill="none"
+                stroke="#a66b19"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="1210" y="2559" class="edge-label" text-anchor="middle">
+                최종 이벤트·완결 요청
+              </text>
+              <path
+                d="M 1430 2627 H 770"
+                fill="none"
+                stroke="#a66b19"
+                stroke-width="2"
+                stroke-dasharray="7 4"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="1100" y="2617" class="edge-label" text-anchor="middle">
+                내구/완결 receipt 또는 실패
+              </text>
+              <path
+                d="M 770 2685 H 550"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="660" y="2675" class="edge-label" text-anchor="middle">
+                최종 결과·기록 참조·상태
+              </text>
+              <path
+                d="M 550 2743 h 82 v 23 h -82"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="562" y="2735" class="edge-label" text-anchor="start">
+                요약 멱등 저장·목록 갱신
+              </text>
+              <path
+                d="M 770 2801 H 990"
+                fill="none"
+                stroke="#47749b"
+                stroke-width="2"
+                marker-end="url(#sequence-arrow)"
+              />
+              <text x="880" y="2791" class="edge-label" text-anchor="middle">
+                종료 확인·엔진 정리
+              </text>
+              <rect x="30" y="2837" width="1500" height="38" rx="8" fill="#fff4d9" />
+              <text x="780" y="2862" class="small" text-anchor="middle">
+                실패 시 incomplete/미반영 상태를 구분 · 화면용 sequence와 실행 저널 seq는 별도
+              </text>
+            </svg>
+          </div>
+          <figcaption>
+            실선은 요청/처리, 점선은 상태/응답, 갈색은 수집 경로입니다. 참가자마다 독립적으로
+            반복하고 턴 밖 기믹도 기록합니다.
+            <a href="diagrams/game-execution-sequence.svg">시퀀스 SVG 원본</a>
+          </figcaption>
+        </figure>
+      </section>
+      <section id="streams">
+        <h2>4. 화면 스트림과 실행 원본</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>구분</th>
+                <th>화면용 SSE</th>
+                <th>실행 원본 저널</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>목적</th>
+                <td>현재 상태를 지연 적게 표시</td>
+                <td>모든 턴·액션·맵 변화·실제 랜덤 결과 보관</td>
+              </tr>
+              <tr>
+                <th>순번</th>
+                <td>화면 전용 sequence</td>
+                <td>경기 전역 seq·플레이어 turnId·호출 ID</td>
+              </tr>
+              <tr>
+                <th>지연/포화</th>
+                <td>최신 상태로 병합·재동기화. 손실 불가 제어 메시지는 별도 처리</td>
+                <td>조용한 드롭 금지. 제한된 큐·오류 통지·명시적 실행 정책</td>
+              </tr>
+              <tr>
+                <th>재연결</th>
+                <td>권한 확인 후 최신 전체 상태로 복원</td>
+                <td>브라우저 연결과 무관하게 수집</td>
+              </tr>
+              <tr>
+                <th>완료 의미</th>
+                <td>화면 표시 수신</td>
+                <td>접수와 내구 확인·완결 receipt를 구분</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          운영 DB에는 계정·알고리즘 메타데이터·맵·결과 요약/기록 참조를 보관합니다. 알고리즘
+          원문/경기 사본은 파일로 유지하고 모든 실행 이벤트를 운영 사용자 문서에 누적하지 않습니다.
+        </p>
+      </section>
+      <section id="failure">
+        <h2>5. 장애와 아직 남은 결정</h2>
+        <ul>
+          <li>
+            <strong>연결 단절:</strong> 같은 경기의 최신 상태로 재구독합니다. SSE 단절이나 FE 재시작
+            자체가 경기 종료/재생성 명령은 아닙니다.
+          </li>
+          <li>
+            <strong>엔진 실패:</strong> 관리자가 해당 경기 실패를 기록하고 남은 실행기/연결/임시
+            파일을 정리합니다. 자동으로 처음부터 재경기하지 않습니다.
+          </li>
+          <li>
+            <strong>시간 초과:</strong> 알고리즘 500ms는 해당 호출만 중단합니다. 경기 동안 같은
+            프로세스/인스턴스를 유지하며 저장/전송 대기를 알고리즘 시간으로 계산하지 않습니다.
+          </li>
+          <li>
+            <strong>공유 자원:</strong> 경기별 프로세스로 이벤트 루프/메모리를 분리해도 호스트
+            CPU·메모리·디스크 경합은 남습니다. 자원 한도·동시 경기 수·종료 기한을 검증해야 합니다.
+          </li>
+          <li>
+            <strong>다국어:</strong> 현재 JavaScript/QuickJS만 구현되어 있습니다. C#/C++/Python은
+            중단 후 동일 인스턴스 재호출 등을 통과한 실행기를 후속 연결합니다.
+          </li>
+          <li>
+            <strong>재시작과 내구성:</strong> 운영 BE/관리자 재기동 시 매핑·미반영 결과·자식
+            프로세스 복구 정책이 필요합니다. 비동기 버퍼만으로 호스트 장애까지 무손실을 보장하지
+            않습니다.
+          </li>
+        </ul>
+        <p>
+          구체 내부 프로토콜·관리/수집 프로세스 배치·화면 전송 주기·내구 수준·운영 주소/TLS/VPN·DB
+          제품과 위치는 구현/배포 단계에서 확정합니다.
+        </p>
+      </section>
+      <section>
+        <h2>상세 문서와 원본</h2>
+        <p>
+          <a href="game-execution-rendering-flow.md">Markdown 상세 설명·수정 가능한 Mermaid 차트</a>
+          · <a href="game-backend-boundaries.md">운영/실행 책임</a> ·
+          <a href="game-log-collection-modules.md">로그 수집 계약</a> ·
+          <a href="frontend-deployment-requirements.md">FE 요구사항</a>
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
