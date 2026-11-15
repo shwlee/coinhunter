@@ -1,0 +1,1144 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-11-15T08:54:02.115Z",
+  "profile": "baseline",
+  "implementation": {
+    "runnerContractVersion": 1,
+    "paths": ["AlgorithmSandbox.invoke", "PlayerProcess.move"],
+    "supportedLanguageMeasured": "javascript",
+    "runtimePackage": {
+      "name": "quickjs-emscripten",
+      "version": "0.32.0"
+    },
+    "quickJsNativeVersion": null,
+    "sourceHashes": {
+      "noop": "f1f25fe922c7e9f99e65b158644fe986285c6dbf126cc863784211fbd1f2a2ba",
+      "input-read": "dda8ddf90e37cc9ed65de1eb999aecc7c251a212f562bcb7a229733f4a74541b",
+      "nearest-coin": "bebc932833f88f46f6e2598e570d15448d33917159367b2a6c239bb55108266c"
+    },
+    "runtimeSourceHashes": {
+      "sandbox.js": "41e2ac58e63104f6655cba4298b9c890acd73171f093fc8a19ff9e2d7dc35f8e",
+      "player-process.js": "317c007a77911e8e9da0334e969690e2e2c2111c64a8267219ea127114cfb98b",
+      "player-worker.js": "ebdf0a222303bd3b7afca7f207c16b5c5cedfac7385d9e0d742197ae8d783a96",
+      "policy.js": "f8dd0cca15e752f2f88f3f706ed4a4a653cbcf2859ac2d348ffb36020571b4e4"
+    }
+  },
+  "environment": {
+    "node": "v18.20.2",
+    "os": "win32",
+    "release": "10.0.26200",
+    "architecture": "x64",
+    "cpuModel": "Intel(R) Core(TM) i7-10700F CPU @ 2.90GHz",
+    "logicalCpus": 16,
+    "freeMemoryBytesAtStart": 16880283648
+  },
+  "configuration": {
+    "rounds": 3,
+    "callsPerRound": 200,
+    "warmupCalls": 80,
+    "turnLimitMs": 500,
+    "algorithmHeapLimitBytes": 33554432
+  },
+  "boundaries": {
+    "total": "Caller monotonic duration including map/items snapshot copying, adapter call and response; excludes validator and statistics work.",
+    "execution": "Existing QuickJS elapsedMs: guest JSON.parse/dispatch + user method + guest primitive return validation; excludes outer JSON.stringify, IPC and final handle decoding/disposal.",
+    "executionBoundary": "quickjs-call-v1",
+    "roundTrip": "Existing PlayerProcess roundTripMs; no direct-path equivalent, reported as null for directQuickJs.",
+    "outsideExecutionTimer": "Observed caller total minus reported execution duration; includes multiple unseparated costs, NOT a precise IPC-only duration.",
+    "unavailable": {
+      "inputPreparationMs": null,
+      "responseProcessingMs": null,
+      "engineApplyDelayMs": null
+    }
+  },
+  "methodology": {
+    "simultaneousGames": false,
+    "httpOrEngineLoop": false,
+    "modes": ["directQuickJs", "ipcOnePlayer", "ipcFourPlayers"],
+    "batching": "Four-player mode measures simultaneous call batches. Its Promise.all is a benchmark harness and is not a game turn scheduling policy.",
+    "coldAndWarm": "Setup durations separate; sample calls warmed up. Rotates mode order by round. No fixed speed thresholds and no artificial waits to equalize languages.",
+    "limitations": "Single local JS runtime; no cross-language or .NET direct hosting measurement. No extraction of unmeasured subsegments; memory/GC/OS scheduling affect results."
+  },
+  "cases": [
+    {
+      "scenario": "noop",
+      "description": "Constant direction; dispatch/conversion overhead reference.",
+      "columns": 12,
+      "rows": 10,
+      "cells": 120,
+      "payloadJsonBytes": 331,
+      "preparation": {
+        "directMs": 26.71299982070923,
+        "fourPlayersParallelMs": 144.4419002532959
+      },
+      "modes": {
+        "directQuickJs": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.03489971160888672,
+            "p50Ms": 0.039999961853027344,
+            "p95Ms": 0.0699000358581543,
+            "p99Ms": 0.09840011596679688,
+            "maxMs": 0.43559980392456055,
+            "meanMs": 0.044240160783131914
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.02110004425048828,
+            "p50Ms": 0.024100303649902344,
+            "p95Ms": 0.04290008544921875,
+            "p99Ms": 0.05740022659301758,
+            "maxMs": 0.2609996795654297,
+            "meanMs": 0.0265869935353597
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.013599872589111328,
+            "p50Ms": 0.015700340270996094,
+            "p95Ms": 0.02670001983642578,
+            "p99Ms": 0.043399810791015625,
+            "maxMs": 0.28859996795654297,
+            "meanMs": 0.017653167247772217
+          },
+          "roundTrip": null
+        },
+        "ipcOnePlayer": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.13380002975463867,
+            "p50Ms": 0.15610027313232422,
+            "p95Ms": 0.1988997459411621,
+            "p99Ms": 0.2934999465942383,
+            "maxMs": 0.7028999328613281,
+            "meanMs": 0.16228031714757282
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.02500009536743164,
+            "p50Ms": 0.026900291442871094,
+            "p95Ms": 0.03939962387084961,
+            "p99Ms": 0.046300411224365234,
+            "maxMs": 0.07969999313354492,
+            "meanMs": 0.029481329917907716
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.10850000381469727,
+            "p50Ms": 0.1277003288269043,
+            "p95Ms": 0.1605997085571289,
+            "p99Ms": 0.26469993591308594,
+            "maxMs": 0.6714000701904297,
+            "meanMs": 0.13279898722966513
+          },
+          "roundTrip": {
+            "samples": 600,
+            "minMs": 0.1304001808166504,
+            "p50Ms": 0.1511998176574707,
+            "p95Ms": 0.19250011444091797,
+            "p99Ms": 0.28950023651123047,
+            "maxMs": 0.6982002258300781,
+            "meanMs": 0.1575671664873759
+          }
+        },
+        "ipcFourPlayers": {
+          "total": {
+            "samples": 2400,
+            "minMs": 0.12999963760375977,
+            "p50Ms": 0.17980003356933594,
+            "p95Ms": 0.29400014877319336,
+            "p99Ms": 0.4697999954223633,
+            "maxMs": 3.4142003059387207,
+            "meanMs": 0.2029260814189911
+          },
+          "execution": {
+            "samples": 2400,
+            "minMs": 0.024999618530273438,
+            "p50Ms": 0.02950000762939453,
+            "p95Ms": 0.05499982833862305,
+            "p99Ms": 0.0782003402709961,
+            "maxMs": 0.7190999984741211,
+            "meanMs": 0.03393912494182587
+          },
+          "outsideExecutionTimer": {
+            "samples": 2400,
+            "minMs": 0.10429954528808594,
+            "p50Ms": 0.14980030059814453,
+            "p95Ms": 0.24249982833862305,
+            "p99Ms": 0.4135003089904785,
+            "maxMs": 2.6951003074645996,
+            "meanMs": 0.16898695647716522
+          },
+          "roundTrip": {
+            "samples": 2400,
+            "minMs": 0.12580013275146484,
+            "p50Ms": 0.17619991302490234,
+            "p95Ms": 0.2895998954772949,
+            "p99Ms": 0.4581003189086914,
+            "maxMs": 3.406899929046631,
+            "meanMs": 0.1981423302491506
+          }
+        }
+      }
+    },
+    {
+      "scenario": "noop",
+      "description": "Constant direction; dispatch/conversion overhead reference.",
+      "columns": 20,
+      "rows": 16,
+      "cells": 320,
+      "payloadJsonBytes": 768,
+      "preparation": {
+        "directMs": 2.909599781036377,
+        "fourPlayersParallelMs": 134.00630044937134
+      },
+      "modes": {
+        "directQuickJs": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.06360006332397461,
+            "p50Ms": 0.0651998519897461,
+            "p95Ms": 0.0792999267578125,
+            "p99Ms": 0.13520002365112305,
+            "maxMs": 0.35900020599365234,
+            "meanMs": 0.06941983381907145
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.04069995880126953,
+            "p50Ms": 0.04139995574951172,
+            "p95Ms": 0.0475001335144043,
+            "p99Ms": 0.09020042419433594,
+            "maxMs": 0.3274998664855957,
+            "meanMs": 0.043946665128072104
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.022699832916259766,
+            "p50Ms": 0.023700237274169922,
+            "p95Ms": 0.03099966049194336,
+            "p99Ms": 0.05480003356933594,
+            "maxMs": 0.1811995506286621,
+            "meanMs": 0.02547316869099935
+          },
+          "roundTrip": null
+        },
+        "ipcOnePlayer": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.1690998077392578,
+            "p50Ms": 0.1922001838684082,
+            "p95Ms": 0.2602996826171875,
+            "p99Ms": 0.33680009841918945,
+            "maxMs": 0.6146001815795898,
+            "meanMs": 0.20063166936238608
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.04400014877319336,
+            "p50Ms": 0.04699993133544922,
+            "p95Ms": 0.06779956817626953,
+            "p99Ms": 0.09280014038085938,
+            "maxMs": 0.29309988021850586,
+            "meanMs": 0.05140616496404012
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.12459993362426758,
+            "p50Ms": 0.1409001350402832,
+            "p95Ms": 0.19430017471313477,
+            "p99Ms": 0.21770000457763672,
+            "maxMs": 0.5318999290466309,
+            "meanMs": 0.14922550439834595
+          },
+          "roundTrip": {
+            "samples": 600,
+            "minMs": 0.1653003692626953,
+            "p50Ms": 0.18790006637573242,
+            "p95Ms": 0.25499963760375977,
+            "p99Ms": 0.3329000473022461,
+            "maxMs": 0.6094999313354492,
+            "meanMs": 0.19618566513061522
+          }
+        },
+        "ipcFourPlayers": {
+          "total": {
+            "samples": 2400,
+            "minMs": 0.16559982299804688,
+            "p50Ms": 0.2049999237060547,
+            "p95Ms": 0.3106999397277832,
+            "p99Ms": 0.5525999069213867,
+            "maxMs": 1.4622998237609863,
+            "meanMs": 0.2252923293908437
+          },
+          "execution": {
+            "samples": 2400,
+            "minMs": 0.04419994354248047,
+            "p50Ms": 0.04960012435913086,
+            "p95Ms": 0.08240032196044922,
+            "p99Ms": 0.11789989471435547,
+            "maxMs": 0.4218001365661621,
+            "meanMs": 0.05368629296620687
+          },
+          "outsideExecutionTimer": {
+            "samples": 2400,
+            "minMs": 0.11829996109008789,
+            "p50Ms": 0.15380001068115234,
+            "p95Ms": 0.2339000701904297,
+            "p99Ms": 0.42309999465942383,
+            "maxMs": 1.40910005569458,
+            "meanMs": 0.17160603642463684
+          },
+          "roundTrip": {
+            "samples": 2400,
+            "minMs": 0.16269969940185547,
+            "p50Ms": 0.20120000839233398,
+            "p95Ms": 0.30699968338012695,
+            "p99Ms": 0.5482001304626465,
+            "maxMs": 1.4541001319885254,
+            "meanMs": 0.2214609569311142
+          }
+        }
+      }
+    },
+    {
+      "scenario": "noop",
+      "description": "Constant direction; dispatch/conversion overhead reference.",
+      "columns": 40,
+      "rows": 30,
+      "cells": 1200,
+      "payloadJsonBytes": 2644,
+      "preparation": {
+        "directMs": 2.3004002571105957,
+        "fourPlayersParallelMs": 131.76929998397827
+      },
+      "modes": {
+        "directQuickJs": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.1855001449584961,
+            "p50Ms": 0.19099998474121094,
+            "p95Ms": 0.22279977798461914,
+            "p99Ms": 0.3416004180908203,
+            "maxMs": 0.3891000747680664,
+            "meanMs": 0.19663666645685832
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.12269973754882812,
+            "p50Ms": 0.12529993057250977,
+            "p95Ms": 0.13770008087158203,
+            "p99Ms": 0.22239971160888672,
+            "maxMs": 0.3206000328063965,
+            "meanMs": 0.1292753314971924
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.06279993057250977,
+            "p50Ms": 0.06529951095581055,
+            "p95Ms": 0.07690048217773438,
+            "p99Ms": 0.11190032958984375,
+            "maxMs": 0.13539934158325195,
+            "meanMs": 0.06736133495966594
+          },
+          "roundTrip": null
+        },
+        "ipcOnePlayer": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.3130002021789551,
+            "p50Ms": 0.327700138092041,
+            "p95Ms": 0.37779998779296875,
+            "p99Ms": 0.47590017318725586,
+            "maxMs": 0.8116002082824707,
+            "meanMs": 0.33852699597676594
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.12830018997192383,
+            "p50Ms": 0.13010025024414062,
+            "p95Ms": 0.13569974899291992,
+            "p99Ms": 0.14839982986450195,
+            "maxMs": 0.22230005264282227,
+            "meanMs": 0.1313528331120809
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.18440008163452148,
+            "p50Ms": 0.19719982147216797,
+            "p95Ms": 0.24130010604858398,
+            "p99Ms": 0.34580039978027344,
+            "maxMs": 0.6104001998901367,
+            "meanMs": 0.20717416286468507
+          },
+          "roundTrip": {
+            "samples": 600,
+            "minMs": 0.3081998825073242,
+            "p50Ms": 0.3227996826171875,
+            "p95Ms": 0.37240028381347656,
+            "p99Ms": 0.4699997901916504,
+            "maxMs": 0.8030996322631836,
+            "meanMs": 0.3334049956003825
+          }
+        },
+        "ipcFourPlayers": {
+          "total": {
+            "samples": 2400,
+            "minMs": 0.29719972610473633,
+            "p50Ms": 0.33519983291625977,
+            "p95Ms": 0.43310022354125977,
+            "p99Ms": 0.6070003509521484,
+            "maxMs": 0.8062000274658203,
+            "meanMs": 0.35120008607705433
+          },
+          "execution": {
+            "samples": 2400,
+            "minMs": 0.12839984893798828,
+            "p50Ms": 0.13250017166137695,
+            "p95Ms": 0.14969968795776367,
+            "p99Ms": 0.2368001937866211,
+            "maxMs": 0.45399999618530273,
+            "meanMs": 0.1361284589767456
+          },
+          "outsideExecutionTimer": {
+            "samples": 2400,
+            "minMs": 0.1677999496459961,
+            "p50Ms": 0.20209980010986328,
+            "p95Ms": 0.2767000198364258,
+            "p99Ms": 0.4479994773864746,
+            "maxMs": 0.6761002540588379,
+            "meanMs": 0.21507162710030875
+          },
+          "roundTrip": {
+            "samples": 2400,
+            "minMs": 0.2934999465942383,
+            "p50Ms": 0.3299999237060547,
+            "p95Ms": 0.4274001121520996,
+            "p99Ms": 0.6002001762390137,
+            "maxMs": 0.8011999130249023,
+            "meanMs": 0.34622291882832845
+          }
+        }
+      }
+    },
+    {
+      "scenario": "input-read",
+      "description": "Read every input cell/item and retain checksum.",
+      "columns": 12,
+      "rows": 10,
+      "cells": 120,
+      "payloadJsonBytes": 331,
+      "preparation": {
+        "directMs": 3.1936001777648926,
+        "fourPlayersParallelMs": 134.2104001045227
+      },
+      "modes": {
+        "directQuickJs": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.03690004348754883,
+            "p50Ms": 0.037999629974365234,
+            "p95Ms": 0.05560016632080078,
+            "p99Ms": 0.08279991149902344,
+            "maxMs": 0.19910001754760742,
+            "meanMs": 0.04111165603001912
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.02539968490600586,
+            "p50Ms": 0.026000022888183594,
+            "p95Ms": 0.037600040435791016,
+            "p99Ms": 0.05019998550415039,
+            "maxMs": 0.17389965057373047,
+            "meanMs": 0.027903828620910644
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.011299610137939453,
+            "p50Ms": 0.012000083923339844,
+            "p95Ms": 0.01940011978149414,
+            "p99Ms": 0.026199817657470703,
+            "maxMs": 0.16969966888427734,
+            "meanMs": 0.01320782740910848
+          },
+          "roundTrip": null
+        },
+        "ipcOnePlayer": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.14039993286132812,
+            "p50Ms": 0.15729999542236328,
+            "p95Ms": 0.2444000244140625,
+            "p99Ms": 0.29940032958984375,
+            "maxMs": 0.3652000427246094,
+            "meanMs": 0.1777288508415222
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.03170013427734375,
+            "p50Ms": 0.033599853515625,
+            "p95Ms": 0.0952000617980957,
+            "p99Ms": 0.1341996192932129,
+            "maxMs": 0.17670011520385742,
+            "meanMs": 0.05252516428629557
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.1082000732421875,
+            "p50Ms": 0.11890029907226562,
+            "p95Ms": 0.15290021896362305,
+            "p99Ms": 0.18979978561401367,
+            "maxMs": 0.3081998825073242,
+            "meanMs": 0.12520368655522665
+          },
+          "roundTrip": {
+            "samples": 600,
+            "minMs": 0.13680028915405273,
+            "p50Ms": 0.15349960327148438,
+            "p95Ms": 0.24009990692138672,
+            "p99Ms": 0.2956995964050293,
+            "maxMs": 0.36030006408691406,
+            "meanMs": 0.1738480003674825
+          }
+        },
+        "ipcFourPlayers": {
+          "total": {
+            "samples": 2400,
+            "minMs": 0.1420001983642578,
+            "p50Ms": 0.1735997200012207,
+            "p95Ms": 0.3182997703552246,
+            "p99Ms": 0.41970014572143555,
+            "maxMs": 1.0043001174926758,
+            "meanMs": 0.19248953938484192
+          },
+          "execution": {
+            "samples": 2400,
+            "minMs": 0.03170013427734375,
+            "p50Ms": 0.035900115966796875,
+            "p95Ms": 0.1324000358581543,
+            "p99Ms": 0.17380046844482422,
+            "maxMs": 0.5879998207092285,
+            "meanMs": 0.04649333715438843
+          },
+          "outsideExecutionTimer": {
+            "samples": 2400,
+            "minMs": 0.1064000129699707,
+            "p50Ms": 0.13670015335083008,
+            "p95Ms": 0.19800043106079102,
+            "p99Ms": 0.3031001091003418,
+            "maxMs": 0.8225002288818359,
+            "meanMs": 0.14599620223045348
+          },
+          "roundTrip": {
+            "samples": 2400,
+            "minMs": 0.13839960098266602,
+            "p50Ms": 0.1707000732421875,
+            "p95Ms": 0.3136000633239746,
+            "p99Ms": 0.4169001579284668,
+            "maxMs": 0.9998998641967773,
+            "meanMs": 0.18941612740357716
+          }
+        }
+      }
+    },
+    {
+      "scenario": "input-read",
+      "description": "Read every input cell/item and retain checksum.",
+      "columns": 20,
+      "rows": 16,
+      "cells": 320,
+      "payloadJsonBytes": 768,
+      "preparation": {
+        "directMs": 2.3822999000549316,
+        "fourPlayersParallelMs": 132.86240005493164
+      },
+      "modes": {
+        "directQuickJs": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.07530021667480469,
+            "p50Ms": 0.07690000534057617,
+            "p95Ms": 0.08730030059814453,
+            "p99Ms": 0.11719989776611328,
+            "maxMs": 0.3125,
+            "meanMs": 0.07904616753260295
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.055199623107910156,
+            "p50Ms": 0.05579996109008789,
+            "p95Ms": 0.059999942779541016,
+            "p99Ms": 0.07710027694702148,
+            "maxMs": 0.28840017318725586,
+            "meanMs": 0.05716950496037801
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.019899845123291016,
+            "p50Ms": 0.020999908447265625,
+            "p95Ms": 0.026500225067138672,
+            "p99Ms": 0.03770017623901367,
+            "maxMs": 0.07970046997070312,
+            "meanMs": 0.021876662572224936
+          },
+          "roundTrip": null
+        },
+        "ipcOnePlayer": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.1846003532409668,
+            "p50Ms": 0.20060014724731445,
+            "p95Ms": 0.3763003349304199,
+            "p99Ms": 0.5138998031616211,
+            "maxMs": 0.8446998596191406,
+            "meanMs": 0.2362524922688802
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.0625,
+            "p50Ms": 0.06550025939941406,
+            "p95Ms": 0.2014002799987793,
+            "p99Ms": 0.28039979934692383,
+            "maxMs": 0.4107999801635742,
+            "meanMs": 0.09380199591318766
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.12190055847167969,
+            "p50Ms": 0.13389968872070312,
+            "p95Ms": 0.17699956893920898,
+            "p99Ms": 0.26360034942626953,
+            "maxMs": 0.5541000366210938,
+            "meanMs": 0.14245049635569254
+          },
+          "roundTrip": {
+            "samples": 600,
+            "minMs": 0.1807999610900879,
+            "p50Ms": 0.1966996192932129,
+            "p95Ms": 0.3719000816345215,
+            "p99Ms": 0.5079002380371094,
+            "maxMs": 0.8383002281188965,
+            "meanMs": 0.2320608385403951
+          }
+        },
+        "ipcFourPlayers": {
+          "total": {
+            "samples": 2400,
+            "minMs": 0.1789999008178711,
+            "p50Ms": 0.20580005645751953,
+            "p95Ms": 0.2790999412536621,
+            "p99Ms": 0.34130001068115234,
+            "maxMs": 0.807499885559082,
+            "meanMs": 0.2185589975118637
+          },
+          "execution": {
+            "samples": 2400,
+            "minMs": 0.0625,
+            "p50Ms": 0.06730031967163086,
+            "p95Ms": 0.08069992065429688,
+            "p99Ms": 0.11329984664916992,
+            "maxMs": 0.3535003662109375,
+            "meanMs": 0.06913475573062897
+          },
+          "outsideExecutionTimer": {
+            "samples": 2400,
+            "minMs": 0.11259984970092773,
+            "p50Ms": 0.13829994201660156,
+            "p95Ms": 0.20060014724731445,
+            "p99Ms": 0.2558002471923828,
+            "maxMs": 0.7389001846313477,
+            "meanMs": 0.14942424178123473
+          },
+          "roundTrip": {
+            "samples": 2400,
+            "minMs": 0.17639970779418945,
+            "p50Ms": 0.20279979705810547,
+            "p95Ms": 0.27559995651245117,
+            "p99Ms": 0.33730030059814453,
+            "maxMs": 0.8046002388000488,
+            "meanMs": 0.2152692041794459
+          }
+        }
+      }
+    },
+    {
+      "scenario": "input-read",
+      "description": "Read every input cell/item and retain checksum.",
+      "columns": 40,
+      "rows": 30,
+      "cells": 1200,
+      "payloadJsonBytes": 2644,
+      "preparation": {
+        "directMs": 1.9581003189086914,
+        "fourPlayersParallelMs": 131.65790033340454
+      },
+      "modes": {
+        "directQuickJs": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.24569988250732422,
+            "p50Ms": 0.24760007858276367,
+            "p95Ms": 0.25880002975463867,
+            "p99Ms": 0.2741999626159668,
+            "maxMs": 0.3974003791809082,
+            "meanMs": 0.24972300132115682
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.18330001831054688,
+            "p50Ms": 0.18439960479736328,
+            "p95Ms": 0.19140005111694336,
+            "p99Ms": 0.2059001922607422,
+            "maxMs": 0.23819971084594727,
+            "meanMs": 0.18573115825653075
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.061899662017822266,
+            "p50Ms": 0.06310033798217773,
+            "p95Ms": 0.06799983978271484,
+            "p99Ms": 0.08039999008178711,
+            "maxMs": 0.18590068817138672,
+            "meanMs": 0.06399184306462606
+          },
+          "roundTrip": null
+        },
+        "ipcOnePlayer": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.38000011444091797,
+            "p50Ms": 0.39529991149902344,
+            "p95Ms": 0.4604001045227051,
+            "p99Ms": 0.5743999481201172,
+            "maxMs": 1.0680999755859375,
+            "meanMs": 0.40788599570592243
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.1930999755859375,
+            "p50Ms": 0.1970996856689453,
+            "p95Ms": 0.20930004119873047,
+            "p99Ms": 0.2277998924255371,
+            "maxMs": 0.3134002685546875,
+            "meanMs": 0.19889267603556315
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.1839003562927246,
+            "p50Ms": 0.19810009002685547,
+            "p95Ms": 0.25530052185058594,
+            "p99Ms": 0.2956995964050293,
+            "maxMs": 0.8730001449584961,
+            "meanMs": 0.2089933196703593
+          },
+          "roundTrip": {
+            "samples": 600,
+            "minMs": 0.3755002021789551,
+            "p50Ms": 0.39029979705810547,
+            "p95Ms": 0.45279979705810547,
+            "p99Ms": 0.5678000450134277,
+            "maxMs": 1.0631999969482422,
+            "meanMs": 0.4026998337109884
+          }
+        },
+        "ipcFourPlayers": {
+          "total": {
+            "samples": 2400,
+            "minMs": 0.35970020294189453,
+            "p50Ms": 0.40450000762939453,
+            "p95Ms": 0.47770023345947266,
+            "p99Ms": 0.6556000709533691,
+            "maxMs": 1.2142000198364258,
+            "meanMs": 0.4189803687731425
+          },
+          "execution": {
+            "samples": 2400,
+            "minMs": 0.19210004806518555,
+            "p50Ms": 0.19840002059936523,
+            "p95Ms": 0.21359968185424805,
+            "p99Ms": 0.2932000160217285,
+            "maxMs": 0.45240020751953125,
+            "meanMs": 0.20143366197745005
+          },
+          "outsideExecutionTimer": {
+            "samples": 2400,
+            "minMs": 0.16669988632202148,
+            "p50Ms": 0.20509958267211914,
+            "p95Ms": 0.27029991149902344,
+            "p99Ms": 0.38879966735839844,
+            "maxMs": 1.0048003196716309,
+            "meanMs": 0.21754670679569243
+          },
+          "roundTrip": {
+            "samples": 2400,
+            "minMs": 0.35610008239746094,
+            "p50Ms": 0.39969968795776367,
+            "p95Ms": 0.4724998474121094,
+            "p99Ms": 0.6486997604370117,
+            "maxMs": 1.2035999298095703,
+            "meanMs": 0.41418045401573184
+          }
+        }
+      }
+    },
+    {
+      "scenario": "nearest-coin",
+      "description": "Existing nearest-coin BFS sample, including its periodic bounded debug output.",
+      "columns": 12,
+      "rows": 10,
+      "cells": 120,
+      "payloadJsonBytes": 331,
+      "preparation": {
+        "directMs": 5.102799892425537,
+        "fourPlayersParallelMs": 134.33500003814697
+      },
+      "modes": {
+        "directQuickJs": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.0410003662109375,
+            "p50Ms": 0.04500007629394531,
+            "p95Ms": 0.08529996871948242,
+            "p99Ms": 0.11189985275268555,
+            "maxMs": 0.2343001365661621,
+            "meanMs": 0.05093965609868367
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.02929973602294922,
+            "p50Ms": 0.031099796295166016,
+            "p95Ms": 0.07019996643066406,
+            "p99Ms": 0.08910036087036133,
+            "maxMs": 0.19789981842041016,
+            "meanMs": 0.036822497844696045
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.011600494384765625,
+            "p50Ms": 0.013600349426269531,
+            "p95Ms": 0.017200469970703125,
+            "p99Ms": 0.02740001678466797,
+            "maxMs": 0.11880016326904297,
+            "meanMs": 0.01411715825398763
+          },
+          "roundTrip": null
+        },
+        "ipcOnePlayer": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.1528000831604004,
+            "p50Ms": 0.18619966506958008,
+            "p95Ms": 0.29379987716674805,
+            "p99Ms": 0.3843998908996582,
+            "maxMs": 2.2880001068115234,
+            "meanMs": 0.20043115774790446
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.036099910736083984,
+            "p50Ms": 0.04220008850097656,
+            "p95Ms": 0.12750005722045898,
+            "p99Ms": 0.18809986114501953,
+            "maxMs": 2.1005001068115234,
+            "meanMs": 0.06284516334533691
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.11619997024536133,
+            "p50Ms": 0.1305999755859375,
+            "p95Ms": 0.16660022735595703,
+            "p99Ms": 0.2828998565673828,
+            "maxMs": 0.6790003776550293,
+            "meanMs": 0.13758599440256755
+          },
+          "roundTrip": {
+            "samples": 600,
+            "minMs": 0.14909982681274414,
+            "p50Ms": 0.1819000244140625,
+            "p95Ms": 0.2895998954772949,
+            "p99Ms": 0.3801002502441406,
+            "maxMs": 2.2824997901916504,
+            "meanMs": 0.19647367159525553
+          }
+        },
+        "ipcFourPlayers": {
+          "total": {
+            "samples": 2400,
+            "minMs": 0.15609979629516602,
+            "p50Ms": 0.19119977951049805,
+            "p95Ms": 0.3089003562927246,
+            "p99Ms": 0.46609973907470703,
+            "maxMs": 0.8714003562927246,
+            "meanMs": 0.20918824593226115
+          },
+          "execution": {
+            "samples": 2400,
+            "minMs": 0.036499977111816406,
+            "p50Ms": 0.04419994354248047,
+            "p95Ms": 0.11010026931762695,
+            "p99Ms": 0.20289993286132812,
+            "maxMs": 0.6721997261047363,
+            "meanMs": 0.05577658176422119
+          },
+          "outsideExecutionTimer": {
+            "samples": 2400,
+            "minMs": 0.11399984359741211,
+            "p50Ms": 0.14550018310546875,
+            "p95Ms": 0.20800018310546875,
+            "p99Ms": 0.2660999298095703,
+            "maxMs": 0.5636997222900391,
+            "meanMs": 0.15341166416803995
+          },
+          "roundTrip": {
+            "samples": 2400,
+            "minMs": 0.15260028839111328,
+            "p50Ms": 0.18830013275146484,
+            "p95Ms": 0.3060002326965332,
+            "p99Ms": 0.46139955520629883,
+            "maxMs": 0.8667001724243164,
+            "meanMs": 0.20609395166238148
+          }
+        }
+      }
+    },
+    {
+      "scenario": "nearest-coin",
+      "description": "Existing nearest-coin BFS sample, including its periodic bounded debug output.",
+      "columns": 20,
+      "rows": 16,
+      "cells": 320,
+      "payloadJsonBytes": 768,
+      "preparation": {
+        "directMs": 3.1673998832702637,
+        "fourPlayersParallelMs": 130.28830003738403
+      },
+      "modes": {
+        "directQuickJs": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.06939983367919922,
+            "p50Ms": 0.07140016555786133,
+            "p95Ms": 0.12160015106201172,
+            "p99Ms": 0.15709972381591797,
+            "maxMs": 0.2932000160217285,
+            "meanMs": 0.07985216061274211
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.04819965362548828,
+            "p50Ms": 0.04940032958984375,
+            "p95Ms": 0.09030008316040039,
+            "p99Ms": 0.11719989776611328,
+            "maxMs": 0.22349977493286133,
+            "meanMs": 0.056107177734375
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.02089977264404297,
+            "p50Ms": 0.021900177001953125,
+            "p95Ms": 0.030700206756591797,
+            "p99Ms": 0.05719947814941406,
+            "maxMs": 0.23740005493164062,
+            "meanMs": 0.023744982878367106
+          },
+          "roundTrip": null
+        },
+        "ipcOnePlayer": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.19570016860961914,
+            "p50Ms": 0.22160005569458008,
+            "p95Ms": 0.3482999801635742,
+            "p99Ms": 0.5286998748779297,
+            "maxMs": 2.177499771118164,
+            "meanMs": 0.2449674924214681
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.05639982223510742,
+            "p50Ms": 0.06100034713745117,
+            "p95Ms": 0.13899993896484375,
+            "p99Ms": 0.23070001602172852,
+            "maxMs": 1.9685001373291016,
+            "meanMs": 0.08323901255925496
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.13899993896484375,
+            "p50Ms": 0.15339994430541992,
+            "p95Ms": 0.20349979400634766,
+            "p99Ms": 0.29799985885620117,
+            "maxMs": 0.5499997138977051,
+            "meanMs": 0.16172847986221314
+          },
+          "roundTrip": {
+            "samples": 600,
+            "minMs": 0.19190025329589844,
+            "p50Ms": 0.2172999382019043,
+            "p95Ms": 0.343599796295166,
+            "p99Ms": 0.5218000411987305,
+            "maxMs": 2.172100067138672,
+            "meanMs": 0.2406956696510315
+          }
+        },
+        "ipcFourPlayers": {
+          "total": {
+            "samples": 2400,
+            "minMs": 0.19029998779296875,
+            "p50Ms": 0.22230005264282227,
+            "p95Ms": 0.32220029830932617,
+            "p99Ms": 0.45149993896484375,
+            "maxMs": 0.822199821472168,
+            "meanMs": 0.23995874385039012
+          },
+          "execution": {
+            "samples": 2400,
+            "minMs": 0.05579996109008789,
+            "p50Ms": 0.0644998550415039,
+            "p95Ms": 0.11960029602050781,
+            "p99Ms": 0.1700000762939453,
+            "maxMs": 0.3523998260498047,
+            "meanMs": 0.07242383778095246
+          },
+          "outsideExecutionTimer": {
+            "samples": 2400,
+            "minMs": 0.12759971618652344,
+            "p50Ms": 0.15630006790161133,
+            "p95Ms": 0.2175002098083496,
+            "p99Ms": 0.2783999443054199,
+            "maxMs": 0.7417998313903809,
+            "meanMs": 0.16753490606943766
+          },
+          "roundTrip": {
+            "samples": 2400,
+            "minMs": 0.18760013580322266,
+            "p50Ms": 0.2190999984741211,
+            "p95Ms": 0.31729984283447266,
+            "p99Ms": 0.44680023193359375,
+            "maxMs": 0.8192996978759766,
+            "meanMs": 0.23662241339683532
+          }
+        }
+      }
+    },
+    {
+      "scenario": "nearest-coin",
+      "description": "Existing nearest-coin BFS sample, including its periodic bounded debug output.",
+      "columns": 40,
+      "rows": 30,
+      "cells": 1200,
+      "payloadJsonBytes": 2644,
+      "preparation": {
+        "directMs": 2.8333001136779785,
+        "fourPlayersParallelMs": 130.82809972763062
+      },
+      "modes": {
+        "directQuickJs": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.19499969482421875,
+            "p50Ms": 0.20270013809204102,
+            "p95Ms": 0.2536001205444336,
+            "p99Ms": 0.29239988327026367,
+            "maxMs": 0.35809993743896484,
+            "meanMs": 0.21152883291244506
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.13229990005493164,
+            "p50Ms": 0.13700008392333984,
+            "p95Ms": 0.18060016632080078,
+            "p99Ms": 0.20929956436157227,
+            "maxMs": 0.2567000389099121,
+            "meanMs": 0.1445134965578715
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.0625,
+            "p50Ms": 0.06480026245117188,
+            "p95Ms": 0.07560014724731445,
+            "p99Ms": 0.08909988403320312,
+            "maxMs": 0.1456003189086914,
+            "meanMs": 0.06701533635457357
+          },
+          "roundTrip": null
+        },
+        "ipcOnePlayer": {
+          "total": {
+            "samples": 600,
+            "minMs": 0.37599992752075195,
+            "p50Ms": 0.40450000762939453,
+            "p95Ms": 0.48199987411499023,
+            "p99Ms": 0.6171002388000488,
+            "maxMs": 2.3881001472473145,
+            "meanMs": 0.4202011799812317
+          },
+          "execution": {
+            "samples": 600,
+            "minMs": 0.14119958877563477,
+            "p50Ms": 0.1455998420715332,
+            "p95Ms": 0.20020008087158203,
+            "p99Ms": 0.23650026321411133,
+            "maxMs": 2.055799961090088,
+            "meanMs": 0.15632064978281657
+          },
+          "outsideExecutionTimer": {
+            "samples": 600,
+            "minMs": 0.23420000076293945,
+            "p50Ms": 0.2560000419616699,
+            "p95Ms": 0.3027000427246094,
+            "p99Ms": 0.40869998931884766,
+            "maxMs": 0.5632004737854004,
+            "meanMs": 0.2638805301984151
+          },
+          "roundTrip": {
+            "samples": 600,
+            "minMs": 0.3713998794555664,
+            "p50Ms": 0.39909982681274414,
+            "p95Ms": 0.47499990463256836,
+            "p99Ms": 0.6118998527526855,
+            "maxMs": 2.380500316619873,
+            "meanMs": 0.41478399276733396
+          }
+        },
+        "ipcFourPlayers": {
+          "total": {
+            "samples": 2400,
+            "minMs": 0.36150026321411133,
+            "p50Ms": 0.41540002822875977,
+            "p95Ms": 0.5107002258300781,
+            "p99Ms": 0.6498003005981445,
+            "maxMs": 0.9555997848510742,
+            "meanMs": 0.42836154222488404
+          },
+          "execution": {
+            "samples": 2400,
+            "minMs": 0.1406998634338379,
+            "p50Ms": 0.15080022811889648,
+            "p95Ms": 0.21070003509521484,
+            "p99Ms": 0.27089977264404297,
+            "maxMs": 0.5491995811462402,
+            "meanMs": 0.1596615755558014
+          },
+          "outsideExecutionTimer": {
+            "samples": 2400,
+            "minMs": 0.21899986267089844,
+            "p50Ms": 0.2601003646850586,
+            "p95Ms": 0.3260002136230469,
+            "p99Ms": 0.4170999526977539,
+            "maxMs": 0.674799919128418,
+            "meanMs": 0.26869996666908263
+          },
+          "roundTrip": {
+            "samples": 2400,
+            "minMs": 0.3570995330810547,
+            "p50Ms": 0.41069984436035156,
+            "p95Ms": 0.5060997009277344,
+            "p99Ms": 0.6440000534057617,
+            "maxMs": 0.9503002166748047,
+            "meanMs": 0.42346524993578594
+          }
+        }
+      }
+    }
+  ]
+}

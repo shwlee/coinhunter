@@ -10,8 +10,8 @@
 - 2026-11-15 배포 범위 변경: FE/BE 서버 분리를 고도화 보류에서 배포 준비로 전환했다. [FE 요구사항](frontend-deployment-requirements.md)을 기준으로 독립 실행·정적 제공·API 중계·인증/주소·SSE/업로드·산출물·회귀 검증을 먼저 준비한다. 실제 분리 구현은 아직 남아 있다.
 - 실행/렌더링 목표: [전체 흐름·차트](game-execution-rendering-flow.md)에 C# 운영 BE·상주 실행 관리자·게임별 Node.js 엔진과 화면/SSE·원본 로그·종료/복구 경로를 보관했다. 구체 포팅·서비스/프로세스 구현 계획은 이 목표에 맞춰 갱신하며 이번에는 문서화만 수행했다.
 - 실행 공정성 기준: 실제 계산 속도가 승부에 반영되는 독립 턴을 유지한다. 계산 완료 즉시 액션·액션 완료 즉시 다음 계산으로 진행하며 공통 판단 지연/논리 시간 보정은 제외한다. 언어별 호출 인프라 편차는 실행기·입력 전달 설계와 측정으로 줄인다. [호출 비용 분석](algorithm-invocation-cost-analysis.md).
-- 실행기 후속 작업: [구체 계획](algorithm-runner-independence-plan.md)에 계약 정의·기존 JS 어댑터 주입·독립 진행·호출 비용 분해/최적화·통합 검증을 추가했다. 문서화만 완료했으며 구현은 남아 있다. 다른 언어 런타임/후보 검증은 다국어 착수 때 수행한다.
-- 현재 진행: [BE 분리 1~9단계](backend-separation-implementation-plan.md)의 로컬 구현·검증을 완료했고 사용자 리뷰 대기다. [결과·검증·제한](backend-split-completion.md), [실행법](../backend/README.md), [이전·복귀](backend-cutover-runbook.md). 실제 사용자 이전·Google 왕복·외부 배포·커밋/푸시는 하지 않았다.
+- 실행기 후속 작업: [10단계 계획](game-engine-language-runners-plan.md)의 1단계 공통 타입/구조·수명 검증과 현 JS 기준선을 완료했다. [계약](algorithm-runner-contract.md), [결과/측정](runner-stage1-results.md). 다음은 2단계 JS 정식 어댑터·registry 연결이며 아직 게임 경로나 지원 언어를 변경하지 않았다.
+- 현재 진행: [BE 분리 1~9단계](backend-separation-implementation-plan.md)와 FE/BE 폴더 정리는 `1183977`로 커밋/푸시했다. [결과·검증·제한](backend-split-completion.md), [실행법](../backend/README.md), [이전·복귀](backend-cutover-runbook.md). 실제 사용자 이전·Google 왕복·외부 배포는 별도다.
 - 관련: [진행 결과](progress.md), [저장 어댑터](storage-adapters.md), [관리자 계획](admin-page-plan.md), [개인정보 운영 준비](privacy-operations-plan.md), [고도화 보관 목록](enhancement-backlog.md).
 
 ## 1. 현재 범위에서 마감한 프롬프트 작업
@@ -53,6 +53,6 @@ BE 분리 로컬 구현은 완료했고 사용자 리뷰를 기다린다. 아래
 ## 4. 고도화 항목의 현재 범위
 
 - [FE 웹서버·BE 서버 분리](frontend-backend-separation-plan.md): 2026-11-15 배포 준비 범위로 전환했다. 더 이상 보류 항목이 아니며 [FE 요구사항](frontend-deployment-requirements.md)에 따라 진행한다.
-- [여러 언어 지원](enhancement-backlog.md#2-여러-알고리즘-언어-지원): C#·C++·JavaScript·Python 대상. 사전 준비/컴파일·경기별 인스턴스 유지, 턴별 500ms 중단 후 같은 인스턴스 재호출을 언어별로 검증한 뒤 지원 구조를 확정한다. 턴마다 컴파일하거나 시간 초과마다 프로세스를 재시작하는 방식으로 바꾸지 않는다.
+- [여러 언어 지원](game-engine-language-runners-plan.md): C#·C++·JavaScript·Python 대상의 실행 영역 10단계 계획으로 구체화했다. 4단계에서 실제 중단·동일 인스턴스 재사용·격리·호출 비용을 판정한 언어만 정식 지원으로 진행한다. 매 턴 컴파일/프로세스 재시작·고정 시간 보정은 도입하지 않는다.
 
 향후 기능을 추가하더라도 원문 파일 저장·사용자 소유권·독립적인 경기 실행·삭제 가능한 저장 계약을 유지하며, 개인정보 운영 준비는 실서비스 전 마지막 필수 단계로 남긴다.

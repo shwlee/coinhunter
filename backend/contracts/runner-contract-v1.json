@@ -1,0 +1,44 @@
+{
+  "contractVersion": 1,
+  "scope": "engine-algorithm-runner",
+  "candidateLanguages": ["javascript", "csharp", "cpp", "python"],
+  "registration": "candidate vocabulary only; availability is resolved by the runtime registry",
+  "states": ["created", "initializing", "ready", "computing", "closing", "closed", "failed"],
+  "moveStatuses": ["ok", "timeout", "exception", "invalid-result"],
+  "directions": { "left": 0, "up": 1, "right": 2, "down": 3, "stay": -1 },
+  "limits": { "turnMs": 500, "debugLines": 30, "debugLineCharacters": 1024 },
+  "identity": {
+    "ids": "nonempty canonical lowercase UUID",
+    "callId": "per-run starts at 1, then strictly increasing positive safe integers"
+  },
+  "completion": {
+    "ok": "returned",
+    "timeout": "interrupted",
+    "exception": "returned",
+    "invalid-result": "returned"
+  },
+  "timings": {
+    "required": [
+      "executionMs",
+      "executionBoundary",
+      "roundTripMs",
+      "inputPreparationMs",
+      "responseProcessingMs",
+      "engineApplyDelayMs"
+    ],
+    "unmeasured": null,
+    "existingJavascriptBoundary": "quickjs-call-v1"
+  },
+  "infrastructureFaultCodes": [
+    "unavailable",
+    "initialization-failed",
+    "host-exited",
+    "unresponsive",
+    "protocol-error",
+    "memory-limit",
+    "preparation-failed",
+    "cancelled"
+  ],
+  "infrastructureFaultStages": ["prepare", "initialize", "move", "close"],
+  "close": "resourcesReleased:true is acknowledged by the adapter after actual resource release; validation is not proof of physical termination"
+}
