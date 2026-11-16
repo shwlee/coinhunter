@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "policyId": "coinhunter-authoring",
+  "policyVersion": "1.0.0",
+  "status": "specified-not-activated",
+  "scope": "user-algorithm-source",
+  "activation": "A versioned language profile and verified analyzer/runner are required; this catalog does not register languages or change the current JS policy.",
+  "languages": ["javascript", "csharp", "python", "cpp"],
+  "sourceFileCount": 1,
+  "sourceByteLimit": null,
+  "moveBudgetMs": 500,
+  "rules": [
+    {
+      "id": "AR001",
+      "name": "single-source",
+      "message": "알고리즘은 하나의 소스 파일로 작성해야 합니다.",
+      "checks": ["source-manifest", "dependency-resolution"],
+      "requirement": "No additional user source files; generated host wrapper and approved platform headers are not user dependencies."
+    },
+    {
+      "id": "AR002",
+      "name": "platform-only",
+      "message": "승인된 언어 기본 기능 외의 코드·라이브러리는 사용할 수 없습니다.",
+      "checks": ["reference-resolution", "artifact-imports"],
+      "requirement": "No external packages, binaries, third-party code import or downloads. Platform origin does not exempt an API from other rules."
+    },
+    {
+      "id": "AR003",
+      "name": "instance-state",
+      "message": "변경되는 알고리즘 상태는 Player 인스턴스에 보관해야 합니다.",
+      "checks": ["syntax", "symbols", "state-ownership"],
+      "requirement": "Reject user C# static declarations and language-equivalent mutable type/module/global stores. Approved platform static functions are distinct from user declarations. Immutable value constants and helper types are allowed subject to the language profile."
+    },
+    {
+      "id": "AR004",
+      "name": "synchronous-only",
+      "message": "비동기·병렬·스레드·Task 코드는 사용할 수 없습니다.",
+      "checks": ["syntax", "reference-resolution", "host-capabilities"],
+      "requirement": "No user background execution, scheduling, async/await, threads, processes or parallel APIs. The synchronous callback itself must satisfy the same rules."
+    },
+    {
+      "id": "AR005",
+      "name": "no-wait",
+      "message": "sleep·타이머·블로킹 대기 기능은 사용할 수 없습니다.",
+      "checks": ["reference-resolution", "host-capabilities"],
+      "requirement": "Reject explicit waiting and blocking synchronization/I/O; ordinary algorithm computation is governed by the execution budget."
+    },
+    {
+      "id": "AR006",
+      "name": "no-network",
+      "message": "web·socket 등 네트워크 기능은 사용할 수 없습니다.",
+      "checks": ["reference-resolution", "host-capabilities"],
+      "requirement": "No internal or external network access, including loopback."
+    },
+    {
+      "id": "AR007",
+      "name": "no-host-control",
+      "message": "호스트 파일·환경·프로세스·런타임 제어 기능은 사용할 수 없습니다.",
+      "checks": ["reference-resolution", "host-capabilities", "os-isolation"],
+      "requirement": "No filesystem/environment access, process creation/termination, unmanaged entry points, runtime mutation or access to host controls. Host-provided bounded debug output is allowed."
+    },
+    {
+      "id": "AR008",
+      "name": "no-dynamic-code",
+      "message": "동적 코드 실행·임의 로딩·검사 우회 기능은 사용할 수 없습니다.",
+      "checks": ["syntax", "reference-resolution", "host-capabilities"],
+      "requirement": "No eval/exec/Function/Reflection.Emit, dynamic loader, native code injection or access to hidden guard/host bindings. Source aliases must be resolved, not keyword-matched."
+    },
+    {
+      "id": "AR009",
+      "name": "no-recursion",
+      "message": "직접 재귀와 상호 재귀 호출은 사용할 수 없습니다.",
+      "checks": ["resolved-call-graph"],
+      "requirement": "Reject user call-graph cycles, including resolvable callbacks and implicit property/operator calls. Unresolved call targets receive AP001, not an assertion that recursion was proven."
+    },
+    {
+      "id": "AR010",
+      "name": "structured-control-flow",
+      "message": "goto·임의 점프를 사용할 수 없습니다.",
+      "checks": ["syntax", "reference-resolution"],
+      "requirement": "Reject goto, computed jumps and setjmp/longjmp. Ordinary return/break/continue remain allowed; language-profile restrictions on labeled forms must be explicit."
+    },
+    {
+      "id": "AR011",
+      "name": "no-user-exception-handling",
+      "message": "사용자 try/catch/finally 및 대응 예외 처리 구문을 사용할 수 없습니다.",
+      "checks": ["syntax", "implicit-exception-paths"],
+      "requirement": "Reject JS/C# try/catch/finally, Python try/except/except*/finally and C++ try/catch/function-try-block. Generated host handlers and approved platform internals are not user source. Implicit suppression/cleanup requires profile approval."
+    },
+    {
+      "id": "AR012",
+      "name": "bounded-execution",
+      "message": "호출은 500ms 실행 예산 안에 종료되어야 합니다.",
+      "checks": ["runtime-budget", "host-watchdog"],
+      "requirement": "Loops are allowed. Infinite or finite computation exceeding the budget fails that invocation. Finite tests do not prove termination for all inputs. Budget observation is not evidence that abandoned work actually stopped."
+    },
+    {
+      "id": "AR013",
+      "name": "player-interface",
+      "message": "필수 초기화·이름·이동 인터페이스와 반환 규약을 지켜야 합니다.",
+      "checks": ["interface", "runtime-result"],
+      "requirement": "Logical initialize(myNumber, columns, rows), getName(), moveNext(map, myPosition, items); concrete non-JS bindings are profile-specific. Return integer -1/0/1/2/3, not bool/string/promise. Arrays and position use the existing runner contract."
+    }
+  ],
+  "diagnostics": {
+    "policyCodes": "AR001..AR013 correspond to rules; codes are not inferred from exception text.",
+    "otherCodes": {
+      "AP001": "Unsupported or unresolvable construct in this language profile; no safety proof claimed.",
+      "AX001": "Source syntax error.",
+      "AX002": "User execution exception.",
+      "AX003": "Verified resource limit exceeded.",
+      "AX004": "Infrastructure or validation environment failure; not a user policy violation."
+    },
+    "required": [
+      "code",
+      "stage",
+      "language",
+      "policyVersion",
+      "profileVersion",
+      "sourceHash",
+      "message",
+      "location",
+      "scenario",
+      "callId"
+    ],
+    "location": "null or original-source {line,column,endLine,endColumn}; all coordinates 1-based, half-open end; never generated wrapper or host path",
+    "nullableFields": ["location", "scenario", "callId"],
+    "priority": ["syntax", "static-policy", "prepare", "load", "initialize", "getName", "moveNext"],
+    "notes": "Stable source-order diagnostics; deduplicate by rule/location; report skipped execution when static checks fail. Do not call an unresolved target recursion. Runtime errors need not have a reliable source location."
+  },
+  "validation": {
+    "states": ["pending", "passed", "failed", "unverified", "stale"],
+    "identity": [
+      "owner",
+      "sourceHash",
+      "sourceRevision",
+      "language",
+      "policyVersion",
+      "profileVersion",
+      "analyzerVersion",
+      "runtimeVersion",
+      "fixtureVersion",
+      "resourceProfileVersion"
+    ],
+    "save": "Persist source even when syntax/policy/runtime checks fail. Authentication, ownership, concurrency and storage failures remain save failures.",
+    "execute": "Require a current server-verified passed result or run preflight first at every execution entry path.",
+    "voluntaryStay": "-1 is a valid move result and is not a validation failure.",
+    "timeout": "A test invocation exceeding 500ms fails the test, but not source persistence. In-game unexpected timeout remains a current-turn penalty under the active execution contract.",
+    "migration": "Do not activate until all execution entry points, stale detection, old-code preservation and diagnostics are verified. No automatic deletion of existing sources."
+  },
+  "currentProduction": {
+    "supportedLanguages": ["javascript"],
+    "implementsThisPolicy": false,
+    "javascriptSyntaxChecks": [
+      "async",
+      "await",
+      "generator",
+      "dynamic-import",
+      "class-static-member",
+      "static-block"
+    ],
+    "additionalChecks": "Existing QuickJS capability restrictions, execution budget and preflight are separate from complete conformance to this policy.",
+    "newUnimplementedChecks": [
+      "complete-state-ownership",
+      "resolved-recursion-analysis",
+      "user-try-rejection",
+      "profile-api-allowlist",
+      "save-validation-state"
+    ]
+  }
+}

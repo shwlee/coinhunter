@@ -1,5 +1,12 @@
 # 구현 진행 결과
 
+## 2026-11-16 — 문서 커밋과 공통 작성 규약 명세 착수
+
+- 앞선 4단계 실측·언어별 계획·리뷰 수정 문서 12개를 `ff5d9fb`로 커밋했다. 사용자 요청에 따라 문서만 포함했고 기존 실험 코드/스크립트·package 변경은 별도로 남겼다. 푸시하지 않았다.
+- [공통 작성 규약 v1](algorithm-authoring-policy.md), `backend/contracts/authoring-policy-v1.json`, `authoring-policy-v1.cases.json`을 작성했다. 규칙 13개, 별도 진단, 소스/버전별 검사 상태와 저장/실행 구분, 언어별 허용/프로필 승인 범위, 정상/위반 인수 사례를 정의했다.
+- 기존 JS AST·QuickJS capability·24회 preflight·저장 API와 대조해 새 try/재귀/상태 분석이 미구현임을 표시했다. 새 규약은 specified-not-activated이며 검사 사례는 acceptance-specification-not-executed다. 검사기/게임/프롬프트의 새 규약 집행 완료를 의미하지 않는다.
+- 이번 규약 명세는 커밋 이후 작업이며 아직 커밋하지 않았다. 다음은 현재 JS 규약 분석/검사 확장과 저장 상태 연결이다.
+
 ## 2026-11-16 — 언어별 작업 계획 적대적 리뷰 5건 수정
 
 - [공통 계획의 반영표](restricted-language-runners-plan.md#8-2026-11-16-적대적-리뷰-반영-내역)와 C#/Python/C++ 계획에 높음 2건·중간 3건을 반영했다.

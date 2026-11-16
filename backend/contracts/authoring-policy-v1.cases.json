@@ -1,0 +1,394 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "1.0.0",
+  "fixtureVersion": "1.0.0",
+  "status": "acceptance-specification-not-executed",
+  "sourceUnit": "Fragments/conditions, not complete uploadable Players. A future language-specific harness must assemble the declared context before analysis.",
+  "cases": [
+    {
+      "id": "files-one",
+      "language": "all",
+      "context": "source manifest",
+      "input": ["player source"],
+      "expect": "accept",
+      "rules": ["AR001"]
+    },
+    {
+      "id": "files-two",
+      "language": "all",
+      "context": "source manifest",
+      "input": ["player source", "user helper file"],
+      "expect": "reject-static",
+      "rules": ["AR001"]
+    },
+    {
+      "id": "js-state",
+      "language": "javascript",
+      "context": "instance method",
+      "input": "this.turn++; return -1;",
+      "expect": "accept",
+      "rules": ["AR003", "AR013"]
+    },
+    {
+      "id": "cs-state",
+      "language": "csharp",
+      "context": "instance method with int turn field",
+      "input": "this.turn++; return -1;",
+      "expect": "accept",
+      "rules": ["AR003", "AR013"]
+    },
+    {
+      "id": "py-state",
+      "language": "python",
+      "context": "instance method",
+      "input": "self.turn += 1\nreturn -1",
+      "expect": "accept",
+      "rules": ["AR003", "AR013"]
+    },
+    {
+      "id": "cpp-state",
+      "language": "cpp",
+      "context": "instance method with int turn field",
+      "input": "++this->turn; return -1;",
+      "expect": "accept",
+      "rules": ["AR003", "AR013"]
+    },
+    {
+      "id": "js-try",
+      "language": "javascript",
+      "context": "method",
+      "input": "try { return 0; } catch(e) { return -1; }",
+      "expect": "reject-static",
+      "rules": ["AR011"]
+    },
+    {
+      "id": "cs-try",
+      "language": "csharp",
+      "context": "method",
+      "input": "try { return 0; } catch { return -1; }",
+      "expect": "reject-static",
+      "rules": ["AR011"]
+    },
+    {
+      "id": "py-try",
+      "language": "python",
+      "context": "method",
+      "input": "try:\n    return 0\nexcept Exception:\n    return -1",
+      "expect": "reject-static",
+      "rules": ["AR011"]
+    },
+    {
+      "id": "cpp-try",
+      "language": "cpp",
+      "context": "method",
+      "input": "try { return 0; } catch (...) { return -1; }",
+      "expect": "reject-static",
+      "rules": ["AR011"]
+    },
+    {
+      "id": "js-finally",
+      "language": "javascript",
+      "context": "method",
+      "input": "try { return 0; } finally { this.turn++; }",
+      "expect": "reject-static",
+      "rules": ["AR011"]
+    },
+    {
+      "id": "cs-finally",
+      "language": "csharp",
+      "context": "method",
+      "input": "try { return 0; } finally { this.turn++; }",
+      "expect": "reject-static",
+      "rules": ["AR011"]
+    },
+    {
+      "id": "py-finally",
+      "language": "python",
+      "context": "method",
+      "input": "try:\n    return 0\nfinally:\n    self.turn += 1",
+      "expect": "reject-static",
+      "rules": ["AR011"]
+    },
+    {
+      "id": "cpp-function-try",
+      "language": "cpp",
+      "context": "class method definition",
+      "input": "int step() try { return 0; } catch (...) { return -1; }",
+      "expect": "reject-static",
+      "rules": ["AR011"]
+    },
+    {
+      "id": "cs-static",
+      "language": "csharp",
+      "context": "class member",
+      "input": "static int turn;",
+      "expect": "reject-static",
+      "rules": ["AR003"]
+    },
+    {
+      "id": "js-static",
+      "language": "javascript",
+      "context": "class member",
+      "input": "static turn = 0;",
+      "expect": "reject-static",
+      "rules": ["AR003"]
+    },
+    {
+      "id": "py-class-state",
+      "language": "python",
+      "context": "Player class body",
+      "input": "visited = set()",
+      "expect": "reject-static",
+      "rules": ["AR003"]
+    },
+    {
+      "id": "cpp-static",
+      "language": "cpp",
+      "context": "method",
+      "input": "static int turn = 0; ++turn;",
+      "expect": "reject-static",
+      "rules": ["AR003"]
+    },
+    {
+      "id": "cs-goto",
+      "language": "csharp",
+      "context": "method",
+      "input": "again: this.turn++; goto again;",
+      "expect": "reject-static",
+      "rules": ["AR010"]
+    },
+    {
+      "id": "cpp-goto",
+      "language": "cpp",
+      "context": "method",
+      "input": "again: ++turn; goto again;",
+      "expect": "reject-static",
+      "rules": ["AR010"]
+    },
+    {
+      "id": "js-direct-recursion",
+      "language": "javascript",
+      "context": "Player helper method",
+      "input": "step() { return this.step(); }",
+      "expect": "reject-static",
+      "rules": ["AR009"]
+    },
+    {
+      "id": "cs-mutual-recursion",
+      "language": "csharp",
+      "context": "Player helper methods",
+      "input": "int A() => B(); int B() => A();",
+      "expect": "reject-static",
+      "rules": ["AR009"]
+    },
+    {
+      "id": "py-mutual-recursion",
+      "language": "python",
+      "context": "Player helper methods",
+      "input": "def a(self):\n    return self.b()\ndef b(self):\n    return self.a()",
+      "expect": "reject-static",
+      "rules": ["AR009"]
+    },
+    {
+      "id": "cpp-mutual-recursion",
+      "language": "cpp",
+      "context": "Player helper methods",
+      "input": "int a() { return b(); } int b() { return a(); }",
+      "expect": "reject-static",
+      "rules": ["AR009"]
+    },
+    {
+      "id": "cs-await",
+      "language": "csharp",
+      "context": "helper method",
+      "input": "async System.Threading.Tasks.Task<int> Step() { await System.Threading.Tasks.Task.Delay(1); return 0; }",
+      "expect": "reject-static",
+      "rules": ["AR004", "AR005"]
+    },
+    {
+      "id": "js-await",
+      "language": "javascript",
+      "context": "helper method",
+      "input": "async step() { return 0; }",
+      "expect": "reject-static",
+      "rules": ["AR004"]
+    },
+    {
+      "id": "py-async",
+      "language": "python",
+      "context": "helper method",
+      "input": "async def step(self):\n    return 0",
+      "expect": "reject-static",
+      "rules": ["AR004"]
+    },
+    {
+      "id": "cpp-thread",
+      "language": "cpp",
+      "context": "method with thread header reference",
+      "input": "std::thread t([]{}); t.join();",
+      "expect": "reject-static",
+      "rules": ["AR004", "AR005"]
+    },
+    {
+      "id": "cs-sleep-alias",
+      "language": "csharp",
+      "context": "file fragment with alias and helper type",
+      "input": "using T = System.Threading.Thread; class Helper { int Step() { T.Sleep(1); return 0; } }",
+      "expect": "reject-static",
+      "rules": ["AR005"]
+    },
+    {
+      "id": "py-sleep",
+      "language": "python",
+      "context": "method",
+      "input": "import time\ntime.sleep(1)",
+      "expect": "reject-static",
+      "rules": ["AR005"]
+    },
+    {
+      "id": "py-socket",
+      "language": "python",
+      "context": "method",
+      "input": "import socket\nsocket.socket()",
+      "expect": "reject-static",
+      "rules": ["AR006"]
+    },
+    {
+      "id": "cs-http",
+      "language": "csharp",
+      "context": "method",
+      "input": "var client = new System.Net.Http.HttpClient();",
+      "expect": "reject-static",
+      "rules": ["AR006"]
+    },
+    {
+      "id": "cs-file",
+      "language": "csharp",
+      "context": "method",
+      "input": "System.IO.File.ReadAllText(\"data.txt\");",
+      "expect": "reject-static",
+      "rules": ["AR007"]
+    },
+    {
+      "id": "py-open",
+      "language": "python",
+      "context": "method",
+      "input": "open('data.txt')",
+      "expect": "reject-static",
+      "rules": ["AR007"]
+    },
+    {
+      "id": "js-eval",
+      "language": "javascript",
+      "context": "method",
+      "input": "return eval('2');",
+      "expect": "reject-static",
+      "rules": ["AR008"]
+    },
+    {
+      "id": "py-exec",
+      "language": "python",
+      "context": "method",
+      "input": "exec('x = 2')",
+      "expect": "reject-static",
+      "rules": ["AR008"]
+    },
+    {
+      "id": "py-external",
+      "language": "python",
+      "context": "file",
+      "input": "import numpy",
+      "expect": "reject-static",
+      "rules": ["AR002"]
+    },
+    {
+      "id": "cpp-external",
+      "language": "cpp",
+      "context": "file",
+      "input": "#include <third_party/player_ai.h>",
+      "expect": "reject-static",
+      "rules": ["AR002"]
+    },
+    {
+      "id": "structured-loop",
+      "language": "csharp",
+      "context": "method with int[] map",
+      "input": "for (int i = 0; i < map.Length; i++) { if (map[i] == -1) continue; if (map[i] > 0) break; } return -1;",
+      "expect": "accept",
+      "rules": ["AR010", "AR012", "AR013"]
+    },
+    {
+      "id": "infinite-budget",
+      "language": "javascript",
+      "context": "trusted runtime-only method fixture",
+      "input": "while (true) {}",
+      "expect": "reject-runtime",
+      "rules": ["AR012"]
+    },
+    {
+      "id": "finite-budget",
+      "language": "all",
+      "context": "controlled fixture guaranteed to exceed budget on the measured host",
+      "input": "Finite computation whose measured execution exceeds 500ms",
+      "expect": "reject-runtime",
+      "rules": ["AR012"]
+    },
+    {
+      "id": "py-bool-return",
+      "language": "python",
+      "context": "move method",
+      "input": "return True",
+      "expect": "reject-runtime",
+      "rules": ["AR013"]
+    },
+    {
+      "id": "js-string-return",
+      "language": "javascript",
+      "context": "move method",
+      "input": "return '2';",
+      "expect": "reject-runtime",
+      "rules": ["AR013"]
+    },
+    {
+      "id": "plain-stay",
+      "language": "all",
+      "context": "valid synchronous move result",
+      "input": -1,
+      "expect": "accept",
+      "rules": ["AR013"]
+    },
+    {
+      "id": "std-sort-callback",
+      "language": "all",
+      "context": "standard sorting API with user comparator",
+      "input": "Comparator calls a user helper; verify call graph and exception propagation",
+      "expect": "profile-dependent",
+      "rules": ["AR009", "AR012"]
+    },
+    {
+      "id": "implicit-cleanup",
+      "language": "all",
+      "context": "using/with/destructor equivalent",
+      "input": "User cleanup runs during timeout propagation",
+      "expect": "profile-dependent",
+      "rules": ["AR011", "AR012"]
+    },
+    {
+      "id": "unresolved-target",
+      "language": "all",
+      "context": "static call graph",
+      "input": "A call target cannot be proven within the supported profile",
+      "expect": "reject-static",
+      "rules": [],
+      "diagnostic": "AP001"
+    },
+    {
+      "id": "std-math",
+      "language": "csharp",
+      "context": "method",
+      "input": "return System.Math.Abs(-1);",
+      "expect": "accept",
+      "rules": ["AR002", "AR003", "AR013"]
+    }
+  ]
+}

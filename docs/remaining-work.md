@@ -12,6 +12,7 @@
 - 실행 공정성 기준: 실제 계산 속도가 승부에 반영되는 독립 턴을 유지한다. 계산 완료 즉시 액션·액션 완료 즉시 다음 계산으로 진행하며 공통 판단 지연/논리 시간 보정은 제외한다. 언어별 호출 인프라 편차는 실행기·입력 전달 설계와 측정으로 줄인다. [호출 비용 분석](algorithm-invocation-cost-analysis.md).
 - 실행기 후속 작업: [10단계 계획](game-engine-language-runners-plan.md)의 1~3단계와 [4단계 1차 후보 검증·판정](runner-stage4-results.md)을 수행했다. **선정 관문 미통과**로 C#/Python 대체 호스팅, C++ 중단 자원/힙·컴파일 격리 등 추가 검증이 남았다. 기존 JS의 깊은 재귀 오류 분류도 후속 수정 대상이다. 지원 언어는 JS 하나이며 5단계는 착수하지 않았다.
 - 실행기 추가 계획: [제한 규약 기반 공통·언어별 계획](restricted-language-runners-plan.md)에 사용자 try/catch 금지와 검사/저장 시 실제 테스트 호출을 포함했다. 2026-11-16 리뷰 반영으로 현재 JS 검사·저장 상태·실행 허가 개선(J0~J3)을 독립 선행한다. 다국어는 규약/OS 자원 제한→자동 중단→시간/복구 계약→채택 어댑터→공통 경로 연결 순서다. 실패 코드 보관은 허용하고 검증 전 실행은 거부하는 계획이며 아직 구현하지 않았다.
+- 공통 규약 착수: [작성 규약 v1](algorithm-authoring-policy.md)과 기계 판독 명세·진단/검사 상태·인수 사례를 작성했다. 다음은 JS 규약 분석기/실행 검사 확장(J1), 저장/검사 상태와 실행 허가 연결(J2)이다. 새 규칙은 제품에 아직 활성화하지 않았다.
 - 현재 진행: [BE 분리 1~9단계](backend-separation-implementation-plan.md)와 FE/BE 폴더 정리는 `1183977`로 커밋/푸시했다. [결과·검증·제한](backend-split-completion.md), [실행법](../backend/README.md), [이전·복귀](backend-cutover-runbook.md). 실제 사용자 이전·Google 왕복·외부 배포는 별도다.
 - 관련: [진행 결과](progress.md), [저장 어댑터](storage-adapters.md), [관리자 계획](admin-page-plan.md), [개인정보 운영 준비](privacy-operations-plan.md), [고도화 보관 목록](enhancement-backlog.md).
 
