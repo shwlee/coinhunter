@@ -1,7 +1,7 @@
 # 알고리즘 실행기 추상화·독립 실행·호출 비용 최적화 계획
 
 - 작성일: 2026-11-15
-- 상태: 독립 턴·500ms 중단/상태 유지의 기본 원칙 문서. 새 실행기 계획 1~3단계의 [공통 계약 v1](algorithm-runner-contract.md)·[JS 기준선](runner-stage1-results.md)·[JS 어댑터](runner-stage2-results.md)·[엔진 수명/독립 진행과 스케줄링 측정](runner-stage3-results.md)을 완료했다. 3단계 리뷰 대기이며 다국어 기술 검증은 후속이다.
+- 상태: 독립 턴·500ms 중단/상태 유지의 기본 원칙 문서. 새 실행기 계획 1~3단계의 [공통 계약 v1](algorithm-runner-contract.md)·[JS 기준선](runner-stage1-results.md)·[JS 어댑터](runner-stage2-results.md)·[엔진 수명/독립 진행과 스케줄링 측정](runner-stage3-results.md)을 완료했다. [4단계 1차 검증](runner-stage4-results.md)은 C#/Python 보류·C++ 조건부 판정이며 선정 관문이 미통과다. 실제 제품 지원은 JS 하나를 유지한다.
 - 최신 작업 순서: 사용자 결정에 따라 [게임 엔진·언어별 실행기 10단계 계획](game-engine-language-runners-plan.md)을 생성했다. 이번 실행 영역의 실제 단계/완료 기준은 새 계획을 우선하며 이 문서는 유지할 원칙과 초기 후보 검토를 보관한다.
 - 적용: 다음 BE 집중 작업은 공통 계약·JS 어댑터 정리와 언어별 기술 검증/선정이다. 문서 생성만으로 런타임 설치·정식 구현을 시작하거나 언어 지원을 확정한 것은 아니다.
 - 실행 순서 연결: [BE 분리 계획](backend-separation-implementation-plan.md)의 1단계에서 공통 계약을 정의하고 4단계에서 현재 JS 생성/주입·독립 진행을 적용한다. 비용/부하와 통합 회귀는 BE 계획 9단계에서 확인하며 다른 언어 후보 구현은 후속 범위를 유지한다.

@@ -10,7 +10,8 @@
 - 2026-11-15 배포 범위 변경: FE/BE 서버 분리를 고도화 보류에서 배포 준비로 전환했다. [FE 요구사항](frontend-deployment-requirements.md)을 기준으로 독립 실행·정적 제공·API 중계·인증/주소·SSE/업로드·산출물·회귀 검증을 먼저 준비한다. 실제 분리 구현은 아직 남아 있다.
 - 실행/렌더링 목표: [전체 흐름·차트](game-execution-rendering-flow.md)에 C# 운영 BE·상주 실행 관리자·게임별 Node.js 엔진과 화면/SSE·원본 로그·종료/복구 경로를 보관했다. 구체 포팅·서비스/프로세스 구현 계획은 이 목표에 맞춰 갱신하며 이번에는 문서화만 수행했다.
 - 실행 공정성 기준: 실제 계산 속도가 승부에 반영되는 독립 턴을 유지한다. 계산 완료 즉시 액션·액션 완료 즉시 다음 계산으로 진행하며 공통 판단 지연/논리 시간 보정은 제외한다. 언어별 호출 인프라 편차는 실행기·입력 전달 설계와 측정으로 줄인다. [호출 비용 분석](algorithm-invocation-cost-analysis.md).
-- 실행기 후속 작업: [10단계 계획](game-engine-language-runners-plan.md)의 1~3단계를 완료했고 **3단계 리뷰 대기**다. [계약](algorithm-runner-contract.md), [JS 기준선](runner-stage1-results.md), [JS 어댑터](runner-stage2-results.md), [엔진 수명·독립 진행/측정·검증](runner-stage3-results.md). 지원 언어는 JS 하나이며 4단계 언어별 기술 검증은 아직 착수하지 않았다.
+- 실행기 후속 작업: [10단계 계획](game-engine-language-runners-plan.md)의 1~3단계와 [4단계 1차 후보 검증·판정](runner-stage4-results.md)을 수행했다. **선정 관문 미통과**로 C#/Python 대체 호스팅, C++ 중단 자원/힙·컴파일 격리 등 추가 검증이 남았다. 기존 JS의 깊은 재귀 오류 분류도 후속 수정 대상이다. 지원 언어는 JS 하나이며 5단계는 착수하지 않았다.
+- 실행기 추가 계획: [제한 규약 기반 공통·언어별 계획](restricted-language-runners-plan.md)에 사용자 try/catch 금지와 검사/저장 시 실제 테스트 호출을 포함했다. 2026-11-16 리뷰 반영으로 현재 JS 검사·저장 상태·실행 허가 개선(J0~J3)을 독립 선행한다. 다국어는 규약/OS 자원 제한→자동 중단→시간/복구 계약→채택 어댑터→공통 경로 연결 순서다. 실패 코드 보관은 허용하고 검증 전 실행은 거부하는 계획이며 아직 구현하지 않았다.
 - 현재 진행: [BE 분리 1~9단계](backend-separation-implementation-plan.md)와 FE/BE 폴더 정리는 `1183977`로 커밋/푸시했다. [결과·검증·제한](backend-split-completion.md), [실행법](../backend/README.md), [이전·복귀](backend-cutover-runbook.md). 실제 사용자 이전·Google 왕복·외부 배포는 별도다.
 - 관련: [진행 결과](progress.md), [저장 어댑터](storage-adapters.md), [관리자 계획](admin-page-plan.md), [개인정보 운영 준비](privacy-operations-plan.md), [고도화 보관 목록](enhancement-backlog.md).
 
