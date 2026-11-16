@@ -46,6 +46,8 @@
 - [x] [공통 작성 규약 v1](algorithm-authoring-policy.md): 규칙 13개·진단/검사 상태 계약·인수 사례·현재 JS 차이 작성. 검사기 적용은 후속.
 - [ ] J0~J3 현재 JS 검사 확장·저장/검사 상태 분리·실행 허가 및 저장 정합성 검증.
 - [x] [J1 JS preflight v2 1차](javascript-preflight-v2.md): try문·확인 가능한 재귀 거부, 36회 실행 시나리오·위치/시간 진단. 전체 정책 강제는 미완료.
+- [x] [J2 저장/검사 상태·실행 허가](algorithm-validation-storage.md): 실패 코드 보관, 백그라운드/수동 검사 결과의 revision CAS, 공개 게임 생성 snapshot 재검사와 작업실 표시.
+- [ ] J3 검사 queue 포화·재시작/복구·게임과 검사 동시 부하 집중 검증.
 - [ ] R0~R5 다국어 규약/강제 자원 제한·자동 중단/복구·공통 검사 경로 연결과 검증.
 - [ ] 새 4단계 채택 관문 통과: C#/Python 대체 후보, C++ 자원/힙 일관성·컴파일 격리와 기존 JS 재귀 오류 보완.
 - [ ] 새 5~10단계 구현/검증. 상세 체크는 [최신 계획](game-engine-language-runners-plan.md#7-진행-체크리스트)에서 관리.

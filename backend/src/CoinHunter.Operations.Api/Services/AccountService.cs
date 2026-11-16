@@ -58,7 +58,7 @@ public sealed class AccountService(IAccountStore store, ISourceStore sources)
         if (item.Text("ownerId") != owner) throw new ServiceFault(404, "알고리즘을 찾을 수 없습니다.");
         return item.CloneObject();
     });
-    public Task<JsonObject> Save(string owner, string? id, string name, int revision, Guid sourceKey) => store.Change(data =>
+    public Task<JsonObject> Save(string owner, string? id, string name, int revision, Guid sourceKey, string? sourceHash = null) => store.Change(data =>
     {
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 80) throw new ServiceFault(400, "이름은 1~80자로 입력하세요.");
         var now = DateTimeOffset.UtcNow.ToString("O"); JsonObject item;
@@ -74,7 +74,29 @@ public sealed class AccountService(IAccountStore store, ISourceStore sources)
             JsonData.Array(data, "algorithms").Add(item);
         }
         item["name"] = name.Trim(); item["sourceKey"] = sourceKey.ToString(); item["revision"] = item.Int("revision") + 1; item["updatedAt"] = now;
+        item["validation"] = new JsonObject { ["state"] = "unverified", ["message"] = "저장됨 · 코드 검사가 필요합니다." };
+        item["sourceHash"] = sourceHash;
         return Task.FromResult(JsonData.Metadata(item));
+    });
+    public Task<JsonObject[]> ValidationTargets(string owner, string hash) => store.Read(data => JsonData.Array(data, "algorithms").OfType<JsonObject>()
+        .Where(item => item.Text("ownerId") == owner && item.Text("sourceHash") == hash).Select(item => item.CloneObject()).ToArray());
+    public Task<bool> SetValidation(string owner, string id, int revision, Guid sourceKey, JsonObject validation) => store.Change(data =>
+    {
+        var item = JsonData.Array(data, "algorithms").OfType<JsonObject>().SingleOrDefault(item => item.Text("id") == id && item.Text("ownerId") == owner);
+        var user = JsonData.Array(data, "users").OfType<JsonObject>().SingleOrDefault(item => item.Text("id") == owner && item.Bool("active"));
+        if (user is null || item is null || item.Int("revision") != revision || item.Text("sourceKey") != sourceKey.ToString()) return Task.FromResult(false);
+        item["validation"] = validation.DeepClone();
+        return Task.FromResult(true);
+    });
+    public Task<bool> RecoverValidations(string version) => store.Change(data =>
+    {
+        foreach (var item in JsonData.Array(data, "algorithms").OfType<JsonObject>())
+        {
+            var validation = item["validation"] as JsonObject;
+            if (validation?.Text("state") == "pending") item["validation"] = new JsonObject { ["state"] = "unverified", ["message"] = "검사가 중단됐습니다. 다시 검사하세요." };
+            else if (validation is null || validation.Text("version") != version) item["validation"] = new JsonObject { ["state"] = "stale", ["message"] = "현재 규약으로 다시 검사해야 합니다." };
+        }
+        return Task.FromResult(true);
     });
     public Task<JsonArray> History(string owner) => store.Read(data => new JsonArray(JsonData.Array(data, "history").OfType<JsonObject>().Where(item => item.Text("ownerId") == owner).OrderByDescending(item => item.Text("playedAt")).Select(item => { var value = JsonData.Metadata(item); value.Remove("ownerId"); return (JsonNode)value; }).ToArray()));
     public ISourceStore Sources => sources;

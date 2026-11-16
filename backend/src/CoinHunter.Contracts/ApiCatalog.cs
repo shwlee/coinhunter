@@ -21,6 +21,7 @@ public static class ApiCatalog
         new("GET", "/api/algorithms/{id}", "owner", 5, "query:metadata=1", "metadata; legacy small JSON source"),
         new("PUT", "/api/algorithms/{id}", "owner", 5, "text/plain + query:name,revision; legacy JSON", "metadata or 409"),
         new("GET", "/api/algorithms/{id}/source", "owner", 5, "none", "text/plain + X-Coinhunter-Metadata"),
+        new("POST", "/api/algorithms/{id}/validate", "owner", 40, "none", "saved-source validation queue status"),
         new("GET", "/api/history", "user", 5, "none", "{history}"),
         new("GET", "/api/maps", "public", 5, "none", "{maps}"),
         new("GET", "/api/example", "public", 5, "none", "text/plain attachment"),

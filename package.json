@@ -14,6 +14,7 @@
     "backend:web": "node scripts/backend.js web",
     "backend:maintenance": "node scripts/backend-maintenance.js",
     "backend:test:browser": "node scripts/backend-browser-smoke.js",
+    "backend:test:validation": "node scripts/backend-validation-smoke.js",
     "backend:test:motion": "node scripts/game-motion-smoke.js",
     "backend:test:load": "node scripts/backend-load-smoke.js",
     "start:legacy": "node scripts/start.js legacy",

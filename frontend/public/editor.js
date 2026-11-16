@@ -27,6 +27,7 @@ let documentId = null,
   testSource = null,
   testRequestId = 0;
 let validationRequestId = 0;
+let savedValidationRequestId = 0;
 let promptAssistant = null;
 const templateControls = new Map();
 const priorityIds = [];
@@ -352,6 +353,7 @@ document.addEventListener('keydown', (event) => {
   setCodeMaximized(false);
 });
 function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name || '') {
+  savedValidationRequestId++;
   validationRequestId++;
   documentId = item?.id || null;
   revision = item?.revision || null;
@@ -371,6 +373,7 @@ function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name 
     pendingTest = null;
   }
   refreshState();
+  if (item?.validation) followSavedValidation(item, $('code').value);
 }
 async function mayDiscard() {
   if (!dirty()) return true;
@@ -421,18 +424,66 @@ async function save(copy, name) {
     setDocumentOrigin('saved', item.name);
     saved = JSON.stringify({ name: item.name, source });
     refreshState();
+    followSavedValidation(item, source);
     try {
       await library();
     } catch {
       notice('저장했습니다. 목록 갱신은 불러오기 화면에서 다시 시도하세요.');
       return true;
     }
-    notice('저장했습니다. 다른 창이나 같은 계정에서도 열 수 있습니다.');
+    notice('저장했습니다. 코드 검사 결과는 별도로 표시됩니다.');
     return true;
   } finally {
     saving = false;
     $('confirm-save').disabled = $('cancel-save').disabled = false;
   }
+}
+async function followSavedValidation(item, source) {
+  const requestId = ++savedValidationRequestId;
+  for (let attempt = 0; attempt < 45; attempt++) {
+    if (
+      requestId !== savedValidationRequestId ||
+      item.id !== documentId ||
+      item.revision !== revision ||
+      source !== $('code').value
+    )
+      return;
+    const state = item.validation || { state: 'stale', message: '현재 규약으로 다시 검사하세요.' };
+    validationStatus(
+      state.state === 'passed'
+        ? 'success'
+        : state.state === 'failed'
+          ? 'error'
+          : state.state === 'pending'
+            ? 'pending'
+            : 'changed',
+      state.message,
+    );
+    if (state.diagnostic)
+      validationDetails({ message: state.message, diagnostic: state.diagnostic });
+    if (state.state !== 'pending') return;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (
+      requestId !== savedValidationRequestId ||
+      item.id !== documentId ||
+      source !== $('code').value
+    )
+      return;
+    try {
+      item = await api(`/api/algorithms/${item.id}?metadata=1`);
+    } catch {
+      if (requestId === savedValidationRequestId)
+        validationStatus(
+          'changed',
+          '저장된 코드의 검사 상태를 확인하지 못했습니다. 다시 검사하세요.',
+        );
+      return;
+    }
+  }
+  validationStatus(
+    'changed',
+    '검사 상태 조회가 지연됩니다. 코드는 저장돼 있습니다. 다시 검사하세요.',
+  );
 }
 let saveOutcome = false;
 function requestSave() {
@@ -584,6 +635,7 @@ $('export').onclick = () => {
   $('save-feedback').hidden = false;
 };
 async function validateEditorSource() {
+  savedValidationRequestId++;
   const source = $('code').value;
   const requestId = ++validationRequestId;
   $('code-error').hidden = true;
@@ -600,7 +652,7 @@ async function validateEditorSource() {
       throw new Error('검사 중 코드가 변경되었습니다. 다시 검사하세요.');
     validationStatus(
       'success',
-      '실행 전 검사 통과 · 변수·필수 메서드·샘플 이동 24회 확인. 모든 맵과 실행 분기를 보장하지는 않습니다.',
+      '실행 전 검사 통과 · 변수·필수 메서드·샘플 이동 36회 확인. 모든 맵과 실행 분기를 보장하지는 않습니다.',
     );
   } catch (error) {
     if (requestId !== validationRequestId) throw error;

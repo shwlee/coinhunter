@@ -33,6 +33,8 @@ builder.Services.AddSingleton<GoogleAuthentication>();
 builder.Services.AddSingleton<RequestInput>();
 builder.Services.AddSingleton<StreamAdmission>();
 builder.Services.AddSingleton<ExecutionClient>();
+builder.Services.AddSingleton<AlgorithmValidationService>();
+builder.Services.AddHostedService(services => services.GetRequiredService<AlgorithmValidationService>());
 builder.Services.AddSingleton<MatchService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<MatchService>());
 builder.Services.AddHttpClient("execution", client => client.Timeout = TimeSpan.FromSeconds(40)).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false, MaxConnectionsPerServer = 32 });

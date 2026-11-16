@@ -6,7 +6,7 @@ using CoinHunter.Infrastructure.Storage;
 
 namespace CoinHunter.Operations.Api.Services;
 
-public sealed class MatchService(IAccountStore store, AccountService accounts, IMapStore maps, GameContent content, StorageSettings storage, ExecutionClient execution) : BackgroundService
+public sealed class MatchService(IAccountStore store, AccountService accounts, IMapStore maps, GameContent content, StorageSettings storage, ExecutionClient execution, AlgorithmValidationService validation) : BackgroundService
 {
     private readonly SemaphoreSlim creation = new(1);
     private readonly SemaphoreSlim reconciliation = new(1);
@@ -61,6 +61,9 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
             }
             var active = await store.Read(data => JsonData.Array(data, "matches").OfType<JsonObject>().Any(item => item.Text("owner") == owner && !item.Bool("completed")));
             if (active) throw new ServiceFault(409, "진행 중인 게임을 먼저 종료하세요.");
+            // Revalidate immutable snapshots at server admission, including history opponents.
+            // Client-supplied flags, old stored statuses and a successful save are not execution permission.
+            foreach (var source in sources.Take(mode == "duel" ? 2 : 1)) await validation.RequirePassed(scope, source);
             var id = Guid.NewGuid();
             var slots = mode == "duel" ? new[] { slot, 3 - slot } : new[] { slot }.Concat(new[] { 0, 1, 2, 3 }.Where(value => value != slot)).ToArray();
             var request = new ExecutionRequest
@@ -75,6 +78,8 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
             };
             await store.Change(data =>
             {
+                if (scope.Kind == "user" && !JsonData.Array(data, "users").OfType<JsonObject>().Any(user => user.Text("id") == scope.SubjectId.ToString() && user.Bool("active")))
+                    throw new ServiceFault(403, "이용할 수 없는 계정입니다.");
                 JsonData.Array(data, "matches").Add(new JsonObject { ["id"] = id.ToString(), ["owner"] = owner, ["scope"] = JsonSerializer.SerializeToNode(scope, Protocol.JsonOptions), ["requestKey"] = requestKey.ToString(), ["fingerprint"] = fingerprint, ["request"] = JsonSerializer.SerializeToNode(request, Protocol.JsonOptions), ["mapName"] = map.Text("name"), ["createdAt"] = DateTimeOffset.UtcNow.ToString("O"), ["completed"] = false, ["applied"] = false });
                 return Task.FromResult(true);
             });

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CoinHunter.Operations.Api.Controllers;
 
 [ApiController]
-public sealed class AlgorithmsController(SessionService sessions, AccountService accounts, RequestInput input, GameContent content, StorageSettings storage, ExecutionClient execution, MatchService matches) : ControllerBase
+public sealed class AlgorithmsController(SessionService sessions, AccountService accounts, RequestInput input, GameContent content, StorageSettings storage, MatchService matches, AlgorithmValidationService validation) : ControllerBase
 {
     [HttpGet("/api/algorithm-assistant/contract")]
     public async Task<IActionResult> Contract() { await sessions.Require(HttpContext); return Ok(content.Contract); }
@@ -27,12 +27,14 @@ public sealed class AlgorithmsController(SessionService sessions, AccountService
         {
             var json = await RequestInput.Json(Request, 2 * 1024 * 1024); name = json.Text("name"); revision = json.Int("revision"); source = await RequestInput.Inline(json, accounts.Sources);
         }
+        JsonObject result;
         try
         {
-            var result = await accounts.Save(user.Text("id"), id?.ToString(), name, revision, source.SourceKey);
-            return StatusCode(id.HasValue ? 200 : 201, result);
+            result = await accounts.Save(user.Text("id"), id?.ToString(), name, revision, source.SourceKey, source.Sha256);
         }
         catch { await accounts.Sources.Delete(source.SourceKey); throw; }
+        await validation.Queue(user.Text("id"), result, source.SourceKey);
+        return StatusCode(id.HasValue ? 200 : 201, result);
     }
     [HttpGet("/api/algorithms/{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
@@ -46,11 +48,22 @@ public sealed class AlgorithmsController(SessionService sessions, AccountService
         }
         return Ok(metadata);
     }
+    [HttpPost("/api/algorithms/{id:guid}/validate")]
+    public async Task<IActionResult> Recheck(Guid id)
+    {
+        var user = await sessions.Require(HttpContext);
+        var item = await accounts.Algorithm(user.Text("id"), id.ToString());
+        await validation.Queue(user.Text("id"), item, Guid.Parse(item.Text("sourceKey")));
+        return Ok(JsonData.Metadata(item));
+    }
     [HttpGet("/api/algorithms/{id:guid}/source")]
     public async Task<IActionResult> Source(Guid id)
     {
         var user = await sessions.Require(HttpContext); var item = await accounts.Algorithm(user.Text("id"), id.ToString());
-        Response.Headers["X-Coinhunter-Metadata"] = Uri.EscapeDataString(JsonData.Metadata(item).ToJsonString());
+        var metadata = JsonData.Metadata(item);
+        // Debug logs/diagnostics belong in the JSON endpoint, never in HTTP headers.
+        if (metadata["validation"] is JsonObject state) state.Remove("diagnostic");
+        Response.Headers["X-Coinhunter-Metadata"] = Uri.EscapeDataString(metadata.ToJsonString());
         return File(accounts.Sources.Open(Guid.Parse(item.Text("sourceKey"))), "text/plain; charset=utf-8");
     }
     [HttpPost("/api/algorithms/validate")]
@@ -63,7 +76,7 @@ public sealed class AlgorithmsController(SessionService sessions, AccountService
         var reference = RequestInput.IsSource(Request) ? await input.Upload(Request) : await RequestInput.Inline(await RequestInput.Json(Request, 2 * 1024 * 1024), exchange);
         try
         {
-            var result = await execution.Call(HttpMethod.Post, "/internal/v1/validations", new { requestId = Guid.NewGuid(), scope, source = reference }, HttpContext.RequestAborted);
+            var result = await validation.Check(scope, reference, HttpContext.RequestAborted);
             return StatusCode(result.Bool("ok") ? 200 : 400, result);
         }
         finally { System.IO.File.Delete(exchange.PathFor(reference.SourceKey)); }

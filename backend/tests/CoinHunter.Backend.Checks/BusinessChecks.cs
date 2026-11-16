@@ -49,6 +49,25 @@ internal static class BusinessChecks
                 throw new Exception("Second writer was admitted.");
             });
             var mock = await accounts.Login("duplicate@company.test"); var google = await accounts.Login("duplicate@company.test", "google-subject");
+            await Check("validation receipts are revision/source/owner bound and failed code remains saved", async () =>
+            {
+                var first = await sources.Put(new MemoryStream(Encoding.UTF8.GetBytes("invalid source")));
+                var item = await accounts.Save(mock.Text("id"), null, "invalid draft", 0, first.SourceKey, first.Sha256);
+                var failed = new JsonObject { ["state"] = "failed", ["version"] = "test" };
+                Require(await accounts.SetValidation(mock.Text("id"), item.Text("id"), 1, first.SourceKey, failed));
+                failed["state"] = "passed";
+                Require((await accounts.Algorithm(mock.Text("id"), item.Text("id")))["validation"].Text("state") == "failed");
+                Require(!await accounts.SetValidation(google.Text("id"), item.Text("id"), 1, first.SourceKey, failed));
+                var second = await sources.Put(new MemoryStream(Encoding.UTF8.GetBytes("new draft")));
+                await accounts.Save(mock.Text("id"), item.Text("id"), "draft", 1, second.SourceKey, second.Sha256);
+                Require(!await accounts.SetValidation(mock.Text("id"), item.Text("id"), 1, first.SourceKey, failed));
+                Require(!await accounts.SetValidation(mock.Text("id"), item.Text("id"), 2, first.SourceKey, failed));
+                Require(await accounts.SetValidation(mock.Text("id"), item.Text("id"), 2, second.SourceKey, new JsonObject { ["state"] = "pending", ["version"] = "test" }));
+                await accounts.RecoverValidations("test");
+                Require((await accounts.Algorithm(mock.Text("id"), item.Text("id")))["validation"].Text("state") == "unverified");
+                Require((await accounts.ValidationTargets(mock.Text("id"), second.Sha256)).Length == 1);
+                Require((await accounts.ValidationTargets(google.Text("id"), second.Sha256)).Length == 0);
+            });
             await Check("Google subject identity is unique and never merges by email", async () =>
             {
                 Require(mock.Text("id") != google.Text("id"));
@@ -161,7 +180,9 @@ internal static class BusinessChecks
                 var id = Guid.NewGuid().ToString();
                 await store.Change(data => { JsonData.Array(data, "matches").Add(new JsonObject { ["id"] = id, ["completed"] = true, ["acknowledged"] = false }); return Task.FromResult(true); });
                 var transport = new MissingExecutionClient();
-                using var service = new MatchService(store, accounts, maps, content, settings, new ExecutionClient(transport, backend));
+                var executionClient = new ExecutionClient(transport, backend);
+                using var validation = new AlgorithmValidationService(accounts, settings, content, executionClient);
+                using var service = new MatchService(store, accounts, maps, content, settings, executionClient, validation);
                 await service.Refresh();
                 Require(transport.Paths.Count == 1 && transport.Paths[0] == $"/internal/v1/results/{id}/ack");
             });

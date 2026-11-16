@@ -45,6 +45,36 @@ try {
     .locator('#save-state')
     .filter({ hasText: /^저장됨$/ })
     .waitFor();
+  await page
+    .locator('#validation-status')
+    .filter({ hasText: /저장됨.*검사 통과/ })
+    .waitFor({ timeout: 40000 });
+  await page.locator('.cm-content').fill('module.exports = ;');
+  await page.click('#save');
+  await page.click('#confirm-save');
+  await page.locator('#save-dialog').waitFor({ state: 'hidden' });
+  await page.locator('#validation-status[data-state="error"]').waitFor({ timeout: 40000 });
+  await page
+    .locator('#save-state')
+    .filter({ hasText: /^저장됨$/ })
+    .waitFor();
+  assert.equal(
+    await page.evaluate(() => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    }),
+    false,
+  );
+  assert.equal(await page.locator('.cm-content').innerText(), 'module.exports = ;');
+  await page.locator('.cm-content').fill(example);
+  await page.click('#save');
+  await page.click('#confirm-save');
+  await page.locator('#save-dialog').waitFor({ state: 'hidden' });
+  await page
+    .locator('#validation-status')
+    .filter({ hasText: /저장됨.*검사 통과/ })
+    .waitFor({ timeout: 40000 });
   assert.equal(
     await page.evaluate(() => {
       const event = new Event('beforeunload', { cancelable: true });
