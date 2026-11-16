@@ -151,6 +151,13 @@
   "currentProduction": {
     "supportedLanguages": ["javascript"],
     "implementsThisPolicy": false,
+    "additionalPreflight": {
+      "profileVersion": "javascript-preflight-v2",
+      "fixtureVersion": "2.0.0",
+      "calls": 36,
+      "implemented": ["user-try-rejection", "resolved-lexical-and-own-method-call-cycles"],
+      "notComplete": "Dynamic/aliased call graphs and full state/API allowlists remain unimplemented; this is not whole-policy activation or enforcement at every execution entry point."
+    },
     "javascriptSyntaxChecks": [
       "async",
       "await",
@@ -163,7 +170,6 @@
     "newUnimplementedChecks": [
       "complete-state-ownership",
       "resolved-recursion-analysis",
-      "user-try-rejection",
       "profile-api-allowlist",
       "save-validation-state"
     ]

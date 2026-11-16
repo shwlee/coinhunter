@@ -6,6 +6,8 @@ import { JavaScriptArtifacts } from './javascript-artifacts.js';
 import { createJavaScriptRegistry } from './runner-registry.js';
 import { ALGORITHM_MEMORY_LIMIT_BYTES } from './policy.js';
 import { validationDiagnostic } from './validation-diagnostic.js';
+import { inspectAuthoring, AUTHORING_PROFILE } from './authoring-inspection.js';
+import { preflightScenarios, PREFLIGHT_FIXTURE_VERSION } from './preflight-scenarios.js';
 
 let currentRunner,
   cancelled = false,
@@ -30,8 +32,9 @@ async function inspect(source) {
   let tree;
   try {
     tree = validateSource(source);
+    inspectAuthoring(tree);
   } catch (error) {
-    error.validation = { stage: error.loc ? 'syntax' : 'policy' };
+    error.validation ||= { stage: error.loc ? 'syntax' : 'policy' };
     throw error;
   }
   const scope = analyze(tree, {
@@ -58,12 +61,9 @@ async function inspect(source) {
     resolveArtifact: artifacts.resolve,
     diagnostics: true,
   });
-  for (const filename of ['crossroads', 'four-courtyards']) {
-    const map = JSON.parse(
-      await readFile(new URL(`../../maps/samples/${filename}.json`, import.meta.url), 'utf8'),
-    );
+  for (const map of await preflightScenarios()) {
     const starts = [0, map.columns - 1, map.columns * (map.rows - 1), map.tiles.length - 1];
-    for (let player = 0; player < 4; player++) {
+    for (const player of map.players) {
       let runner,
         checkedTurn = null;
       try {
@@ -87,7 +87,7 @@ async function inspect(source) {
           checkedTurn = turn + 1;
           // Include both absent items and present items, plus a coin-free board.
           if (turn === 2) for (let i = 0; i < tiles.length; i++) if (tiles[i] > 0) tiles[i] = 0;
-          const items = turn === 1 ? [...starts] : [-1, -1, -1, -1];
+          const items = turn === 1 && !map.absentItems ? [...starts] : [-1, -1, -1, -1];
           const result = await runner.move({
             contractVersion: 1,
             gameId: context.gameId,
@@ -114,6 +114,14 @@ async function inspect(source) {
               detail: runner.lastExceptionMessage || reason,
               logs: [...result.logs],
               droppedLogs: result.droppedLogs,
+              elapsedMs: result.timings.executionMs,
+              limitMs: 500,
+              code:
+                result.status === 'timeout'
+                  ? 'AR012'
+                  : result.status === 'invalid-result'
+                    ? 'AR013'
+                    : 'AX002',
             };
             throw error;
           }
@@ -139,7 +147,13 @@ async function inspect(source) {
         }
         error.validation = {
           ...error.validation,
-          context: { columns: map.columns, rows: map.rows, player: player + 1, call: checkedTurn },
+          context: {
+            columns: map.columns,
+            rows: map.rows,
+            player: player + 1,
+            call: checkedTurn,
+            scenario: map.scenario,
+          },
         };
         throw error;
       } finally {
@@ -148,7 +162,12 @@ async function inspect(source) {
       }
     }
   }
-  return { ok: true, calls };
+  return {
+    ok: true,
+    calls,
+    profileVersion: AUTHORING_PROFILE,
+    fixtureVersion: PREFLIGHT_FIXTURE_VERSION,
+  };
 }
 
 process.on('message', async ({ source, sourcePath, cancel }) => {

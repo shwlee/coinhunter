@@ -1,6 +1,7 @@
 # 공통 알고리즘 작성 규약 v1
 
-- 작성: 2026-11-16. **공통 명세 작성 완료, 검사기 적용·제품 활성화 전**.
+- 작성: 2026-11-16. **공통 명세 작성 완료, JS preflight 일부 적용·전체 정책 활성화 전**.
+- 후속 구현: [JS preflight v2](javascript-preflight-v2.md)에서 사용자 try문·확인 가능한 순환 호출 거부와 36회 실행 검사를 적용했다. 전체 승인 API/재귀 분석·저장/실행 허가는 미완료이며 아래 초기 대응표는 명세 작성 당시 기준이다.
 - 기계 판독 원본: [authoring-policy-v1.json](../backend/contracts/authoring-policy-v1.json).
 - 인수 사례: [authoring-policy-v1.cases.json](../backend/contracts/authoring-policy-v1.cases.json). 아래 사례는 요구 명세이며 실행 통과 결과가 아니다.
 - 연결: [작업 계획](restricted-language-runners-plan.md), [기존 실행 계약](algorithm-runner-contract.md). 기존 JS 작성/실행 규약과 새 공통 정책의 활성 버전을 혼동하지 않는다.

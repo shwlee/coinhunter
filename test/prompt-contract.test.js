@@ -139,7 +139,9 @@ test('minimal starter passes the real preflight and returns a valid explicit pen
   const { starterSource } = promptContext;
   assert.deepEqual(await validateAlgorithm(starterSource, 'prompt-contract-starter'), {
     ok: true,
-    calls: 24,
+    calls: 36,
+    profileVersion: 'javascript-preflight-v2',
+    fixtureVersion: '2.0.0',
   });
   const sandbox = await AlgorithmSandbox.create(starterSource, 3, 20, 16);
   try {

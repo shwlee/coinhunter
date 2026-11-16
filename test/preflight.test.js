@@ -24,7 +24,12 @@ test('preflight executes persistent player instances, permits declared Korean id
   const result = await check(
     source('const 방향 = -1; if (++this.turn > 3) throw new Error(); return 방향;'),
   );
-  assert.deepEqual(result, { ok: true, calls: 24 });
+  assert.deepEqual(result, {
+    ok: true,
+    calls: 36,
+    profileVersion: 'javascript-preflight-v2',
+    fixtureVersion: '2.0.0',
+  });
 });
 
 test('preflight finds unresolved names even after return and reports exact location', async () => {
@@ -97,6 +102,7 @@ test('validation explains export, required methods, name, initialization and ret
     rows: map.rows,
     player: 1,
     call: 1,
+    scenario: 'crossroads',
   });
 });
 

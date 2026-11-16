@@ -37,7 +37,7 @@
 ## 실행 제한과 출력
 
 - 코드 로딩·initialize·getName·각 moveNext는 각각 {{TURN_LIMIT_MS}}ms 실행 보호를 받는다. 메모리는 QuickJS guest heap {{MEMORY_LIMIT_MIB}}MiB 제한이며 서버 전체 메모리나 원문 파일 크기 제한을 뜻하지 않는다.
-- 시간 초과는 현재 호출만 중단하고 프로세스·인스턴스를 재시작하지 않는다. 중단 전 변경한 this 필드가 남을 수 있다. try/catch/finally로 제한을 피하려 하지 않는다.
+- 시간 초과는 현재 호출만 중단하고 프로세스·인스턴스를 재시작하지 않는다. 중단 전 변경한 this 필드가 남을 수 있다. 사용자 try/catch/finally와 직접·상호 재귀를 사용하지 않는다. 탐색은 큐·스택을 이용한 반복형으로 작성한다.
 - Math·Array·Object·String·Map·Set·TypedArray 등 제공되는 동기 built-in만 사용한다. 클래스 static, async/await, generator/yield, import, 외부 라이브러리, 비동기·병렬·대기 작업은 금지한다.
 - require·process·파일·네트워크/web/socket·타이머·스레드 API는 제공하지 않는다. eval·Function·Promise·WebAssembly·WeakRef·FinalizationRegistry도 제공하지 않는다. console.log 대신 debug.print를 사용한다.
 - debug.print는 필요한 원시 값을 출력한다. 객체·함수 내용은 펼치지 않는다. 호출당 최대 30개 메시지, 메시지당 최대 8개 인자, 인자당 최대 512자·메시지 합산 1024자이며 초과분은 생략된다.

@@ -70,8 +70,8 @@ test('OpenAI credit, spend, usage and rate limits are classified without exposin
     assert.equal(error.providerCode, undefined);
   }
 });
-async function waitFor(check) {
-  const until = Date.now() + 4000;
+async function waitFor(check, timeoutMs = 4000) {
+  const until = Date.now() + timeoutMs;
   while (!check()) {
     if (Date.now() > until) throw new Error('state timeout');
     await new Promise((r) => setTimeout(r, 5));
@@ -379,9 +379,10 @@ test('requests generate and run the real preflight before offering an owner-boun
   const request = await f.service.prepare(f.scope, input);
   assert.equal(request.state, 'prepared');
   await f.service.start(f.scope, request.id);
-  await waitFor(() => f.service.status(f.scope, request.id).state === 'completed');
+  // Real multi-process preflight now checks 36 calls; allow startup under suite load.
+  await waitFor(() => f.service.status(f.scope, request.id).state === 'completed', 15000);
   const result = f.service.status(f.scope, request.id);
-  assert.equal(result.validation.calls, 24);
+  assert.equal(result.validation.calls, 36);
   assert.equal(result.candidateAvailable, true);
   assert.equal(JSON.stringify(result).includes('fixture-secret'), false);
   assert.throws(() => f.service.status({ ownerId: 'other', sessionId: 'session' }, request.id), {

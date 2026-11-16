@@ -3,6 +3,7 @@
 - 작성일: 2026-11-15. 상태: **계획 작성, 구현 미착수**.
 - 수정일: 2026-11-16. 적대적 리뷰 높음 2건·중간 3건을 반영했다. 제품 동작 변경이 아닌 계획 수정이다.
 - 착수 결과: [공통 작성 규약 v1](algorithm-authoring-policy.md)·진단 코드·기계 판독 명세·인수 사례·현재 JS 대응표 작성. 검사기 구현/규약 활성화는 아직 수행하지 않았다.
+- 후속 구현: [JavaScript preflight v2](javascript-preflight-v2.md)에서 try문·확인 가능한 재귀 거부, 36회 시나리오 검사와 진단을 구현했다. J1의 전체 승인 API/간접 호출 분석과 낮은 수준 재귀 오류 분류, J2 저장 연결은 미완료다.
 - 대상: C#, Python, C++. 기존 JavaScript의 검사·저장 연결도 공통 정책 적용 대상으로 포함한다.
 - 연결: [상위 10단계 계획](game-engine-language-runners-plan.md), [4단계 실측](runner-stage4-results.md), [현재 실행 계약 v1](algorithm-runner-contract.md).
 - 언어별 상세: [C#](csharp-runner-implementation-plan.md), [Python](python-runner-implementation-plan.md), [C++](cpp-runner-implementation-plan.md).
@@ -170,6 +171,7 @@ JS의 추가 규약 분석 범위는 J0에서 명시하고 아직 검사하지 �
 - [x] 적대적 리뷰 5건 계획 보완: 코드 보관/실행 분리, 실제 실행 자원 제한, 시간 계약, 예외 판정, JS 선행 작업.
 - [x] J0 공통 작성 규약/진단·검사 상태 계약·인수 사례와 기존 JS 차이 보관. [명세](algorithm-authoring-policy.md).
 - [ ] J0~J3 현재 JS 검사 확장·저장 상태/실행 허가·회귀를 독립 구현.
+- [x] J1 검사 확장 1차: 사용자 try문·확인 가능한 호출 순환, 36회 시나리오·위치/시간 진단. [범위/후속](javascript-preflight-v2.md).
 - [ ] R0 규약 검사 명세·허용 API 목록·실제 실행 강제 자원 제한.
 - [ ] R1 언어별 자동 중단 후보 재검증.
 - [ ] R2 유예/상태/재시작 정책 확정·실행 계약 갱신.

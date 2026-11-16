@@ -38,7 +38,7 @@ export function validationDiagnostic(error) {
       '이름의 오타나 누락된 선언을 확인하세요. 외부 라이브러리·호스트 API는 사용할 수 없습니다.';
   else if (info.stage === 'policy')
     hint =
-      '동기 JavaScript와 제공되는 built-in만 사용하세요. async/await, generator, import, 클래스 static은 사용할 수 없습니다.';
+      '동기 JavaScript와 제공되는 built-in만 사용하세요. try/catch/finally·재귀·async/await·generator·import·클래스 static은 사용할 수 없습니다.';
   else if (info.stage === 'initialize')
     hint =
       'initialize(myNumber, column, row)의 숫자 인자를 확인하세요. 이 호출에는 맵이나 현재 위치를 전달하지 않습니다.';
@@ -51,6 +51,11 @@ export function validationDiagnostic(error) {
 
   return {
     stage: info.stage,
+    ...(info.code ? { code: info.code } : {}),
+    ...(info.profileVersion ? { profileVersion: info.profileVersion } : {}),
+    ...(Number.isFinite(info.elapsedMs)
+      ? { elapsedMs: info.elapsedMs, limitMs: info.limitMs }
+      : {}),
     stageLabel: labels[info.stage] || '코드 검사',
     detail,
     hint,
