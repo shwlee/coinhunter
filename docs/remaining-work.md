@@ -15,6 +15,9 @@
 - 공통 규약 착수: [작성 규약 v1](algorithm-authoring-policy.md)과 기계 판독 명세·진단/검사 상태·인수 사례를 작성했다. 다음은 JS 규약 분석기/실행 검사 확장(J1), 저장/검사 상태와 실행 허가 연결(J2)이다. 새 규칙은 제품에 아직 활성화하지 않았다.
 - JS 검사 후속: [preflight v2](javascript-preflight-v2.md)의 try문·정적 순환 거부·36회 실행 검사·진단 구현. 전체 alias/간접 호출·승인 API 프로필, 낮은 수준 재귀 장애 분류와 J2 저장/실행 허가 연결은 남아 있다.
 - J2 후속 구현: [저장/검사 상태·실행 허가](algorithm-validation-storage.md)를 분리 BE에 연결했다. persisted passed를 캐시로 재사용하지 않고 실행 직전 snapshot을 다시 검사한다. 다음은 J3 집중 포화/복구/동시 부하와 J1의 미완료 분석 범위다.
+- J3 후속 완료: [검사 포화·재시작·동시 게임](validation-lifecycle-j3-results.md)을 검증하고 startup 경합·소유 snapshot 회수를 수정했다. 다음 실행 영역은 공통 R0 강제 자원 기반, C# 규약 분석/자동 중단 후보 순서다. J1의 미완료 분석은 별도 유지한다.
+- R0 기반 구현: [게임/검사 OS 강제 자원 제한](execution-resource-limits.md)의 Windows Job·전체 예약과 실제 부하/부모 장애 회수를 검증했다. Linux cgroup 어댑터는 미실측이며 외부 수명 감독·위임 검증이 남는다. 다음 C# 작업은 C1 규약 분석기와 제한된 준비/컴파일 경로다. 전체 승인 API/언어별 자원 격리 완료로 취급하지 않는다.
+- 기존 회귀 불안정: R0 전체 Node 직렬 실행에서도 legacy 다중 프로세스 계정 파일 잠금의 EPERM 1건이 재현됐다. 분리 재실행은 통과했으나 원인/수정 검증은 남는다. 분리 C# BE의 자원/통합 검사 통과와 구분한다.
 - 현재 진행: [BE 분리 1~9단계](backend-separation-implementation-plan.md)와 FE/BE 폴더 정리는 `1183977`로 커밋/푸시했다. [결과·검증·제한](backend-split-completion.md), [실행법](../backend/README.md), [이전·복귀](backend-cutover-runbook.md). 실제 사용자 이전·Google 왕복·외부 배포는 별도다.
 - 관련: [진행 결과](progress.md), [저장 어댑터](storage-adapters.md), [관리자 계획](admin-page-plan.md), [개인정보 운영 준비](privacy-operations-plan.md), [고도화 보관 목록](enhancement-backlog.md).
 

@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using CoinHunter.Contracts;
 using CoinHunter.Infrastructure;
 using CoinHunter.Infrastructure.Storage;
+using CoinHunter.Infrastructure.Resources;
 
 namespace CoinHunter.Execution.Host.Services;
 
@@ -21,6 +22,8 @@ public sealed class ExecutionRecord
     public bool Acknowledged { get; set; }
     public Process? Process { get; set; }
     public int? EnginePid { get; set; }
+    public IExecutionResourceGroup? ResourceGroup { get; set; }
+    public ResourceObservation? ResourceUsage { get; set; }
     public SemaphoreSlim Input { get; } = new(1);
     public CancellationTokenSource Preparation { get; } = new();
     public TaskCompletionSource Prepared { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -66,21 +69,28 @@ public sealed class ExecutionManager : IHostedService, IDisposable
 {
     private readonly StorageSettings settings;
     private readonly GameContent content;
+    private readonly ExecutionResources resources;
+    private readonly ExecutionResourceSettings resourceSettings;
+    public object ResourceStatus => resources.Status;
     private readonly ConcurrentDictionary<Guid, ExecutionRecord> records = new();
     private readonly SemaphoreSlim admission = new(1);
     private readonly SemaphoreSlim validations = new(2);
     private readonly ConcurrentDictionary<string, byte> validating = new();
     private readonly FileStream lease;
     private volatile bool stopping;
-    public ExecutionManager(StorageSettings settings, GameContent content)
+    public ExecutionManager(StorageSettings settings, GameContent content, ExecutionResources resources, ExecutionResourceSettings resourceSettings)
     {
         this.settings = settings; this.content = content;
+        this.resources = resources; this.resourceSettings = resourceSettings;
         Directory.CreateDirectory(settings.ExecutionRoot);
         lease = new FileStream(Path.Combine(settings.ExecutionRoot, ".writer.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
     }
     private string DirectoryFor(Guid id) => Path.Combine(settings.ExecutionRoot, "games", id.ToString());
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        // Startup/readiness fails closed if this OS cannot apply and verify its limits.
+        resources.RecoverAbandonedGroups();
+        using (resources.Reserve(resourceSettings.Validation)) { }
         var games = Path.Combine(settings.ExecutionRoot, "games"); if (!Directory.Exists(games)) return;
         foreach (var directory in Directory.EnumerateDirectories(games))
         {
@@ -133,8 +143,13 @@ public sealed class ExecutionManager : IHostedService, IDisposable
             if (records.Values.Count(value => !value.Closed.Task.IsCompleted) >= 4) throw new ServiceFault(429, "동시 경기 한도에 도달했습니다.");
             if (records.Count >= 10000) throw new ServiceFault(503, "실행 기록 보존 한도입니다. 오프라인 보관 정리가 필요합니다.");
             record = new ExecutionRecord { Request = request, Fingerprint = Fingerprint(request) };
-            var directory = DirectoryFor(request.MatchId); Directory.CreateDirectory(directory);
-            await AtomicFile.Json(Path.Combine(directory, "request.json"), JsonSerializer.SerializeToNode(request, Protocol.JsonOptions)!);
+            record.ResourceGroup = resources.Reserve(resourceSettings.Game);
+            try
+            {
+                var directory = DirectoryFor(request.MatchId); Directory.CreateDirectory(directory);
+                await AtomicFile.Json(Path.Combine(directory, "request.json"), JsonSerializer.SerializeToNode(request, Protocol.JsonOptions)!);
+            }
+            catch { record.ResourceGroup.Dispose(); throw; }
             records[request.MatchId] = record;
         }
         finally { admission.Release(); }
@@ -177,6 +192,7 @@ public sealed class ExecutionManager : IHostedService, IDisposable
             var info = StartInfo("engine-host.js", sourceDirectory); info.Environment["COINHUNTER_ENGINE_LOGS"] = Path.Combine(settings.ExecutionRoot, "journals");
             process = new Process { StartInfo = info }; record.Process = process;
             if (!process.Start()) throw new IOException("Engine start failed.");
+            record.ResourceGroup!.Assign(process); // Before initialize can load user code or spawn players.
             record.EnginePid = process.Id;
             _ = DiscardDiagnostics(process.StandardError);
             await Send(record, "initialize", JsonSerializer.SerializeToElement(record.Request, Protocol.JsonOptions));
@@ -219,15 +235,33 @@ public sealed class ExecutionManager : IHostedService, IDisposable
             if (process is not null)
             {
                 try { process.StandardInput.Close(); await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(3)); }
-                catch { try { process.Kill(true); await process.WaitForExitAsync(); } catch (InvalidOperationException) { } }
+                // Group disposal below is the authoritative descendant cleanup. A failed
+                // root kill/wait must not bypass it or wait forever before reaching it.
+                catch { try { process.Kill(true); await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(3)); } catch { } }
             }
             record.Prepared.TrySetException(new IOException("Engine preparation failed."));
+            var resourcesReleased = false;
             try
             {
+                try
+                {
+                    // Telemetry failure must never skip actual descendant termination.
+                    try { record.ResourceUsage = record.ResourceGroup?.Observe(); }
+                    catch { record.ResourceUsage = null; }
+                    if (record.ResourceUsage?.OomKills > 0)
+                        record.Result = Failure(record, "resource-memory-limit", new JsonObject { ["status"] = "partial", ["key"] = record.Request.MatchId.ToString(), ["durableThroughSeq"] = 0 });
+                    record.ResourceGroup?.Dispose();
+                    resourcesReleased = true;
+                }
+                catch
+                {
+                    record.State = "cleanup-unconfirmed";
+                    record.Result = Failure(record, "resource-cleanup-unconfirmed", new JsonObject { ["status"] = "partial", ["key"] = record.Request.MatchId.ToString(), ["durableThroughSeq"] = 0 });
+                }
                 if (record.Result?["recording"]?.Text("status") != "complete") record.Result!["recording"] = await JournalRecovery.Recover(settings.ExecutionRoot, record.Request.MatchId);
                 await Persist(record);
             }
-            finally { record.Closed.TrySetResult(); record.NotifySnapshotChanged(); }
+            finally { if (resourcesReleased) record.Closed.TrySetResult(); record.NotifySnapshotChanged(); }
         }
     }
     private static async Task DiscardDiagnostics(StreamReader reader) { var buffer = new char[4096]; while (await reader.ReadAsync(buffer) != 0) { } }
@@ -262,7 +296,8 @@ public sealed class ExecutionManager : IHostedService, IDisposable
     public ExecutionRecord Get(Guid id) => records.GetValueOrDefault(id) ?? throw new ServiceFault(404, "실행을 찾을 수 없습니다.");
     public JsonObject View(ExecutionRecord record)
     {
-        lock (record.Gate) return new JsonObject { ["id"] = record.Request.MatchId.ToString(), ["state"] = record.State, ["snapshot"] = record.Snapshot?.DeepClone(), ["result"] = record.Result?.DeepClone(), ["acknowledged"] = record.Acknowledged, ["enginePid"] = record.EnginePid };
+        lock (record.Gate) return new JsonObject { ["id"] = record.Request.MatchId.ToString(), ["state"] = record.State, ["snapshot"] = record.Snapshot?.DeepClone(), ["result"] = record.Result?.DeepClone(), ["acknowledged"] = record.Acknowledged, ["enginePid"] = record.EnginePid,
+            ["resourceUsage"] = record.ResourceUsage is null ? null : JsonSerializer.SerializeToNode(record.ResourceUsage, Protocol.JsonOptions) };
     }
     public async Task Start(ExecutionRecord record)
     {
@@ -287,7 +322,10 @@ public sealed class ExecutionManager : IHostedService, IDisposable
     }
     public async Task Acknowledge(Guid id, ResultAcknowledgement acknowledgement)
     {
-        var record = Get(id); await record.Closed.Task;
+        var record = Get(id);
+        if (record.State == "cleanup-unconfirmed") throw new ServiceFault(503, "실행 자원 정리를 확인하지 못했습니다.");
+        try { await record.Closed.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+        catch (TimeoutException) { throw new ServiceFault(503, "실행 자원 정리를 기다리고 있습니다."); }
         if (acknowledgement.MatchId != id || acknowledgement.ResultVersion != 1) throw new ServiceFault(409, "결과 버전이 일치하지 않습니다.");
         record.Acknowledged = true; await Persist(record);
     }
@@ -297,16 +335,23 @@ public sealed class ExecutionManager : IHostedService, IDisposable
         if (stopping || request.RequestId == Guid.Empty || request.Scope is null || request.Source is null || request.Scope.SubjectId == Guid.Empty || request.Scope.Kind is not ("user" or "guest")) throw new ServiceFault(400, "검사 요청을 확인하세요.");
         var owner = request.Scope.Kind + request.Scope.SubjectId;
         if (!validating.TryAdd(owner, 0)) throw new ServiceFault(429, "코드 검사가 진행 중입니다.");
-        if (!await validations.WaitAsync(0, token)) { validating.TryRemove(owner, out _); throw new ServiceFault(429, "검사 한도에 도달했습니다."); }
+        try { if (!await validations.WaitAsync(0, token)) throw new ServiceFault(429, "검사 한도에 도달했습니다."); }
+        catch { validating.TryRemove(owner, out _); throw; }
         var directory = Path.Combine(settings.ExecutionRoot, "validations", request.RequestId.ToString());
+        IExecutionResourceGroup? resourceGroup = null;
+        var resourcesReleased = false;
         try
         {
+            resourceGroup = resources.Reserve(resourceSettings.Validation);
             await CopySource(request.Source, directory, token);
             var info = StartInfo("validation-host.js", directory); info.ArgumentList.Add(request.Source.SourceKey.ToString());
+            info.Environment["COINHUNTER_REQUIRE_RESOURCE_GATE"] = "1";
             using var process = new Process { StartInfo = info }; process.Start();
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token); timeout.CancelAfter(TimeSpan.FromSeconds(35));
             try
             {
+                resourceGroup.Assign(process);
+                await process.StandardInput.WriteLineAsync("start"); process.StandardInput.Close();
                 _ = DiscardDiagnostics(process.StandardError);
                 var output = await ReadBounded(process.StandardOutput, 262144, timeout.Token);
                 await process.WaitForExitAsync(timeout.Token);
@@ -314,7 +359,18 @@ public sealed class ExecutionManager : IHostedService, IDisposable
             }
             finally { if (!process.HasExited) { process.Kill(true); await process.WaitForExitAsync(); } }
         }
-        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); validations.Release(); validating.TryRemove(owner, out _); }
+        finally
+        {
+            try { if (resourceGroup is not null) { resourceGroup.Dispose(); resourcesReleased = true; } }
+            finally
+            {
+                if (resourceGroup is null || resourcesReleased)
+                {
+                    try { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+                    finally { validations.Release(); validating.TryRemove(owner, out _); }
+                }
+            }
+        }
     }
     private static async Task<string> ReadBounded(StreamReader reader, int limit, CancellationToken token)
     {

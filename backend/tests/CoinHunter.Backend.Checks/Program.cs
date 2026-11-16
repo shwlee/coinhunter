@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 
 if (args.Length < 1) throw new ArgumentException("Repository root is required.");
 var root = Path.GetFullPath(args[0]);
+if (args.Length >= 3 && args[1] == "resource-child") { await ResourceChecks.Child(args.Skip(2).ToArray()); return; }
 var example = JsonSerializer.Deserialize<EngineEnvelope>(
     await File.ReadAllTextAsync(Path.Combine(root, "backend/contracts/initialize.example.json")), Protocol.JsonOptions)!;
 if (args.Length == 3 && args[1] == "verify-frame")
@@ -157,6 +158,7 @@ await CheckAsync("terminal execution wakes an unchanged-snapshot subscriber", as
 });
 Console.WriteLine($"Backend contract checks passed: {checks}");
 await BusinessChecks.Run(root);
+Console.WriteLine($"OS resource checks: {await ResourceChecks.Run(root)} passed.");
 
 sealed class FragmentedStream(byte[] bytes) : MemoryStream(bytes)
 {

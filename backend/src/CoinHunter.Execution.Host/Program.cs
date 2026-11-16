@@ -2,6 +2,7 @@ using CoinHunter.Contracts;
 using CoinHunter.Infrastructure;
 using CoinHunter.Infrastructure.Storage;
 using CoinHunter.Execution.Host.Services;
+using CoinHunter.Infrastructure.Resources;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -13,6 +14,8 @@ var settings = BackendSettings.Read(builder.Configuration, builder.Environment, 
 builder.AddBackendFoundation(settings);
 builder.Services.AddSingleton<StorageSettings>();
 builder.Services.AddSingleton<GameContent>();
+builder.Services.AddSingleton<ExecutionResourceSettings>();
+builder.Services.AddSingleton<ExecutionResources>();
 builder.Services.AddSingleton<ExecutionManager>();
 builder.Services.AddHostedService(services => services.GetRequiredService<ExecutionManager>());
 builder.Services.AddSingleton<IReadinessProbe, ExecutionBootstrapProbe>();

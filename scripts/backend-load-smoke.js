@@ -49,7 +49,7 @@ async function resources(pids) {
     ],
     { windowsHide: true },
   );
-  const rows = JSON.parse(stdout);
+  const rows = stdout.trim() ? JSON.parse(stdout) : [];
   return Array.isArray(rows) ? rows : [rows];
 }
 async function playerProcesses(enginePids) {
@@ -96,8 +96,8 @@ try {
         tiles,
         settings: {
           ...DEFAULT_MAP_SETTINGS,
-          actionMs: 200,
-          runningTimeMs: 3000,
+          actionMs: 800,
+          runningTimeMs: 20000,
           hurryUpRemovalIntervalMs: { 100: 100 },
         },
       }),
@@ -111,7 +111,9 @@ try {
     ),
     200,
   );
-  const source = `module.exports = class { initialize(){this.calls=0;} getName(){return 'load';} moveNext(){this.calls++; if(this.calls===2){this.saved=3;while(true){}} return this.calls===3?this.saved:2;} }`;
+  // Trusted fault fixture: timeout only on the actual 10x10 game, not on preflight maps.
+  // This also verifies that finite preflight success does not remove runtime protection.
+  const source = `module.exports = class { initialize(){this.calls=0;} getName(){return 'load';} moveNext(map){this.calls++; if(map.length===100 && this.calls===2){this.saved=3;while(true){}} return map.length===100 && this.calls===3?this.saved:2;} }`;
   const options = { mapId: saved.map.id, dummyCount: 3, blackMatter: false, destroyWalls: false };
   const ids = [];
   for (const client of clients.slice(0, 4))
@@ -286,8 +288,26 @@ try {
     201,
   ).id;
   await wait(300);
+  const restartingView = expect(await internal(`/internal/v1/matches/${restartId}`), 200);
+  const restartingActors = await playerProcesses([restartingView.enginePid]);
   app.execution.child.kill();
   await app.execution.exited;
+  if (process.platform === 'win32') {
+    const watched = [restartingView.enginePid, ...restartingActors];
+    assert.equal(restartingActors.length, 4);
+    assert.equal(
+      (await resources(watched)).length,
+      0,
+      'Execution parent death must release its entire Job Object process tree',
+    );
+    report.parentDeathCleanup = {
+      engineCount: 1,
+      playerCount: restartingActors.length,
+      confirmed: true,
+    };
+    await writeFile('artifacts/backend-load-report.json', JSON.stringify(report, null, 2));
+    console.log('PASS Windows parent death kills the engine and all four player hosts.');
+  }
   const unready = await request(app.operations.port, '/health/ready');
   assert.equal(unready.status, 503);
   const execution = await app.launch('CoinHunter.Execution.Host', app.execution.port);

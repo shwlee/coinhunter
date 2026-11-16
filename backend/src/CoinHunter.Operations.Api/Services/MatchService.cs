@@ -169,7 +169,7 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
             var scope = item["scope"]!.Deserialize<ExecutionScope>(Protocol.JsonOptions)!;
             // Copy once before the metadata transaction. Losing this race leaves an offline-GC orphan, never a broken reference.
             Guid? historySource = null;
-            if (!item.Bool("applied") && scope.Kind == "user" && !new[] { "server-shutdown", "account-ended", "runtime-failure", "execution-host-restarted", "recording-failure" }.Contains(reason) && snapshot?["game"]?["players"]?[0] is JsonObject)
+            if (!item.Bool("applied") && scope.Kind == "user" && !new[] { "server-shutdown", "account-ended", "runtime-failure", "execution-host-restarted", "recording-failure", "resource-memory-limit", "resource-cleanup-unconfirmed" }.Contains(reason) && snapshot?["game"]?["players"]?[0] is JsonObject)
             {
                 var request = item["request"]!.Deserialize<ExecutionRequest>(Protocol.JsonOptions)!;
                 historySource = (await Exchange.Copy(request.Participants[0].Source.SourceKey, accounts.Sources)).SourceKey;

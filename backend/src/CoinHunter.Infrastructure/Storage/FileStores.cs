@@ -96,16 +96,20 @@ public sealed class FileSourceStore(string root) : ISourceStore
 {
     public string Root { get; } = Path.GetFullPath(root);
     public string PathFor(Guid key) => key == Guid.Empty ? throw new ServiceFault(400, "잘못된 코드 참조입니다.") : Path.Combine(Root, key.ToString("D") + ".js");
-    public async Task<SourceReference> Put(Stream input, CancellationToken cancellationToken = default)
+    public Task<SourceReference> Put(Stream input, CancellationToken cancellationToken = default) => PutReserved(input, Guid.NewGuid(), cancellationToken);
+    // Internal lifecycle callers reserve the key in an ownership receipt before copying.
+    public async Task<SourceReference> PutReserved(Stream input, Guid key, CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(Root);
-        var key = Guid.NewGuid();
         var path = PathFor(key);
         var temporary = path + ".tmp";
+        var committed = false;
+        var ownsTemporary = false;
         try
         {
             await using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous))
             {
+                ownsTemporary = true;
                 var buffer = new byte[65536];
                 long nextCheck = 0;
                 while (true)
@@ -124,10 +128,11 @@ public sealed class FileSourceStore(string root) : ISourceStore
                 output.Flush(true);
             }
             File.Move(temporary, path);
+            committed = true;
             return await Describe(key);
         }
-        catch { File.Delete(path); throw; }
-        finally { File.Delete(temporary); }
+        catch { if (committed) File.Delete(path); throw; }
+        finally { if (ownsTemporary) File.Delete(temporary); }
     }
     // File handle is the read lease. Old immutable versions are retained until offline reconciliation.
     public FileStream Open(Guid key) => new(PathFor(key), FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);

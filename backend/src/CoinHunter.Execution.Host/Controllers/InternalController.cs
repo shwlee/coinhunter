@@ -14,6 +14,8 @@ public sealed class InternalController(ExecutionManager manager, StorageSettings
     public IActionResult Status() => Ok(new ExecutionServiceStatus(Protocol.ExecutionService, Protocol.Version, Protocol.Stage, true, ["health", "contracts", "matches", "validations", "recordings"]));
     [HttpGet("contracts")]
     public IActionResult Contracts() => Ok(new { contractVersion = Protocol.Version, routes = ApiCatalog.Internal });
+    [HttpGet("resources")]
+    public IActionResult Resources() => Ok(manager.ResourceStatus);
     [HttpPost("matches")]
     public async Task<IActionResult> Accept([FromBody] ExecutionRequest request) => StatusCode(202, manager.View(await manager.Accept(request, HttpContext.RequestAborted)));
     [HttpGet("matches/{id:guid}")]

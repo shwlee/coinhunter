@@ -186,6 +186,7 @@ internal static class BusinessChecks
                 await service.Refresh();
                 Require(transport.Paths.Count == 1 && transport.Paths[0] == $"/internal/v1/results/{id}/ack");
             });
+            checks += await ValidationChecks.Run(accounts, settings, content, backend);
             Console.WriteLine($"Backend business checks: {checks} passed.");
         }
         finally { if (Path.GetFullPath(directory).StartsWith(Path.Combine(root, "artifacts") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) Directory.Delete(directory, true); }

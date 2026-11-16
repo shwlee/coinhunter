@@ -103,20 +103,28 @@ public sealed class AlgorithmValidationService(AccountService accounts, StorageS
             throw new ServiceFault(503, "검사 서비스 버전이 일치하지 않습니다. 서버를 업데이트하세요.");
     }
 
+    public override async Task StartAsync(CancellationToken cancellationToken)
+    {
+        RecoverSnapshotLeases();
+        await accounts.RecoverValidations(Version);
+        await base.StartAsync(cancellationToken);
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await accounts.RecoverValidations(Version);
         try
         {
             await foreach (var job in jobs.Reader.ReadAllAsync(stoppingToken))
             {
                 SourceReference? copied = null;
+                Guid? lease = null;
                 var state = State("unverified", "검사를 완료하지 못했습니다. 다시 검사하세요.");
                 try
                 {
                     var current = await accounts.Algorithm(job.Owner, job.Id);
                     if (current.Int("revision") != job.Revision || current.Text("sourceKey") != job.SourceKey.ToString() || await accounts.User(job.Owner) is null) continue;
-                    copied = await accounts.Sources.Copy(job.SourceKey, Exchange);
+                    lease = Guid.NewGuid();
+                    copied = await CopySnapshot(job.SourceKey, lease.Value, stoppingToken);
                     var result = await Check(new ExecutionScope { Kind = "user", SubjectId = Guid.Parse(job.Owner) }, copied, stoppingToken);
                     state = ResultState(result, copied.Sha256);
                 }
@@ -126,7 +134,7 @@ public sealed class AlgorithmValidationService(AccountService accounts, StorageS
                 {
                     try
                     {
-                        if (copied is not null) { try { await Exchange.Delete(copied.SourceKey); } catch (IOException) { /* Offline exchange reconciliation retains cleanup responsibility. */ } }
+                        if (lease is Guid key) ReleaseSnapshot(key);
                         try { await accounts.SetValidation(job.Owner, job.Id, job.Revision, job.SourceKey, state); }
                         catch (IOException) { /* Persisted pending receipts are recovered on startup/recheck. */ }
                     }
@@ -147,6 +155,26 @@ public sealed class AlgorithmValidationService(AccountService accounts, StorageS
     }
 
     private JsonObject State(string state, string message) => new() { ["state"] = state, ["message"] = message, ["version"] = Version, ["checkedAt"] = DateTimeOffset.UtcNow.ToString("O") };
+    private string LeaseDirectory => Path.Combine(settings.DataRoot, "validation-leases");
+    private string LeasePath(Guid key) => Path.Combine(LeaseDirectory, key.ToString("D") + ".json");
+    private async Task<SourceReference> CopySnapshot(Guid sourceKey, Guid key, CancellationToken token)
+    {
+        // Persist ownership before creating bytes, so a crash at any copy stage is recoverable.
+        await AtomicFile.Json(LeasePath(key), new JsonObject { ["sourceKey"] = key.ToString("D") });
+        await using var input = accounts.Sources.Open(sourceKey);
+        return await Exchange.PutReserved(input, key, token);
+    }
+    private void ReleaseSnapshot(Guid key)
+    {
+        try { File.Delete(Exchange.PathFor(key)); File.Delete(Exchange.PathFor(key) + ".tmp"); File.Delete(LeasePath(key)); }
+        catch (IOException) { /* Keep ownership evidence for the next startup; never delete match snapshots. */ }
+    }
+    private void RecoverSnapshotLeases()
+    {
+        if (!Directory.Exists(LeaseDirectory)) return;
+        foreach (var path in Directory.EnumerateFiles(LeaseDirectory, "*.json"))
+            if (Guid.TryParseExact(Path.GetFileNameWithoutExtension(path), "D", out var key)) ReleaseSnapshot(key);
+    }
     private JsonObject ResultState(JsonObject result, string hash)
     {
         var validVersion = result.Text("profileVersion") == "javascript-preflight-v2" && result.Text("fixtureVersion") == "2.0.0";

@@ -20,6 +20,8 @@ Node 웹 계층은 계정·운영 저장소·게임 인스턴스를 만들지 �
 
 Windows 로컬 검증: .NET SDK **10.0.401**, Node **18.20.2**. 외부 NuGet 패키지는 없다. 설치된 SDK/shared framework로 빌드한다. 배포 런타임/컨테이너는 후속 검증 대상이다.
 
+실행 관리 서비스는 게임/검사에 OS 강제 자원 제한을 요구한다. Windows는 Job Object를 사용하며, Linux는 관리자가 위임한 cgroup v2 경로를 `Backend__Resources__CgroupRoot`에 설정해야 한다. 설정/권한/OS 기능이 부족하면 시작을 거부한다. [자원 설정·수명·검증·Linux 미검증 범위](../docs/execution-resource-limits.md)를 확인한다. Linux workflow 준비는 구현했지만 현재 Windows 환경에서 실행 검증하지 않았다.
+
 ```sh
 npm ci
 npm start

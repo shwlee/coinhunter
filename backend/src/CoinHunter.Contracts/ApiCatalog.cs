@@ -49,6 +49,7 @@ public static class ApiCatalog
 
     public static readonly ApiRouteContract[] Internal =
     [
+        new("GET", "/internal/v1/resources", "service", 4, "none", "OS adapter and reserved memory/process budget"),
         new("POST", "/internal/v1/matches", "service", 4, "ExecutionRequest + idempotent requestId", "202 ExecutionAccepted"),
         new("GET", "/internal/v1/matches/{id}", "service", 4, "optional afterSequence; update wait <= 1s", "execution state + latest snapshot"),
         new("POST", "/internal/v1/matches/{id}/start", "service", 4, "requestId", "ack; requires prepared"),
