@@ -22,6 +22,10 @@ C# 후보의 [부모 관리 모듈](../docs/csharp-parent-manager.md)을 실행 
 
 [C4-B 복구/검사 모듈](../docs/csharp-recovery-preflight-c4b.md)은 준비 작업의 소유권·실제 프로세스 수명을 확인해 회수하고, JS 공통 맵으로 DLL을 36회 검사한다. 결과는 별도 파일 어댑터로 보관하며 계정 revision·검사 worker·Node 연결은 후속이다. 검사 통과로 C# capability를 활성화하지 않는다.
 
+[C4-C 계정 검사 연결](../docs/csharp-account-validation-c4c.md)은 언어/hash/revision CAS와 실행 서비스의 개발용 C# 검사 분기를 연결한다. 내부 요청의 `language`는 기본 `javascript`다. C# 후보 검사는 기본 비활성이며 신뢰된 HostAssembly 설정과 opt-in이 필요하다. 공개 저장·편집기·게임의 C# 언어 선택은 제공하지 않는다.
+
+[C4-D Node 혼합 게임 후보](../docs/csharp-node-game-c4d.md)는 플레이어별 private pipe로 기존 .NET 부모 세션을 호출하며 게임 수명 동안 DLL/객체를 유지한다. 별도의 개발 opt-in과 내부 후보 경로에서만 실행한다. C#에는 현재 IPC 중계가 한 단계 더 있으므로 호출 비용/공정성과 정식 채택 관문이 남는다. 기본 공개 지원은 계속 JavaScript 하나다.
+
 ## 실행
 
 Windows 로컬 검증: .NET SDK **10.0.401**, Node **18.20.2**. 외부 NuGet 패키지는 없다. 설치된 SDK/shared framework로 빌드한다. 배포 런타임/컨테이너는 후속 검증 대상이다.

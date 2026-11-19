@@ -1,0 +1,196 @@
+{
+  "date": "2026-11-19T05:58:15.489225+00:00",
+  "checks": 30,
+  "publicCSharpEnabled": false,
+  "observations": [
+    {
+      "game": "fbe69c7a-58b7-4c62-8070-43d8dee6cf46",
+      "players": 3,
+      "results": 26,
+      "elapsedToTimeoutMs": 723.2508001327515,
+      "timingSamples": [
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 1,
+          "executionMs": 0.08690023422241211,
+          "roundTripMs": 0.8524999618530273
+        },
+        {
+          "player": 1,
+          "language": "csharp",
+          "callId": 1,
+          "executionMs": 0.3596,
+          "roundTripMs": 13.669600009918213
+        },
+        {
+          "player": 0,
+          "language": "csharp",
+          "callId": 1,
+          "executionMs": 0.4148,
+          "roundTripMs": 14.669099807739258
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 2,
+          "executionMs": 0.08370018005371094,
+          "roundTripMs": 0.8502998352050781
+        },
+        {
+          "player": 1,
+          "language": "csharp",
+          "callId": 2,
+          "executionMs": 0.3172,
+          "roundTripMs": 1.7049999237060547
+        },
+        {
+          "player": 0,
+          "language": "csharp",
+          "callId": 2,
+          "executionMs": 0.3372,
+          "roundTripMs": 2.5402002334594727
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 3,
+          "executionMs": 0.2376999855041504,
+          "roundTripMs": 0.7005000114440918
+        },
+        {
+          "player": 0,
+          "language": "csharp",
+          "callId": 3,
+          "executionMs": 0.022,
+          "roundTripMs": 1.3484001159667969
+        },
+        {
+          "player": 1,
+          "language": "csharp",
+          "callId": 3,
+          "executionMs": 0.0202,
+          "roundTripMs": 1.7574000358581543
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 4,
+          "executionMs": 0.07600021362304688,
+          "roundTripMs": 0.5451998710632324
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 5,
+          "executionMs": 0.07490015029907227,
+          "roundTripMs": 0.6833000183105469
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 6,
+          "executionMs": 0.05390024185180664,
+          "roundTripMs": 0.4135003089904785
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 7,
+          "executionMs": 0.11080026626586914,
+          "roundTripMs": 0.6229000091552734
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 8,
+          "executionMs": 0.08439970016479492,
+          "roundTripMs": 0.5088000297546387
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 9,
+          "executionMs": 0.0643000602722168,
+          "roundTripMs": 0.8020000457763672
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 10,
+          "executionMs": 0.07089996337890625,
+          "roundTripMs": 0.5309000015258789
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 11,
+          "executionMs": 0.07890033721923828,
+          "roundTripMs": 0.4734001159667969
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 12,
+          "executionMs": 0.0577998161315918,
+          "roundTripMs": 0.9363999366760254
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 13,
+          "executionMs": 0.0616002082824707,
+          "roundTripMs": 0.5668001174926758
+        },
+        {
+          "player": 0,
+          "language": "csharp",
+          "callId": 5,
+          "executionMs": 0.0205,
+          "roundTripMs": 1.1416997909545898
+        },
+        {
+          "player": 1,
+          "language": "csharp",
+          "callId": 5,
+          "executionMs": 0.025,
+          "roundTripMs": 1.6264996528625488
+        },
+        {
+          "player": 2,
+          "language": "javascript",
+          "callId": 14,
+          "executionMs": 0.05740022659301758,
+          "roundTripMs": 0.7163996696472168
+        },
+        {
+          "player": 1,
+          "language": "csharp",
+          "callId": 6,
+          "executionMs": 0.0215,
+          "roundTripMs": 1.3857002258300781
+        },
+        {
+          "player": 0,
+          "language": "csharp",
+          "callId": 6,
+          "executionMs": 0.0238,
+          "roundTripMs": 2.019899845123291
+        }
+      ],
+      "recording": {
+        "status": "complete",
+        "durableThroughSeq": 131,
+        "key": "fbe69c7a-58b7-4c62-8070-43d8dee6cf46"
+      }
+    }
+  ],
+  "resources": {
+    "adapter": "windows-job-v1",
+    "processLimitUnit": "processes",
+    "reservedMemoryBytes": 0,
+    "reservedProcesses": 0,
+    "totalMemoryBytes": 6442450944,
+    "totalProcesses": 32
+  }
+}

@@ -111,7 +111,7 @@ public static class ContractValidation
             throw new InvalidDataException("Invalid engine envelope or unsupported contract version.");
     }
 
-    public static void Execution(ExecutionRequest value)
+    public static void Execution(ExecutionRequest value,bool allowCSharpCandidate=false)
     {
         if (value.ContractVersion != Protocol.Version || value.MatchId == Guid.Empty ||
             value.RequestId == Guid.Empty || value.Scope is null || value.Map is null ||
@@ -133,7 +133,7 @@ public static class ContractValidation
         foreach (var player in value.Participants)
         {
             if (player.RunId == Guid.Empty || player.StartSlot is < 0 or > 3 ||
-                player.Language != "javascript" || string.IsNullOrWhiteSpace(player.CharacterId) ||
+                (player.Language != "javascript" && !(allowCSharpCandidate&&value.Scope.Kind=="user"&&player.Language=="csharp")) || string.IsNullOrWhiteSpace(player.CharacterId) ||
                 player.Source is null || player.Source.SourceKey == Guid.Empty || player.Source.ByteLength < 0 ||
                 player.Source.Sha256 is null || player.Source.Sha256.Length != 64 ||
                 player.Source.Sha256.Any(c => !char.IsAsciiHexDigit(c)))

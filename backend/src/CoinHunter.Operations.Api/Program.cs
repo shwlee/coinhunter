@@ -38,6 +38,7 @@ builder.Services.AddHostedService(services => services.GetRequiredService<Algori
 builder.Services.AddSingleton<MatchService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<MatchService>());
 builder.Services.AddHttpClient("execution", client => client.Timeout = TimeSpan.FromSeconds(40)).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false, MaxConnectionsPerServer = 32 });
+builder.Services.AddHttpClient("execution-candidate-validation",client=>client.Timeout=TimeSpan.FromSeconds(120)).ConfigurePrimaryHttpMessageHandler(()=>new SocketsHttpHandler{AllowAutoRedirect=false,UseCookies=false,UseProxy=false,MaxConnectionsPerServer=2});
 // Idle SSE subscribers must not occupy the pool used by start/stop/validation requests.
 builder.Services.AddHttpClient("execution-updates", client => client.Timeout = TimeSpan.FromSeconds(15)).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false, MaxConnectionsPerServer = 32 });
 builder.Services.AddHttpClient("google", client => client.Timeout = TimeSpan.FromSeconds(10)).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false });

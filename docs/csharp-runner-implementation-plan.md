@@ -6,6 +6,8 @@
 - 2026-11-19 부모 관리: [CSharpHostManager/Session](csharp-parent-manager.md)을 운영 실행 서비스에 등록하고 실제 OS 그룹의 watchdog/취소/정리를 검증했다. C4/Node 연결·Linux·운영 감시 값/복구 정책은 남는다.
 - 2026-11-19 C4-A: [격리 준비·불변 산출물·lease](csharp-preparation-c4a.md)를 구현하고 Windows 33개 확인을 수행했다. C4 전체 완료가 아니며 crash 복구·preflight/계정 저장 상태·Node 연결은 C4-B로 남긴다.
 - 2026-11-19 C4-B: [준비 crash 복구·공통 artifact preflight·결과 어댑터](csharp-recovery-preflight-c4b.md)를 Windows 53개 확인으로 검증했다. 계정 revision CAS/검사 worker·Node 연결·볼륨 정책과 기존 native/Linux 관문은 남는다.
+- 2026-11-19 C4-C: [계정 언어/hash/revision·검사 worker·내부 후보 검사 요청](csharp-account-validation-c4c.md)을 연결했다. 원문 파일과 메타데이터를 분리하고 게임 지원은 비활성으로 유지한다. 다음은 Node/게임 snapshot 연결과 정식 채택 관문이다.
+- 2026-11-19 C4-D: [Node 공통 runner·혼합 게임·플레이어별 pipe·DLL pin](csharp-node-game-c4d.md)을 내부 개발 후보로 연결했다. JS/C# 호출 경로의 IPC 단계가 다르므로 비용 균형·공정성과 native/Linux/운영 정책 관문을 거쳐야 한다. 공개 C#은 비활성이다.
 - 2026-11-16 리뷰 반영: 실제 게임 강제 자원 한도, 시간/중단 판정 계약, 실패 코드 보관과 실행 허가 분리. 기존 JS J0~J3 개선 이후 채택된 C#을 공통 경로에 연결한다.
 - 목표: 단일 C# 소스를 준비 시 컴파일하고 Player를 반복 호출한다. 사용자 try/catch/finally·재귀·goto·static·비동기/병렬·대기·외부 접근을 거부한다.
 - 후보: .NET 10 전용 호스트 + Roslyn 분석/변환 + 자동 예산 검사. Thread.Abort/ControlledExecution은 제품 중단 방식으로 채택하지 않는다. 메시지 루프는 호출 순서·비중첩을 관리하며 중단 수단 자체는 아니다.

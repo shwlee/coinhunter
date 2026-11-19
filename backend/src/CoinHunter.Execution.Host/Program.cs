@@ -21,6 +21,8 @@ builder.Services.AddSingleton<CSharpHostManager>();
 builder.Services.AddHostedService(services=>services.GetRequiredService<CSharpHostManager>());
 builder.Services.AddSingleton<ExecutionManager>();
 builder.Services.AddHostedService(services => services.GetRequiredService<ExecutionManager>());
+builder.Services.AddSingleton<CSharpValidationService>();
+builder.Services.AddHostedService(services=>services.GetRequiredService<CSharpValidationService>());
 builder.Services.AddSingleton<IReadinessProbe, ExecutionBootstrapProbe>();
 var app = builder.Build();
 app.UseBackendFoundation(settings);

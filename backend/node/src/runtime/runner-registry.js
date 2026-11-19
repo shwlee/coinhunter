@@ -1,5 +1,6 @@
 import { assertRunnerContext, RunnerFault } from './contracts/validation.js';
 import { JavaScriptRunner } from './javascript-runner.js';
+import { CSharpRunner } from './csharp-runner.js';
 
 export class RunnerRegistry {
   #factories;
@@ -18,4 +19,11 @@ export class RunnerRegistry {
 }
 export function createJavaScriptRegistry(options) {
   return new RunnerRegistry([['javascript', (context) => new JavaScriptRunner(context, options)]]);
+}
+// Explicit private candidate entry point; the default supported registry stays JS-only.
+export function createCSharpCandidateRegistry({ javascript, csharp }) {
+  return new RunnerRegistry([
+    ['javascript', (context) => new JavaScriptRunner(context, javascript)],
+    ['csharp', (context) => new CSharpRunner(context, csharp)],
+  ]);
 }

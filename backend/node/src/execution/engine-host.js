@@ -5,6 +5,8 @@ import { once } from 'node:events';
 import { Match } from '../game/match.js';
 import { EngineFrameDecoder, encodeEngineFrame } from './engine-protocol.js';
 import { EventCollector, FileJournalStorage } from './jsonl-collector.js';
+import { CandidateArtifacts } from '../runtime/csharp-artifacts.js';
+import { createCSharpCandidateRegistry } from '../runtime/runner-registry.js';
 
 let match,
   matchId,
@@ -94,7 +96,37 @@ async function handle(message) {
     if (request.matchId !== matchId || request.contractVersion !== 1)
       throw new Error('invalid-request');
     const sources = [];
+    let dependencies;
+    let candidates;
+    if (process.env.COINHUNTER_CSHARP_CANDIDATE_SNAPSHOT) {
+      const bytes = await readFile(process.env.COINHUNTER_CSHARP_CANDIDATE_SNAPSHOT);
+      if (bytes.length > 65536) throw new Error('candidate-snapshot-limit');
+      candidates = JSON.parse(bytes.toString('utf8'));
+      if (
+        candidates.gameId !== matchId ||
+        request.scope.kind !== 'user' ||
+        !Array.isArray(candidates.players)
+      )
+        throw new Error('candidate-binding');
+      const artifacts = new CandidateArtifacts();
+      dependencies = {
+        artifacts,
+        registry: createCSharpCandidateRegistry({
+          javascript: { resolveArtifact: artifacts.javascript.resolve },
+          csharp: { resolveArtifact: artifacts.resolveCSharp },
+        }),
+      };
+    }
     for (const participant of request.participants) {
+      if (participant.language === 'csharp' && candidates) {
+        const found = candidates.players.filter(
+          (p) => p.playerId === participant.playerId && p.runId === participant.runId,
+        );
+        if (found.length !== 1 || found[0].gameId !== matchId)
+          throw new Error('candidate-player-binding');
+        sources.push({ csharp: found[0] });
+        continue;
+      }
       if (participant.language !== 'javascript') throw new Error('unsupported-language');
       const source = participant.source;
       if (!/^[a-f0-9-]{36}$/.test(source.sourceKey)) throw new Error('invalid-source');
@@ -122,21 +154,38 @@ async function handle(message) {
       participants: request.participants,
       map: request.map,
     });
-    match = new Match(request.map, sources, {
-      ...request.options,
-      gameId: matchId,
-      participants: request.participants,
-      startSlot: request.participants[0].startSlot,
-      characterId: request.participants[0].characterId,
-      playerStartSlots: request.participants.map((player) => player.startSlot),
-      playerCharacters: request.participants.map((player) => player.characterId),
-      record: (type, payload) => collector.record(type, payload),
-    });
+    match = new Match(
+      request.map,
+      sources,
+      {
+        ...request.options,
+        gameId: matchId,
+        participants: request.participants,
+        startSlot: request.participants[0].startSlot,
+        characterId: request.participants[0].characterId,
+        playerStartSlots: request.participants.map((player) => player.startSlot),
+        playerCharacters: request.participants.map((player) => player.characterId),
+        record: (type, payload) => collector.record(type, payload),
+      },
+      dependencies,
+    );
     match.on('snapshot', (snapshot) => {
       void send('snapshot', snapshot).catch(() => finish('transport-failure'));
     });
     match.once('closed', () => {
       void finish(match.state?.reason);
+    });
+    match.once('cleanup-failed', () => {
+      closed = true;
+      // No complete receipt: the parent must drain every group and recover the
+      // durable journal prefix. A broken runner channel is not a clean close.
+      void send('failed', {
+        code: 'runner-cleanup-failed',
+        stage: 'execution',
+        message: 'Runner cleanup failed.',
+      })
+        .catch(() => {})
+        .finally(() => process.stdin.destroy());
     });
     await match.prepare();
     await send(

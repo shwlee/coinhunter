@@ -26,6 +26,7 @@ export const RUNNER_FAULT_STAGES = Object.freeze(['prepare', 'initialize', 'move
 export const LOG_LIMITS = Object.freeze({ lines: 30, lineCharacters: 1024 });
 export const TIMING_BOUNDARIES = Object.freeze({
   quickJsCall: 'quickjs-call-v1',
+  dotNetCall: 'dotnet-guarded-call-v1',
 });
 
 export class RunnerContractError extends Error {

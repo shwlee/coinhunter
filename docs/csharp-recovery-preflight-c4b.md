@@ -2,6 +2,8 @@
 
 작성: 2026-11-19. [C4-A 준비/캐시](csharp-preparation-c4a.md) 다음 작업이다. **준비 작업의 재시작 복구, DLL 기반 공통 실행 검사와 검사 결과 파일 어댑터까지 구현했다.** 계정 revision 갱신·운영 API·Node 게임 연결은 남아 있으며 실제 지원 언어는 계속 JavaScript 하나다.
 
+후속 [C4-C](csharp-account-validation-c4c.md)에서 계정 revision/검사 worker와 내부 후보 검사 요청을 연결했다. 아래 계정 연결의 미완료 설명은 C4-B 완료 당시 상태이며 Node 게임·공개 C# 기능과 정식 채택 관문은 계속 남는다.
+
 ## 준비 작업 복구
 
 준비 루트의 단일 writer를 확보한 뒤 `RecoverAsync`로 회수한다. 첫 Prepare/Acquire도 복구를 요구하므로 미완료 작업을 정상 캐시로 읽지 않는다.

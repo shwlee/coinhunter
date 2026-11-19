@@ -18,6 +18,8 @@ public sealed class InternalController(ExecutionManager manager, StorageSettings
     public IActionResult Resources() => Ok(manager.ResourceStatus);
     [HttpPost("matches")]
     public async Task<IActionResult> Accept([FromBody] ExecutionRequest request) => StatusCode(202, manager.View(await manager.Accept(request, HttpContext.RequestAborted)));
+    [HttpPost("candidates/matches")]
+    public async Task<IActionResult> Candidate([FromBody] ExecutionRequest request)=>StatusCode(202,manager.View(await manager.Accept(request,HttpContext.RequestAborted,candidate:true)));
     [HttpGet("matches/{id:guid}")]
     public async Task<IActionResult> Get(Guid id, [FromQuery] int? afterSequence = null)
     {

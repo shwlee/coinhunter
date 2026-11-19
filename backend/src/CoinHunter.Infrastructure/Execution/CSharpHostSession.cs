@@ -29,6 +29,7 @@ public sealed class CSharpHostSession : IAsyncDisposable
     private long lastCall;
     private long? preparationCall;
     private bool nameVerified;
+    public string? Name { get; private set; }
     private CSharpPreparationFault? preparationFault;
     private string state="preparing";
     private Pending? pending;
@@ -204,6 +205,7 @@ public sealed class CSharpHostSession : IAsyncDisposable
                         if((string?)data["Status"]=="ok")
                         {
                             nameVerified=data["Value"] is JsonValue named && named.TryGetValue<string>(out var name) && name is not null && name.Length<=40;
+                            if(nameVerified)Name=data["Value"]!.GetValue<string>();
                             if(!nameVerified){preparationFault=new("getName","invalid-result",data["ElapsedMs"]!.GetValue<double>(),500,"AR013",null,null);_=CloseAsync("invalid-name",true);}
                         }
                         else if((string?)data["Status"]=="invalid-result" && (string?)data["DiagnosticCode"]=="AR013")_=CloseAsync("invalid-name",true);

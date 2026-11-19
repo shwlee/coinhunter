@@ -1,0 +1,13 @@
+{
+  "date": "2026-11-19T05:13:52.2843352+00:00",
+  "checks": 40,
+  "executionAllowed": false,
+  "resources": {
+    "adapter": "windows-job-v1",
+    "processLimitUnit": "processes",
+    "reservedMemoryBytes": 0,
+    "reservedProcesses": 0,
+    "totalMemoryBytes": 6442450944,
+    "totalProcesses": 32
+  }
+}

@@ -20,14 +20,14 @@ public sealed class ExecutionClient(IHttpClientFactory clients, BackendSettings 
         await using var stream = await response.Content.ReadAsStreamAsync(token);
         await stream.CopyToAsync(output.Body, token);
     }
-    public async Task<JsonObject> Call(HttpMethod method, string path, object? body = null, CancellationToken token = default, bool waitForSnapshot = false)
+    public async Task<JsonObject> Call(HttpMethod method, string path, object? body = null, CancellationToken token = default, bool waitForSnapshot = false,bool candidateValidation=false)
     {
         using var request = new HttpRequestMessage(method, new Uri(settings.ExecutionUrl, path));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.InternalServiceKey);
         if (body is not null) request.Content = JsonContent.Create(body, options: Protocol.JsonOptions);
         try
         {
-            using var response = await clients.CreateClient(waitForSnapshot ? "execution-updates" : "execution").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
+            using var response = await clients.CreateClient(candidateValidation?"execution-candidate-validation":waitForSnapshot ? "execution-updates" : "execution").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
             await using var stream = await response.Content.ReadAsStreamAsync(token);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(40));
             using var output = new MemoryStream(); var buffer = new byte[65536];

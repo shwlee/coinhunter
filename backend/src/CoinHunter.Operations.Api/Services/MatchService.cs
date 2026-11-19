@@ -33,6 +33,7 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
                 if (scope.Kind != "user") throw new ServiceFault(401, "로그인이 필요합니다.");
                 if (upload is not null || input.ContainsKey("source")) throw new ServiceFault(400, "파일과 저장 알고리즘 중 하나만 선택하세요.");
                 var saved = await accounts.Algorithm(scope.SubjectId.ToString(), input.Text("algorithmId"));
+                if(saved.Text("language","javascript")!="javascript")throw new ServiceFault(503,"이 언어의 게임 지원은 아직 활성화되지 않았습니다.");
                 primary = await accounts.Sources.Copy(Guid.Parse(saved.Text("sourceKey")), Exchange);
                 staged.Add(primary.SourceKey);
             }
@@ -41,6 +42,7 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
             if (mode == "duel")
             {
                 var previous = await accounts.Algorithm(scope.SubjectId.ToString(), input.Text("opponentHistoryId"), true);
+                if(previous.Text("language","javascript")!="javascript")throw new ServiceFault(503,"이 언어의 게임 지원은 아직 활성화되지 않았습니다.");
                 var copied = await accounts.Sources.Copy(Guid.Parse(previous.Text("sourceKey")), Exchange); staged.Add(copied.SourceKey); sources.Add(copied);
             }
             else

@@ -31,7 +31,9 @@ export class Match extends EventEmitter {
     this.clock = dependencies.clock || systemMatchClock;
     this.random = dependencies.random || Math.random;
     this.artifacts = dependencies.artifacts || new JavaScriptArtifacts();
-    this.registry = createJavaScriptRegistry({ resolveArtifact: this.artifacts.resolve });
+    this.registry =
+      dependencies.registry ||
+      createJavaScriptRegistry({ resolveArtifact: this.artifacts.resolve });
     this.runnerFactory =
       dependencies.runnerFactory || runnerFactory || ((context) => this.registry.create(context));
     this.output = new MatchOutput(dependencies.record || record, () =>
@@ -80,7 +82,11 @@ export class Match extends EventEmitter {
         const language = participant?.language ?? 'javascript';
         if (!this.registry.supportedLanguages.includes(language))
           throw new RunnerFault('unavailable', 'initialize');
-        const artifact = await this.artifacts.register(this.sources[index], participant?.source);
+        const artifact = await this.artifacts.register(
+          this.sources[index],
+          participant?.source,
+          language,
+        );
         if (this.stopping) throw new RunnerFault('cancelled', 'initialize');
         const context = {
           contractVersion: 1,
@@ -89,7 +95,10 @@ export class Match extends EventEmitter {
           runId: participant?.runId ?? randomUUID(),
           language,
           artifact,
-          limits: { turnMs: 500, algorithmMemoryBytes: ALGORITHM_MEMORY_LIMIT_BYTES },
+          limits: {
+            turnMs: 500,
+            algorithmMemoryBytes: language === 'javascript' ? ALGORITHM_MEMORY_LIMIT_BYTES : null,
+          },
         };
         this.contexts.push(context);
         this.runners.push(this.runnerFactory(context));
@@ -296,6 +305,9 @@ export class Match extends EventEmitter {
         turn,
         callId,
         code: error instanceof RunnerFault ? error.code : 'protocol-error',
+        ...(['exception', 'operation-limit', 'cancelled'].includes(error?.userStatus)
+          ? { status: error.userStatus }
+          : {}),
       });
       // Never await stop from a job that stop itself must drain.
       if (!this.stopping) this.stopDetached('runtime-failure');
@@ -352,7 +364,18 @@ export class Match extends EventEmitter {
       game: this.state?.snapshot(this.clock.now()) || null,
     });
     this.publish();
-    void this.shutdown().then(resolve, reject);
+    void this.shutdown().then(resolve, (error) => {
+      reject(error);
+      // An embedding engine needs a terminal fault even if a runner cannot
+      // confirm clean closure. Explicit stop callers still receive the error.
+      for (const listener of this.rawListeners('cleanup-failed')) {
+        try {
+          listener.call(this, error);
+        } catch {
+          /* Parent supervision remains authoritative. */
+        }
+      }
+    });
     return this.closed;
   }
   async shutdown() {

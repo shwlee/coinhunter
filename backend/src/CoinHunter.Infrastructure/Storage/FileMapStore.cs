@@ -1,11 +1,13 @@
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using CoinHunter.Contracts;
 
 namespace CoinHunter.Infrastructure.Storage;
 
 // Generated at build time from the existing JS rules, strategy templates and bundled maps.
 public sealed class GameContent(StorageSettings settings)
 {
+    public string PreflightHash { get; } = CSharpArtifactKeys.Hash(File.ReadAllBytes(Path.Combine(settings.RepositoryRoot,"backend/contracts/generated/algorithm-preflight.json")));
     public JsonObject Value { get; } = JsonNode.Parse(File.ReadAllText(Path.Combine(settings.RepositoryRoot, "backend/contracts/generated/game-content.json")))!.AsObject();
     public JsonObject Defaults => Value["defaults"]!.CloneObject();
     public JsonObject Limits => Value["limits"]!.CloneObject();

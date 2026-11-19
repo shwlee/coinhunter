@@ -18,6 +18,9 @@ public sealed class AlgorithmsController(SessionService sessions, AccountService
     public async Task<IActionResult> Save(Guid? id = null)
     {
         var user = await sessions.Require(HttpContext); string name; int revision; SourceReference source;
+        // Candidate-language persistence is an internal development path until the
+        // editor/game language capability gate is approved.
+        if(id.HasValue&&(await accounts.Algorithm(user.Text("id"),id.Value.ToString())).Text("language","javascript")!="javascript")throw new ServiceFault(503,"이 언어의 편집·게임 지원은 아직 활성화되지 않았습니다.");
         if (RequestInput.IsSource(Request))
         {
             name = Request.Query["name"].ToString(); revision = int.TryParse(Request.Query["revision"], out var version) ? version : 0;
@@ -30,7 +33,7 @@ public sealed class AlgorithmsController(SessionService sessions, AccountService
         JsonObject result;
         try
         {
-            result = await accounts.Save(user.Text("id"), id?.ToString(), name, revision, source.SourceKey, source.Sha256);
+            result = await accounts.Save(user.Text("id"), id?.ToString(), name, revision, source.SourceKey, source.Sha256, "javascript");
         }
         catch { await accounts.Sources.Delete(source.SourceKey); throw; }
         await validation.Queue(user.Text("id"), result, source.SourceKey);

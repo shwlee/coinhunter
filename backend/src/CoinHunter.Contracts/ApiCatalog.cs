@@ -51,11 +51,12 @@ public static class ApiCatalog
     [
         new("GET", "/internal/v1/resources", "service", 4, "none", "OS adapter and reserved memory/process budget"),
         new("POST", "/internal/v1/matches", "service", 4, "ExecutionRequest + idempotent requestId", "202 ExecutionAccepted"),
+        new("POST", "/internal/v1/candidates/matches", "service", 4, "development opt-in + owner scope + C# participant; no browser capability", "202 private candidate execution"),
         new("GET", "/internal/v1/matches/{id}", "service", 4, "optional afterSequence; update wait <= 1s", "execution state + latest snapshot"),
         new("POST", "/internal/v1/matches/{id}/start", "service", 4, "requestId", "ack; requires prepared"),
         new("POST", "/internal/v1/matches/{id}/stop", "service", 4, "ExecutionStop", "ack; idempotent"),
         new("GET", "/internal/v1/matches/{id}/events", "service", 6, "SSE subscription", "versioned execution stream"),
-        new("POST", "/internal/v1/validations", "service", 4, "source reference + scope + requestId", "preflight result"),
+        new("POST", "/internal/v1/validations", "service", 4, "source reference + scope + requestId + language (default javascript; csharp candidate opt-in)", "preflight result; C# evidence never grants gameplay"),
         new("POST", "/internal/v1/results/{id}/ack", "service", 6, "ResultAcknowledgement", "ack; idempotent"),
         new("GET", "/internal/v1/matches/{id}/recording", "service", 7, "closed match", "application/x-ndjson stream")
     ];
