@@ -61,6 +61,9 @@
 - [ ] native 할당/GC·문자열 등 암묵적 연산의 잔여 관문, 운영 부모 감시·미종료 복구 정책.
 - [x] [운영 부모 관리 모듈](csharp-parent-manager.md): 실행 서비스 등록·명시적 watchdog·취소/실제 drain·Windows 37개 확인.
 - [ ] 운영 watchdog/grace/반복 실패 정책·Linux/잔여 중단 관문·C4/Node·계정 경로 연결.
+- [x] [C4-A 격리 준비·결정적 DLL·owner 캐시·lease/준비 DLL 실행](csharp-preparation-c4a.md): Windows 33개 확인.
+- [x] [C4-B 준비 작업 복구·artifact 36회 검사·결과 파일 어댑터](csharp-recovery-preflight-c4b.md): Windows 53개 확인·실제 부모 crash/캐시 재사용 검증.
+- [ ] C4 후속 계정 revision/검사 worker·Node 어댑터 연결, 볼륨 quota/보유 정책과 정식 채택 관문.
 - [ ] 새 4단계 채택 관문 통과: C#/Python 대체 후보, C++ 자원/힙 일관성·컴파일 격리와 기존 JS 재귀 오류 보완.
 - [ ] 새 5~10단계 구현/검증. 상세 체크는 [최신 계획](game-engine-language-runners-plan.md#7-진행-체크리스트)에서 관리.
 

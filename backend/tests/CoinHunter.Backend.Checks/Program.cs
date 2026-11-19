@@ -9,6 +9,9 @@ using Microsoft.Extensions.Hosting;
 
 if (args.Length < 1) throw new ArgumentException("Repository root is required.");
 var root = Path.GetFullPath(args[0]);
+if (args.Length == 5 && args[1] == "csharp-preparation-crash-worker") {try{await CSharpPreflightChecks.CrashWorker(args[2],args[3],Guid.Parse(args[4]));}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if (args.Length == 2 && args[1] == "csharp-preflight") {try{await CSharpPreflightChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if (args.Length == 2 && args[1] == "csharp-preparation") { try{await CSharpPreparationChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;} return; }
 if (args.Length == 2 && args[1] == "csharp-manager") { await CSharpManagerChecks.Run(root); return; }
 if (args.Length == 2 && args[1] == "csharp-builtins-child") { if (await Console.In.ReadLineAsync() != "go") throw new InvalidOperationException("Resource gate closed."); CSharpBuiltinChecks.Child(); return; }
 if (args.Length == 2 && args[1] == "csharp-builtins") { await CSharpBuiltinChecks.Run(root); return; }
@@ -176,6 +179,8 @@ Console.WriteLine($"C# analysis checks: {CSharpAnalysisChecks.Run(root)} passed.
 await CSharpBudgetChecks.Run(root);
 await CSharpHostChecks.Run(root);
 await CSharpManagerChecks.Run(root);
+await CSharpPreparationChecks.Run(root);
+await CSharpPreflightChecks.Run(root);
 Console.WriteLine($"OS resource checks: {await ResourceChecks.Run(root)} passed.");
 
 sealed class FragmentedStream(byte[] bytes) : MemoryStream(bytes)

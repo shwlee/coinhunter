@@ -29,6 +29,7 @@ public sealed class CSharpHostSession : IAsyncDisposable
     private long lastCall;
     private long? preparationCall;
     private bool nameVerified;
+    private CSharpPreparationFault? preparationFault;
     private string state="preparing";
     private Pending? pending;
     private sealed class Pending
@@ -57,7 +58,9 @@ public sealed class CSharpHostSession : IAsyncDisposable
         control=new NamedPipeClientStream(".",pipe,PipeDirection.InOut,PipeOptions.Asynchronous);
         var info=new ProcessStartInfo("dotnet"){UseShellExecute=false,CreateNoWindow=true,RedirectStandardInput=true,RedirectStandardOutput=true,RedirectStandardError=true};
         RestrictEnvironment(info);
-        foreach(var arg in new[]{launch.HostAssembly,launch.SourcePath,pipe,launch.ProbeStall.ToString(System.Globalization.CultureInfo.InvariantCulture),launch.PlayerNumber.ToString(),launch.Columns.ToString(),launch.Rows.ToString()})info.ArgumentList.Add(arg);
+        info.ArgumentList.Add(launch.HostAssembly);
+        if(launch.PreparedArtifact)info.ArgumentList.Add("--artifact");
+        foreach(var arg in new[]{launch.SourcePath,pipe,launch.ProbeStall.ToString(System.Globalization.CultureInfo.InvariantCulture),launch.PlayerNumber.ToString(),launch.Columns.ToString(),launch.Rows.ToString()})info.ArgumentList.Add(arg);
         resources=ledger.Reserve(launch.Resources);process=new Process{StartInfo=info};
         try { if(!process.Start())throw new IOException("Host start failed.");processId=process.Id;resources.Assign(process); }
         catch
@@ -92,8 +95,8 @@ public sealed class CSharpHostSession : IAsyncDisposable
         catch
         {
             var closed=await CloseAsync(token.IsCancellationRequested?"caller-cancelled":"preparation-failed",true);
-            if(!closed.CleanupConfirmed)throw new CSharpHostFailure(closed.Reason,false);
-            token.ThrowIfCancellationRequested();throw new CSharpHostFailure(closed.Reason,closed.CleanupConfirmed);
+            if(!closed.CleanupConfirmed)throw new CSharpHostFailure(closed.Reason,false,preparationFault);
+            token.ThrowIfCancellationRequested();throw new CSharpHostFailure(closed.Reason,closed.CleanupConfirmed,preparationFault);
         }
     }
     public async Task<CSharpParentCall> MoveNextAsync(int[] map,int position,int[] items,CancellationToken token=default)
@@ -194,12 +197,14 @@ public sealed class CSharpHostSession : IAsyncDisposable
                     var id=data!["CallId"]!.GetValue<long>();
                     if(preparationCall!=id||Guid.Parse(data["InstanceId"]!.GetValue<string>())!=instance||data["ProcessId"]!.GetValue<int>()!=process.Id||!data["ExecutionSettled"]!.GetValue<bool>())throw new IOException("Invalid preparation settlement.");
                     lastCall=id;preparationCall=null;
+                    if((string?)data["Status"]!="ok")
+                        preparationFault=new(id==1?"construct":id==2?"initialize":"getName",(string)data["Status"]!,data["ElapsedMs"]!.GetValue<double>(),data["BudgetMs"]!.GetValue<double>(),(string?)data["DiagnosticCode"],(int?)data["Line"],(int?)data["Column"]);
                     if(id==3)
                     {
                         if((string?)data["Status"]=="ok")
                         {
                             nameVerified=data["Value"] is JsonValue named && named.TryGetValue<string>(out var name) && name is not null && name.Length<=40;
-                            if(!nameVerified)_=CloseAsync("invalid-name",true);
+                            if(!nameVerified){preparationFault=new("getName","invalid-result",data["ElapsedMs"]!.GetValue<double>(),500,"AR013",null,null);_=CloseAsync("invalid-name",true);}
                         }
                         else if((string?)data["Status"]=="invalid-result" && (string?)data["DiagnosticCode"]=="AR013")_=CloseAsync("invalid-name",true);
                     }
@@ -229,7 +234,7 @@ public sealed class CSharpHostSession : IAsyncDisposable
                 status is not ("ok" or "timeout" or "cancelled" or "exception" or "invalid-result" or "operation-limit")||expired!=(status=="timeout"))throw new IOException("Invalid settlement.");
             var direction=(int?)data["Value"];
             if(status=="ok"&&(direction is null or <-1 or >3)||status!="ok"&&direction is not null)throw new IOException("Invalid direction.");
-            var result=new CSharpParentCall(gen,identityId,call,process.Id,status,direction,expired,true,500,elapsed,(string?)data["LimitCode"]);
+            var result=new CSharpParentCall(gen,identityId,call,process.Id,status,direction,expired,true,500,elapsed,(string?)data["LimitCode"],(int?)data["Line"],(int?)data["Column"]);
             var completed=pending;pending=null;lastCall=call;if(closing is null)state="ready";
             completed.Settled.TrySetResult(result);
             if(status is "exception" or "operation-limit")_=CloseAsync("candidate-failed",false);
@@ -303,7 +308,7 @@ public sealed class CSharpHostSession : IAsyncDisposable
             lifetime.Cancel();control.Dispose();
             try{await Task.WhenAll(dataTask,errorsTask,exitTask,heartbeatTask).WaitAsync(launch.Watchdogs.Cleanup);}catch{}
         }
-        var failure=new CSharpHostFailure(reason,confirmed);
+        var failure=new CSharpHostFailure(reason,confirmed,preparationFault);
         lock(gate)
         {
             state=confirmed?"closed":"cleanup-unconfirmed";

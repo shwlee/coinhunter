@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "platform": "win32",
+  "architecture": "x64",
+  "purpose": "synthetic isolated C4-A checks; compilation is not execution validation",
+  "limits": {
+    "memoryMiB": 768,
+    "timeoutSeconds": 30,
+    "maxDllMiB": 16,
+    "maxManifestMiB": 1,
+    "maxCacheMiB": 64
+  },
+  "probe": {
+    "date": "2026-11-19T02:43:47.3940529+00:00",
+    "checks": 33,
+    "buildKey": "eecf8ea678e56f1cba414f1c4a5593aa77e2b7035abdf5e508b3be6cabe7ce2d",
+    "sourceHash": "81e47846c47cddb351febfa3b464b3eafd8b17f00b5a626718a73298664a055f"
+  },
+  "syntheticManifest": {
+    "Schema": 1,
+    "Owner": "dbec221c-efa2-44a3-9c53-f16c17e13685",
+    "Key": "eecf8ea678e56f1cba414f1c4a5593aa77e2b7035abdf5e508b3be6cabe7ce2d",
+    "SourceHash": "81e47846c47cddb351febfa3b464b3eafd8b17f00b5a626718a73298664a055f",
+    "DllHash": "5ac60178b6d264605c9fba70ef039306bcba7d55e18318e1b729cb498fb74eeb",
+    "DllBytes": 2560,
+    "Toolchain": {
+      "Key": "ef3a523d638c7b98050bc28d5fdb798e9d6ceae4158425ac56e2ab32285ae1a8",
+      "Policy": "authoring-policy-v1",
+      "Profile": "csharp-restricted-c1-v2",
+      "Analyzer": "c1-3",
+      "Guard": "c2-poll-bounded-v2",
+      "Compiler": "5.9.0.0",
+      "Runtime": "10.0.12",
+      "Platform": "Microsoft Windows 10.0.26200",
+      "Architecture": "X64",
+      "References": {
+        "CoinHunter.CSharp.Analysis.dll": "38c62bee4a97c83ff5c84af3474b3dacf6d6710ac43fd322af78418514ebcd66",
+        "CoinHunter.CSharp.Host.deps.json": "5b72eb950edbd46eb437b1d0b6fd597630f37a8753efc0bf61b0a0a3b333a225",
+        "CoinHunter.CSharp.Host.dll": "1a1b30e14369f0fb058c2d5b8b1c22bfeb1f7a0787066e46eb4bc5c5afe92349",
+        "CoinHunter.CSharp.Host.runtimeconfig.json": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+        "CoinHunter.Contracts.dll": "befa1376a7ab5863aac1c4781fa68e2e95a23b691ec105db20f48f36bd4ec14e",
+        "Microsoft.CodeAnalysis.CSharp.dll": "12b0428203faae6555858d2ff856cef7450d2764cf00c57e7516587a04885870",
+        "Microsoft.CodeAnalysis.dll": "03b3ab9d73d477d259fbc0ae167dd8caf4775c3c8688f1fdc5e0d3603255c3f4",
+        "System.Collections.dll": "df6f2037eabee28100184e92f7536427ba2f086c1110629804d466b124bc4d54",
+        "System.Private.CoreLib.dll": "1125acc8106c43fc8bad2d203c4c4485df6182d292846c2fff415c1040c54678",
+        "System.Runtime.dll": "76be53624f64b23d0249dfa0bbe85390086de7c44bfd490642ea86c6faaf44af"
+      }
+    },
+    "GuardSites": [
+      {
+        "Kind": "MethodDeclaration",
+        "Line": 1,
+        "Column": 30
+      },
+      {
+        "Kind": "MethodDeclaration",
+        "Line": 1,
+        "Column": 73
+      },
+      {
+        "Kind": "WhileStatement",
+        "Line": 1,
+        "Column": 178
+      },
+      {
+        "Kind": "MethodDeclaration",
+        "Line": 1,
+        "Column": 114
+      }
+    ]
+  }
+}

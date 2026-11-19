@@ -23,6 +23,7 @@
 - C3 후보 구현: [전용 호스트·IPC·독립 감시](csharp-host-c3.md)의 Windows 30개 확인을 수행했다. 운영용 부모 감시·복구 정책, 긴 builtin 실제 중단·Linux 관문과 C4 준비/artifact·검사/저장·게임 어댑터 연결은 남는다.
 - 긴 기본 연산 후속: [bounded 프로필 v2](csharp-builtins-profile-v2.md)에서 검색/확장·배열/GC를 측정하고 검색 guard·객체별 한도·우회 차단을 구현했다. C2 211개 확인으로 확장. 다음은 운영용 부모 감시와 실제 미종료 복구 정책이며, native/GC·문자열 등 암묵적 연산·Linux 관문도 유지한다.
 - 운영 부모 구현: [CSharpHostManager/Session](csharp-parent-manager.md)의 준비/시작/미종료/heartbeat 감시·실제 회수·서비스 종료를 모듈화했다. Node/C4 연결은 아직 없으며 watchdog/grace·반복 실패 운영 정책과 native/Linux 관문은 후속이다.
+- C4 기반: [준비 프로세스·불변 DLL 캐시·lease](csharp-preparation-c4a.md)에 이어 [C4-B 복구·36회 실행 검사·결과 파일 어댑터](csharp-recovery-preflight-c4b.md)를 구현했다. 다음은 계정 revision/검사 worker·Node 연결과 운영 볼륨 정책이며 C# capability는 계속 비활성이다. native/Linux 관문도 남는다.
 - 현재 진행: [BE 분리 1~9단계](backend-separation-implementation-plan.md)와 FE/BE 폴더 정리는 `1183977`로 커밋/푸시했다. [결과·검증·제한](backend-split-completion.md), [실행법](../backend/README.md), [이전·복귀](backend-cutover-runbook.md). 실제 사용자 이전·Google 왕복·외부 배포는 별도다.
 - 관련: [진행 결과](progress.md), [저장 어댑터](storage-adapters.md), [관리자 계획](admin-page-plan.md), [개인정보 운영 준비](privacy-operations-plan.md), [고도화 보관 목록](enhancement-backlog.md).
 

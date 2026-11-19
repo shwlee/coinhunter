@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.Loader;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using CoinHunter.Contracts;
 
 namespace CoinHunter.CSharp.Analysis;
 
@@ -24,25 +25,20 @@ public sealed class CSharpCandidate : IDisposable
     public const string GuardVersion = "c2-poll-bounded-v2";
     internal Action<long, BudgetScope>? CallStarted { get; set; }
     public static CSharpCandidate Prepare(string source, CancellationToken cancellationToken = default) => new(source, cancellationToken);
-    private CSharpCandidate(string source, CancellationToken cancellationToken)
+    private CSharpCandidate(string source, CancellationToken cancellationToken) : this(CandidateCompiler.Compile(source,cancellationToken)) { }
+    private CSharpCandidate(CandidateImage image)
     {
-        Analysis = PlayerAnalyzer.Analyze(source, cancellationToken);
-        if (!Analysis.StaticPassed) throw new ArgumentException("Source did not pass the candidate policy.");
-        var tree = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp12), cancellationToken: cancellationToken);
-        var original = CSharpCompilation.Create("Original", [tree], PlayerAnalyzer.References.Value, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-        var rewriter = new BudgetRewriter(original.GetSemanticModel(tree));
-        var rewritten = rewriter.Visit(tree.GetRoot(cancellationToken))!;
-        GuardSites = rewriter.Sites.AsReadOnly();
-        var outputTree = CSharpSyntaxTree.Create((Microsoft.CodeAnalysis.CSharp.Syntax.CompilationUnitSyntax)rewritten, (CSharpParseOptions)tree.Options);
-        var references = PlayerAnalyzer.References.Value.Append(MetadataReference.CreateFromFile(typeof(BudgetGuard).Assembly.Location));
-        var compilation = CSharpCompilation.Create("Guarded_" + Guid.NewGuid().ToString("N"), [outputTree], references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release, allowUnsafe: false));
-        using var image = new MemoryStream();
-        var emitted = compilation.Emit(image, cancellationToken: cancellationToken);
-        if (!emitted.Success) throw new InvalidOperationException("Generated compilation failed: " + string.Join("; ", emitted.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.Id)));
+        Analysis=image.Analysis;GuardSites=image.GuardSites.Select(s=>new GuardSite(s.Kind,s.Line,s.Column)).ToArray();
         context = new AssemblyLoadContext("candidate-" + InstanceId, isCollectible: true);
-        try { image.Position = 0; type = context.LoadFromStream(image).GetType("Player", throwOnError: true)!; }
+        try { using var bytes=new MemoryStream(image.Dll,writable:false);type = context.LoadFromStream(bytes).GetType("Player", throwOnError: true)!; }
         catch { context.Unload(); throw; }
+    }
+    public static CSharpCandidate LoadPrepared(CSharpArtifactManifest manifest,byte[] dll)
+    {
+        var toolchain=CandidateCompiler.Describe();
+        if(manifest.Schema!=1||!CSharpArtifactKeys.Valid(manifest.SourceHash)||manifest.GuardSites is null||manifest.Toolchain is null||manifest.Toolchain.Key!=toolchain.Key||manifest.Key!=CSharpArtifactKeys.Build(manifest.SourceHash,toolchain.Key)||manifest.DllBytes!=dll.LongLength||manifest.DllHash!=CSharpArtifactKeys.Hash(dll))throw new InvalidDataException("Prepared artifact mismatch.");
+        var analysis=new AnalysisResult(manifest.SourceHash,toolchain.Profile,true,false,[]);
+        return new CSharpCandidate(new CandidateImage(analysis,toolchain,manifest.Key,dll,manifest.GuardSites));
     }
     // Direct synchronous invocation: no Task timeout pretending to stop execution.
     private CandidateCall Call(Func<object?> action, TimeSpan budget, bool preparation = false)

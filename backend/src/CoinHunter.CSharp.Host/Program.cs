@@ -6,10 +6,16 @@ using System.Threading.Channels;
 using System.Text;
 using System.Text.Json.Serialization;
 using CoinHunter.CSharp.Analysis;
+using CoinHunter.Contracts;
+
+if(args.Length>0&&args[0]=="--prepare"){await PreparationMode.Run(args.Skip(1).ToArray());return;}
+bool prepared=args.Length>0&&args[0]=="--artifact";
+if(prepared)args=args.Skip(1).ToArray();
 
 // C3 developer host: private parent-owned pipes and source path; no public listener.
 if (args.Length is not (2 or 3 or 6)) throw new ArgumentException("source path and private control pipe required");
-if (await Console.In.ReadLineAsync() != "authorize") throw new InvalidOperationException("Resource authorization required.");
+using var commandReader=new StreamReader(Console.OpenStandardInput(),Encoding.UTF8);
+if (await commandReader.ReadLineAsync() != "authorize") throw new InvalidOperationException("Resource authorization required.");
 var sourcePath = Path.GetFullPath(args[0]); var generation = Guid.NewGuid();
 var jsonOptions = new JsonSerializerOptions { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
 var probeStall = args.Length >= 3 ? int.Parse(args[2]) : 0;
@@ -36,7 +42,9 @@ var worker = new Thread(() =>
     try
     {
         if(probeStall==-5)Thread.Sleep(Timeout.Infinite); // Preparation watchdog probe.
-        using var candidate = CSharpCandidate.Prepare(File.ReadAllText(sourcePath));
+        using var candidate = prepared
+            ? CSharpCandidate.LoadPrepared(JsonSerializer.Deserialize<CSharpArtifactManifest>(File.ReadAllText(sourcePath))!,File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(sourcePath)!,"artifact.dll")))
+            : CSharpCandidate.Prepare(File.ReadAllText(sourcePath));
         candidate.CallStarted = (call, scope) =>
         {
             lock (stateGate) { active = scope; activeCall = call; if (stopping) scope.RequestStop(); }
@@ -120,7 +128,7 @@ var input = Task.Run(async () =>
 {
     try
     {
-        await foreach (var line in Frames.Read(Console.In, 1048576))
+        await foreach (var line in Frames.Read(commandReader, 1048576))
         {
             if (finished.Task.IsCompleted) break;
             var command = JsonSerializer.Deserialize<HostCommand>(line, jsonOptions) ?? throw new InvalidOperationException("Missing command.");

@@ -18,6 +18,10 @@ Node 웹 계층은 계정·운영 저장소·게임 인스턴스를 만들지 �
 
 C# 후보의 [부모 관리 모듈](../docs/csharp-parent-manager.md)을 실행 서비스에 등록했다. 준비/실행 watchdog·자원 회수를 소유하지만 Node runner·공개 API 연결 전이므로 실제 지원 언어는 JavaScript 하나다. 감시/grace 값은 신뢰된 호출자가 명시해야 한다.
 
+[C4-A 준비/산출물 모듈](../docs/csharp-preparation-c4a.md)은 별도 OS 제한 프로세스로 DLL을 준비하고 owner별 캐시·lease로 실행한다. 시험용 경로에서 검증했으며 운영 cache root나 공개 C# API를 자동으로 구성하지 않는다. 컴파일 성공과 실제 실행 검사 통과를 구분한다.
+
+[C4-B 복구/검사 모듈](../docs/csharp-recovery-preflight-c4b.md)은 준비 작업의 소유권·실제 프로세스 수명을 확인해 회수하고, JS 공통 맵으로 DLL을 36회 검사한다. 결과는 별도 파일 어댑터로 보관하며 계정 revision·검사 worker·Node 연결은 후속이다. 검사 통과로 C# capability를 활성화하지 않는다.
+
 ## 실행
 
 Windows 로컬 검증: .NET SDK **10.0.401**, Node **18.20.2**. 외부 NuGet 패키지는 없다. 설치된 SDK/shared framework로 빌드한다. 배포 런타임/컨테이너는 후속 검증 대상이다.

@@ -4,6 +4,8 @@
 - 선행 기반: [R0 자원 제한](execution-resource-limits.md)의 공통 예약/OS 그룹·로드 전 승인과 Windows 실측을 구현했다. Linux 강제 제한·부모 장애 수명 감독은 미검증이다. C1 Roslyn 제한 프로필 후보는 구현했고 C# 준비/컴파일과 개별 호스트 프로필 연결은 남는다.
 - 2026-11-19 기본 연산 후속: [bounded 프로필 v2](csharp-builtins-profile-v2.md)의 26개 측정 묶음과 검색 내부 guard·객체별 한도를 구현했다. C2 확인은 211개로 확장했다. native 할당/GC 선점과 나머지 암묵적 연산은 여전히 미해결이다.
 - 2026-11-19 부모 관리: [CSharpHostManager/Session](csharp-parent-manager.md)을 운영 실행 서비스에 등록하고 실제 OS 그룹의 watchdog/취소/정리를 검증했다. C4/Node 연결·Linux·운영 감시 값/복구 정책은 남는다.
+- 2026-11-19 C4-A: [격리 준비·불변 산출물·lease](csharp-preparation-c4a.md)를 구현하고 Windows 33개 확인을 수행했다. C4 전체 완료가 아니며 crash 복구·preflight/계정 저장 상태·Node 연결은 C4-B로 남긴다.
+- 2026-11-19 C4-B: [준비 crash 복구·공통 artifact preflight·결과 어댑터](csharp-recovery-preflight-c4b.md)를 Windows 53개 확인으로 검증했다. 계정 revision CAS/검사 worker·Node 연결·볼륨 정책과 기존 native/Linux 관문은 남는다.
 - 2026-11-16 리뷰 반영: 실제 게임 강제 자원 한도, 시간/중단 판정 계약, 실패 코드 보관과 실행 허가 분리. 기존 JS J0~J3 개선 이후 채택된 C#을 공통 경로에 연결한다.
 - 목표: 단일 C# 소스를 준비 시 컴파일하고 Player를 반복 호출한다. 사용자 try/catch/finally·재귀·goto·static·비동기/병렬·대기·외부 접근을 거부한다.
 - 후보: .NET 10 전용 호스트 + Roslyn 분석/변환 + 자동 예산 검사. Thread.Abort/ControlledExecution은 제품 중단 방식으로 채택하지 않는다. 메시지 루프는 호출 순서·비중첩을 관리하며 중단 수단 자체는 아니다.

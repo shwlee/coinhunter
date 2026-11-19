@@ -3,6 +3,10 @@ import { fileURLToPath } from 'node:url';
 import { format } from 'prettier';
 import { loadAlgorithmContract } from '../backend/node/src/algorithm-assistant/contract.js';
 import { DEFAULT_MAP_SETTINGS, MAP_SETTING_LIMITS } from '../backend/node/src/game/maps.js';
+import {
+  preflightScenarios,
+  PREFLIGHT_FIXTURE_VERSION,
+} from '../backend/node/src/runtime/preflight-scenarios.js';
 const root = new URL('../', import.meta.url);
 export async function buildBackendContent() {
   const registry = JSON.parse(
@@ -30,6 +34,13 @@ export async function buildBackendContent() {
   await writeFile(
     new URL('game-content.json', directory),
     await format(JSON.stringify(content), { ...style, parser: 'json' }),
+  );
+  await writeFile(
+    new URL('algorithm-preflight.json', directory),
+    await format(
+      JSON.stringify({ version: PREFLIGHT_FIXTURE_VERSION, scenarios: await preflightScenarios() }),
+      { ...style, parser: 'json' },
+    ),
   );
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) await buildBackendContent();

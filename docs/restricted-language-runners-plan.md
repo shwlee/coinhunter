@@ -12,6 +12,8 @@
 - C3 후보: [전용 host·IPC·감시](csharp-host-c3.md)의 Windows 30개 확인을 통과했다. 시작/마감/settled·중단/강제 drain·새 generation을 분리했다. 운영 부모·복구 정책·C4와 C2/Linux 관문은 남는다.
 - 기본 연산 후속: [bounded 프로필 v2](csharp-builtins-profile-v2.md)에서 26개 측정 묶음·검색 내부 guard·컬렉션/배열 한도·우회 차단을 구현했다. C2는 정책 포함 211개 확인으로 확장했다. native 할당/GC·암묵적 연산과 운영용 감시/복구 관문은 유지한다.
 - 운영 부모 모듈: [CSharpHostManager/Session](csharp-parent-manager.md)을 실행 서비스에 등록하고 Windows 확인 37개를 수행했다. 호출자가 지정한 준비/시작/미종료/heartbeat/정리 watchdog을 적용한다. C4·게임 연결, 운영 grace/반복 실패 정책과 native/Linux 관문은 남는다.
+- C4-A 후보 기반: [격리 준비·불변 산출물·lease](csharp-preparation-c4a.md)와 준비된 DLL 실행을 Windows 33개 확인으로 검증했다. C4-B는 crash 복구·볼륨 정책·실행 검사/계정 상태·Node 연결이며 기존 채택/native/Linux 관문은 유지한다.
+- C4-B 첫 구현: [준비 crash 회수·36회 artifact 실행 검사·결과 파일 어댑터](csharp-recovery-preflight-c4b.md)를 Windows 53개 확인으로 검증했다. 다음은 계정 revision/검사 worker·Node와 운영 볼륨 정책 연결이며 C# 활성화는 계속 보류한다.
 - 대상: C#, Python, C++. 기존 JavaScript의 검사·저장 연결도 공통 정책 적용 대상으로 포함한다.
 - 연결: [상위 10단계 계획](game-engine-language-runners-plan.md), [4단계 실측](runner-stage4-results.md), [현재 실행 계약 v1](algorithm-runner-contract.md).
 - 언어별 상세: [C#](csharp-runner-implementation-plan.md), [Python](python-runner-implementation-plan.md), [C++](cpp-runner-implementation-plan.md).
