@@ -10,7 +10,7 @@ public sealed record PolicyDiagnostic(string Code, string Message, int Line, int
 public sealed record AnalysisResult(string SourceHash, string Profile, bool StaticPassed, bool ExecutionAllowed, IReadOnlyList<PolicyDiagnostic> Diagnostics)
 {
     public string PolicyVersion => "authoring-policy-v1";
-    public string AnalyzerVersion => "c1-2";
+    public string AnalyzerVersion => "c1-3";
     public string RuntimeVersion => Environment.Version.ToString();
     public string RoslynVersion => typeof(CSharpCompilation).Assembly.GetName().Version!.ToString();
 }
@@ -112,6 +112,13 @@ public static class PlayerAnalyzer
         foreach (var node in root.DescendantNodes())
         {
             cancellationToken.ThrowIfCancellationRequested();
+            // Check semantic types in expressions as well as declarations. A
+            // cast/alias/foreach must not turn a rejected dynamic type into an
+            // unbound member/indexer that silently skips the symbol checks.
+            if(node is ExpressionSyntax expression && model.GetTypeInfo(expression,cancellationToken).Type?.TypeKind==TypeKind.Dynamic)
+                Add("AP001","동적 타입과 동적 접근은 지원하지 않습니다.",node.GetLocation());
+            if(node is CastExpressionSyntax cast && model.GetTypeInfo(cast.Type,cancellationToken).Type is { } castType && castType.TypeKind!=TypeKind.Dynamic && !AllowedType(castType) && castType.SpecialType is not (SpecialType.System_UInt32 or SpecialType.System_UInt64))
+                Add("AR002","허용되지 않은 캐스트 대상 타입입니다.",cast.Type.GetLocation());
             if(node is ArrayCreationExpressionSyntax or ImplicitArrayCreationExpressionSyntax)
             {
                 if(model.GetTypeInfo(node,cancellationToken).Type is not IArrayTypeSymbol a || a.Rank!=1 || !Scalar(a.ElementType)) Add("AP001","허용된 1차원 값 배열만 생성할 수 있습니다.",node.GetLocation());
@@ -131,6 +138,11 @@ public static class PlayerAnalyzer
             if (node is ParameterSyntax parameter && parameter.Type is { } pt && model.GetTypeInfo(pt, cancellationToken).Type is { } parameterType && !AllowedType(parameterType)) Add("AR002", "허용되지 않은 매개변수 타입입니다.", node.GetLocation());
             if (node is MethodDeclarationSyntax declaration && !AllowedType(model.GetDeclaredSymbol(declaration, cancellationToken)!.ReturnType)) Add("AR002", "허용되지 않은 반환 타입입니다.", node.GetLocation());
             if (node is ForEachStatementSyntax loop && model.GetTypeInfo(loop.Expression, cancellationToken).Type is not IArrayTypeSymbol) Add("AP001", "foreach는 배열에만 허용됩니다.", node.GetLocation());
+            if(node is ForEachStatementSyntax iteration && model.GetTypeInfo(iteration.Type,cancellationToken).Type is { } iterationType)
+            {
+                if(iterationType.TypeKind==TypeKind.Dynamic)Add("AP001","동적 foreach 변수는 지원하지 않습니다.",iteration.Type.GetLocation());
+                else if(!AllowedType(iterationType))Add("AR002","허용되지 않은 foreach 변수 타입입니다.",iteration.Type.GetLocation());
+            }
             if (node is InvocationExpressionSyntax or ObjectCreationExpressionSyntax)
             {
                 var target = model.GetSymbolInfo(node, cancellationToken).Symbol as IMethodSymbol;

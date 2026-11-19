@@ -13,7 +13,7 @@ if (await Console.In.ReadLineAsync() != "authorize") throw new InvalidOperationE
 var sourcePath = Path.GetFullPath(args[0]); var generation = Guid.NewGuid();
 var jsonOptions = new JsonSerializerOptions { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
 var probeStall = args.Length >= 3 ? int.Parse(args[2]) : 0;
-if (probeStall is < -5 or > 2000) throw new ArgumentOutOfRangeException(nameof(probeStall));
+if (probeStall is < -6 or > 2000) throw new ArgumentOutOfRangeException(nameof(probeStall));
 int playerNumber=args.Length==6?int.Parse(args[3]):0, columns=args.Length==6?int.Parse(args[4]):3, rows=args.Length==6?int.Parse(args[5]):3;
 if(playerNumber is <0 or >3||columns<=0||rows<=0)throw new ArgumentException("Invalid initialization.");
 using var control = new NamedPipeServerStream(args[1], PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
@@ -42,7 +42,7 @@ var worker = new Thread(() =>
             lock (stateGate) { active = scope; activeCall = call; if (stopping) scope.RequestStop(); }
             Send(Event("execution-started", activeRequest, new { call, candidate.InstanceId, scope.StartedTicks, budgetMs = scope.Budget.TotalMilliseconds }));
             // Used to prove that control/deadline supervision does not depend on worker progress.
-            if (activeRequest is not null && probeStall is not (0 or -2 or -3 or -4 or -5)) Thread.Sleep(probeStall == -1 ? Timeout.Infinite : probeStall);
+            if (activeRequest is not null && probeStall is not (0 or -2 or -3 or -4 or -5 or -6)) Thread.Sleep(probeStall == -1 ? Timeout.Infinite : probeStall);
         };
         void Publish(CandidateCall result, bool release = false)
         {
@@ -57,7 +57,9 @@ var worker = new Thread(() =>
         if (constructed.Status != "ok") throw new InvalidOperationException("Construction failed.");
         var initialized = candidate.Initialize(playerNumber, columns, rows); Publish(initialized);
         if (initialized.Status != "ok") throw new InvalidOperationException("Initialization failed.");
-        var name = candidate.GetName(); Publish(name);
+        var name = candidate.GetName();
+        if(probeStall==-6)name=name with{Value=null}; // Trusted malformed/old-host contract probe.
+        Publish(name);
         if (name.Status != "ok") throw new InvalidOperationException("Name failed.");
         lock (stateGate) { ready = true; busy = false; }
         Send(Event("ready", data: new { candidate.InstanceId, pid = Environment.ProcessId, frequency = Stopwatch.Frequency, candidate.Analysis.SourceHash, candidate.Analysis.Profile, guardVersion=CSharpCandidate.GuardVersion }));

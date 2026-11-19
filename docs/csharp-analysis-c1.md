@@ -6,6 +6,8 @@
 
 2026-11-19 갱신: 현재 활성 후보는 [bounded 프로필 v2](csharp-builtins-profile-v2.md)다. 아래 초기 승인 목록에 객체 크기 한도·검색 변환·사전 인덱서 변경 거절을 추가했다. C2 검증 수는 기존 149개에서 211개 확인으로 확장했다.
 
+리뷰 후속: [의미 타입 검사·이름 반환 계약 수정](csharp-review-fixes-2026-11-19.md)으로 분석기를 c1-3으로 갱신했다. 현재 분석 62건, 예산/정책/이름 223개 확인이다. 아래 52건은 초기 C1 검증 기록이다.
+
 ## 구현과 진단
 
 `PlayerAnalyzer.Analyze(source, cancellationToken)`는 단일 문자열을 구문·의미 분석한다. 사용자 DLL을 생성하거나 로드/실행하지 않는다. 참조는 현재 호스트 .NET 런타임의 CoreLib·Runtime·Collections metadata로 고정한다. 제출자가 참조 경로·NuGet·컴파일 옵션을 지정할 수 없다. SDK에 동봉된 Roslyn을 빌드 참조하므로 외부 패키지 다운로드가 추가되지 않는다. 빌드 SDK가 바뀌면 분석기 재검증이 필요하다.

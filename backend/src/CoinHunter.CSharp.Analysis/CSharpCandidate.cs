@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace CoinHunter.CSharp.Analysis;
 
 public sealed record CandidateCall(Guid InstanceId, long CallId, int ProcessId, string Status, object? Value,
-    double BudgetMs, double ElapsedMs, bool DeadlineReached, bool ExecutionSettled, int? Line, int? Column, string? ErrorType, string? LimitCode = null);
+    double BudgetMs, double ElapsedMs, bool DeadlineReached, bool ExecutionSettled, int? Line, int? Column, string? ErrorType, string? LimitCode = null, string? DiagnosticCode = null);
 
 // Experimental C2 host only. Caller must place analysis/compilation/loading in
 // an OS-limited process. This class is not registered as a production runner.
@@ -60,7 +60,7 @@ public sealed class CSharpCandidate : IDisposable
             if (error is OutOfMemoryException || error is not null && error is not BudgetExpiredException) faulted = true;
             if (preparation && status != "ok") faulted = true;
             return new(InstanceId, ++callId, Environment.ProcessId, status, outcome.Value,
-                budget.TotalMilliseconds, scope.ElapsedMs, scope.Expired, true, scope.Line, scope.Column, error?.GetType().Name, (error as OperationLimitException)?.Code);
+                budget.TotalMilliseconds, scope.ElapsedMs, scope.Expired, true, scope.Line, scope.Column, error?.GetType().Name, (error as OperationLimitException)?.Code, error is InvalidPlayerNameException ? "AR013" : null);
         }
     }
     public CandidateCall Construct() => Call(() =>
@@ -76,7 +76,13 @@ public sealed class CSharpCandidate : IDisposable
     public CandidateCall GetName() => Call(() =>
     {
         if (!initialized) throw new InvalidOperationException("Not initialized.");
-        return type!.GetMethod("GetName")!.Invoke(player, null);
+        var value=type!.GetMethod("GetName")!.Invoke(player, null);
+        if(value is not string name)throw new InvalidPlayerNameException();
+        // Match the existing JS 40 UTF-16 unit display limit. Keep empty/space
+        // strings valid; avoid splitting a surrogate pair on truncation.
+        if(name.Length<=40)return name;
+        var length=char.IsHighSurrogate(name[39])&&char.IsLowSurrogate(name[40])?39:40;
+        return name[..length];
     }, TimeSpan.FromMilliseconds(500));
     public CandidateCall MoveNext(int[] map, int position, int[] items, TimeSpan? budget = null)
     {

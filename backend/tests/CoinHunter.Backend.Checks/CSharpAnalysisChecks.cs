@@ -49,6 +49,16 @@ internal static class CSharpAnalysisChecks
         Check(Source("System.IO.File.ReadAllText(\"x\");return 0;"), "AR002");
         Check(Source("object x=position;return 0;"), "AR002");
         Check(Source("dynamic x=position;return 0;"), "AR002");
+        Check(Source("var d=new System.Collections.Generic.Dictionary<int,int>();((dynamic)d)[0]=1;return 0;"),"AP001");
+        Check(Source("var a=new System.Collections.Generic.List<int>();((dynamic)a).Capacity=1048576;return 0;"),"AP001");
+        Check(Source("foreach(object x in map){return x==null?0:1;}return -1;"),"AR002");
+        Check(Source("foreach(dynamic x in map){return 0;}return -1;"),"AP001");
+        Check(Source("foreach(O x in map){return 0;}return -1;",imports:"using O=System.Object;"),"AR002");
+        Check(Source("return ((object)map)==null?0:1;"),"AR002");
+        Check(Source("foreach(var x in map){return x;}return -1;"),null);
+        Check(Source("long x=(long)position;return (int)x;"),null);
+        Check(Source("return new int[(uint)3].Length;"),null);
+        Check(Source("return new int[(ulong)3].Length;"),null);
         Check(Source("var x=typeof(Player);return 0;"), "AP001");
         Check(Source("return GetType().GetHashCode();"), "AR002");
         Check(Source("var p=new Player();return 0;"), "AR002");

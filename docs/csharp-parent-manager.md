@@ -2,6 +2,8 @@
 
 작성: 2026-11-19. C3의 시험 드라이버와 별도로 `CoinHunter.Infrastructure/Execution`에 `CSharpHostManager`와 `CSharpHostSession`을 구현하고 실행 관리 서비스에 DI/hosted service로 등록했다. 실제 Node 게임/공개 API가 이 모듈로 C# runner를 생성하는 연결은 C4 이후다. 현재 지원 언어는 JavaScript 하나다.
 
+리뷰 후속: [이름 검증·송신 전 입력 오류 수정](csharp-review-fixes-2026-11-19.md)을 반영했다. null 이름은 invalid-name으로 거절하고 로컬 입력 거절 뒤에는 같은 세션을 유지한다. 부모 확인 수는 37개에서 42개로 확장했다.
+
 ## 책임과 API
 
 - `CSharpHostManager.CreateAsync(launch, token)`: 신뢰된 서버의 실행 설정을 받아 자원 예약·프로세스 생성·OS 그룹 배치·허가·준비 검증을 수행한다.

@@ -41,6 +41,7 @@ public static class BudgetGuard
 
 internal sealed class BudgetExpiredException : Exception;
 internal sealed class BudgetStoppedException : Exception;
+internal sealed class InvalidPlayerNameException : Exception;
 internal sealed class BudgetScope(TimeSpan budget)
 {
     private readonly object gate = new();
@@ -67,7 +68,7 @@ internal sealed class BudgetScope(TimeSpan budget)
 
 internal sealed record BudgetOutcome(BudgetScope Scope, object? Value, Exception? Error)
 {
-    public string Status => Scope.Expired ? "timeout" : Scope.StopRequested ? "cancelled" : Error is OperationLimitException ? "operation-limit" : Error is null ? "ok" : "exception";
+    public string Status => Scope.Expired ? "timeout" : Scope.StopRequested ? "cancelled" : Error is OperationLimitException ? "operation-limit" : Error is InvalidPlayerNameException ? "invalid-result" : Error is null ? "ok" : "exception";
 }
 internal static class BudgetInvocation
 {

@@ -1,6 +1,12 @@
 {
   "profile": "csharp-restricted-c1-v2",
-  "analyzerVersion": "c1-2",
+  "analyzerVersion": "c1-3",
+  "nameResult": {
+    "mustBeString": true,
+    "nullAllowed": false,
+    "emptyAllowed": true,
+    "maxDisplayUtf16Units": 40
+  },
   "guardVersion": "c2-poll-bounded-v2",
   "status": "candidate-not-activated",
   "maxCollectionCount": 65536,

@@ -43,6 +43,13 @@ internal static class CSharpManagerChecks
                     Assert(next.Generation==id.Generation&&next.InstanceId==id.InstanceId&&next.ProcessId==id.ProcessId&&next.Direction==(2*(i+1))%4,"Normal timeout restarted state.");
                     observations.Add(System.Text.Json.JsonSerializer.SerializeToNode(timeout));
                 }
+                foreach(var invalid in new[]{new int[600000],Enumerable.Repeat(int.MinValue,100000).ToArray()})
+                {
+                    try{await host.MoveNextAsync(invalid,0,[-1,-1,-1,-1]);throw new Exception("Oversized input accepted.");}
+                    catch(ArgumentException){Assert(host.State=="ready","Local input failure closed/busied host.");}
+                }
+                var afterInvalid=await host.MoveNextAsync([0],0,[-1,-1,-1,-1]);
+                Assert(afterInvalid.Generation==id.Generation&&afterInvalid.InstanceId==id.InstanceId&&afterInvalid.ProcessId==id.ProcessId&&afterInvalid.Direction==3&&afterInvalid.CallId==10,"Rejected input changed PID/instance/turn/pending sequence.");
                 var stopped=await host.StopAsync();Assert(stopped.CleanupConfirmed&&!stopped.Forced,"Cooperative stop failed.");await Dead(id.ProcessId);
                 Assert((await host.StopAsync())==stopped,"Repeated stop not idempotent.");
             }
@@ -87,6 +94,13 @@ internal static class CSharpManagerChecks
                 catch(OperationCanceledException){Assert(manager.ManagedCount==0,"Cancelled preparation retained host.");}
             }
             try{await manager.CreateAsync(launch with{SourceHash=new string('0',64)});throw new Exception("Wrong source hash accepted.");}catch(CSharpHostFailure failure){Assert(failure.CleanupConfirmed,"Bad source leaked process.");}
+            var invalidNameSource=Path.Combine(directory,"invalid-name.cs");var invalidNameCode=code.Replace("return \"manager\";","return null;");
+            await File.WriteAllTextAsync(invalidNameSource,invalidNameCode);
+            var invalidNameLaunch=launch with{SourcePath=invalidNameSource,SourceHash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(invalidNameCode))).ToLowerInvariant()};
+            try{await manager.CreateAsync(invalidNameLaunch);throw new Exception("Null name became ready.");}
+            catch(CSharpHostFailure failure){Assert(failure.Reason=="invalid-name"&&failure.CleanupConfirmed&&manager.ManagedCount==0,"Name contract failure lost or leaked.");}
+            try{await manager.CreateAsync(launch with{ProbeStall=-6});throw new Exception("Malformed successful name became ready.");}
+            catch(CSharpHostFailure failure){Assert(failure.Reason=="invalid-name"&&failure.CleanupConfirmed,"Parent trusted status without validating name value.");}
             await using(var host=await manager.CreateAsync(launch))
             {
                 int pid=host.Identity!.ProcessId;using(var process=Process.GetProcessById(pid))process.Kill(true);

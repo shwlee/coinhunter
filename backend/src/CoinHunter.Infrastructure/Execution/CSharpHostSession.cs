@@ -28,6 +28,7 @@ public sealed class CSharpHostSession : IAsyncDisposable
     private Guid? generation,instance;
     private long lastCall;
     private long? preparationCall;
+    private bool nameVerified;
     private string state="preparing";
     private Pending? pending;
     private sealed class Pending
@@ -98,19 +99,29 @@ public sealed class CSharpHostSession : IAsyncDisposable
     public async Task<CSharpParentCall> MoveNextAsync(int[] map,int position,int[] items,CancellationToken token=default)
     {
         token.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(map);ArgumentNullException.ThrowIfNull(items);
         if(map.Length==0||position<0||position>=map.Length||items.Length!=4)throw new ArgumentException("Invalid judgement snapshot.");
-        var snapshot=(int[])map.Clone();var itemSnapshot=(int[])items.Clone();
+        // Even single-digit values require almost two bytes per element. Reject
+        // definite overflow before cloning; the bounded writer handles the rest.
+        if(map.Length>1048576/2)throw new ArgumentException("Judgement frame too large.",nameof(map));
         Pending call;
+        string json;
         lock(gate)
         {
             if(state!="ready"||closing is not null)throw new InvalidOperationException("Host is not ready for another call.");
-            call=pending=new Pending();state="computing";
+            call=new Pending();
+            var snapshot=(int[])map.Clone();var itemSnapshot=(int[])items.Clone();
+            using(var frame=new JudgementFrame())
+            {
+                using(var writer=new Utf8JsonWriter(frame))JsonSerializer.Serialize(writer,new{Id=call.Id,Map=snapshot,Position=position,Items=itemSnapshot});
+                json=frame.GetText();
+            }
+            token.ThrowIfCancellationRequested();
+            pending=call;state="computing";
         }
         using var cancellation=token.Register(()=>{_ = StopAsync("caller-cancelled");});
         try
         {
-            var json=JsonSerializer.Serialize(new { Id=call.Id,Map=snapshot,Position=position,Items=itemSnapshot });
-            if(json.Length>1048576)throw new InvalidOperationException("Judgement frame too large.");
             using(var dispatch=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token))
             {
                 dispatch.CancelAfter(launch.Watchdogs.StartNotification);
@@ -161,7 +172,7 @@ public sealed class CSharpHostSession : IAsyncDisposable
             {
                 if(ready.Task.IsCompleted||request is not null)throw new IOException("Duplicate readiness.");
                 var identity=Guid.Parse(data!["InstanceId"]!.GetValue<string>());
-                if(instance!=identity||preparationCall is not null||lastCall!=3||data["pid"]!.GetValue<int>()!=process.Id||data["frequency"]!.GetValue<long>()<=0||
+                if(instance!=identity||preparationCall is not null||lastCall!=3||!nameVerified||data["pid"]!.GetValue<int>()!=process.Id||data["frequency"]!.GetValue<long>()<=0||
                     !string.Equals((string?)data["SourceHash"],launch.SourceHash,StringComparison.OrdinalIgnoreCase)||
                     (string?)data["Profile"]!="csharp-restricted-c1-v2"||(string?)data["guardVersion"]!="c2-poll-bounded-v2")throw new IOException("Readiness identity/profile mismatch.");
                 ready.TrySetResult(new(gen,identity,process.Id,data["frequency"]!.GetValue<long>(),(string)data["SourceHash"]!, (string)data["Profile"]!, (string)data["guardVersion"]!));return;
@@ -183,6 +194,15 @@ public sealed class CSharpHostSession : IAsyncDisposable
                     var id=data!["CallId"]!.GetValue<long>();
                     if(preparationCall!=id||Guid.Parse(data["InstanceId"]!.GetValue<string>())!=instance||data["ProcessId"]!.GetValue<int>()!=process.Id||!data["ExecutionSettled"]!.GetValue<bool>())throw new IOException("Invalid preparation settlement.");
                     lastCall=id;preparationCall=null;
+                    if(id==3)
+                    {
+                        if((string?)data["Status"]=="ok")
+                        {
+                            nameVerified=data["Value"] is JsonValue named && named.TryGetValue<string>(out var name) && name is not null && name.Length<=40;
+                            if(!nameVerified)_=CloseAsync("invalid-name",true);
+                        }
+                        else if((string?)data["Status"]=="invalid-result" && (string?)data["DiagnosticCode"]=="AR013")_=CloseAsync("invalid-name",true);
+                    }
                 }
                 return;
             }
@@ -294,6 +314,19 @@ public sealed class CSharpHostSession : IAsyncDisposable
     }
     public async ValueTask DisposeAsync()
     {var closed=await StopAsync();if(!closed.CleanupConfirmed)throw new CSharpHostFailure(closed.Reason,false);}
+    private sealed class JudgementFrame : Stream
+    {
+        private readonly MemoryStream bytes=new();
+        public string GetText()=>Encoding.UTF8.GetString(bytes.GetBuffer(),0,(int)bytes.Length);
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {if(bytes.Length+buffer.Length>1048576)throw new ArgumentException("Judgement frame too large.","map");bytes.Write(buffer);}
+        public override void Write(byte[] buffer,int offset,int count)=>Write(buffer.AsSpan(offset,count));
+        public override bool CanRead=>false;public override bool CanSeek=>false;public override bool CanWrite=>true;
+        public override long Length=>bytes.Length;public override long Position{get=>bytes.Position;set=>throw new NotSupportedException();}
+        public override void Flush(){}public override int Read(byte[] buffer,int offset,int count)=>throw new NotSupportedException();
+        public override long Seek(long offset,SeekOrigin origin)=>throw new NotSupportedException();public override void SetLength(long value)=>throw new NotSupportedException();
+        protected override void Dispose(bool disposing){if(disposing)bytes.Dispose();base.Dispose(disposing);}
+    }
     private static async IAsyncEnumerable<string> ReadFrames(TextReader reader,int limit,[System.Runtime.CompilerServices.EnumeratorCancellation]CancellationToken token)
     {
         var buffer=new char[1024];var frame=new StringBuilder();int count;

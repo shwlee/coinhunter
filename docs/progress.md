@@ -1,5 +1,10 @@
 # 구현 진행 결과
 
+## 2026-11-19 — C# 후보 커밋·적대적 리뷰 3건 수정
+
+- C# 후보/부모 관리자까지 `781b5cb`로 커밋한 뒤 [리뷰](csharp-adversarial-review-2026-11-19.md)에서 중간 3건을 재현했다. [후속 수정](csharp-review-fixes-2026-11-19.md): 캐스트/foreach/dynamic 의미 타입 검사, null 이름·부모 ready 검증, 송신 전 입력 오류에서 세션 보존.
+- 분석기 c1-3. 정상 숫자/배열 캐스트와 빈/공백 이름 처리 등 기존 지원 범위를 확인했다. C# capability는 비활성이고 이번 수정은 커밋/푸시하지 않았다.
+
 ## 2026-11-19 — C# 운영 부모 관리자 모듈
 
 - [구조·정책·검증·남은 일](csharp-parent-manager.md): Infrastructure의 CSharpHostManager/Session을 실행 서비스 hosted service로 등록했다. 실제 자원 예약/배치·source/프로필·수명 식별자·마감/결과를 검증하고, 시작 누락·미종료·관리 무응답·회수를 독립 감시한다.

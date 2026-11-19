@@ -129,6 +129,13 @@ internal static class CSharpBudgetChecks
         foreach (var rejected in new[] { Source("try{return 0;}catch{return -1;}"), Source("return 0;", "int P{get{return P;}}"), Source("return A();", "int A()=>A();"), Source("using(var s=new System.IO.MemoryStream()){}return 0;"), Source("return CoinHunter.CSharp.Analysis.BudgetGuard.GetHashCode();"), Source("var q=new System.Collections.Generic.List<int>();q.Sort();return 0;") })
         { try { using var candidate=CSharpCandidate.Prepare(rejected); throw new Exception("Unsafe source compiled."); } catch(ArgumentException) { checks++; } }
         checks+=CSharpBuiltinPolicyChecks.Run();
+        foreach(var (expression,expected) in new[]{("null",(string?)null),("\"\"",""),("\"   \"","   "),("\"코인 사냥꾼\"","코인 사냥꾼"),("\""+new string('가',41)+"\"",new string('가',40)),("\""+new string('가',39)+"😀끝\"",new string('가',39))})
+        {
+            using var named=CSharpCandidate.Prepare(Source("return 0;").Replace("return \"probe\";","return "+expression+";"));
+            Assert(named.Construct().Status=="ok"&&named.Initialize(0,3,3).Status=="ok","Name setup failed.");
+            var value=named.GetName();
+            Assert(expected is null ? value.Status=="invalid-result"&&value.DiagnosticCode=="AR013"&&value.Value is null : value.Status=="ok"&&(string?)value.Value==expected,"Name contract/normalization failed.");
+        }
         Console.Write(JsonSerializer.Serialize(new ProbeReport(checks, Environment.ProcessId, timeouts.Max(t=>t.ElapsedMs-t.BudgetMs), Retained, timeouts)));
     }
     private static long Retained;
