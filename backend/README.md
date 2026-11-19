@@ -26,6 +26,8 @@ C# 후보의 [부모 관리 모듈](../docs/csharp-parent-manager.md)을 실행 
 
 [C4-D Node 혼합 게임 후보](../docs/csharp-node-game-c4d.md)는 플레이어별 private pipe로 기존 .NET 부모 세션을 호출하며 게임 수명 동안 DLL/객체를 유지한다. 별도의 개발 opt-in과 내부 후보 경로에서만 실행한다. C#에는 현재 IPC 중계가 한 단계 더 있으므로 호출 비용/공정성과 정식 채택 관문이 남는다. 기본 공개 지원은 계속 JavaScript 하나다.
 
+[C4 리뷰 수정](../docs/csharp-c4cd-review-fixes-2026-11-19.md): C# 호스트도 게임 부모 OS 자원 scope에 포함하며 전역 예산은 한 번만 예약한다. 검사 시도별 CAS로 결과 순서를 보호하고, 종료 후 private 파일 삭제 실패는 슬롯 반환과 분리해 재시도한다.
+
 ## 실행
 
 Windows 로컬 검증: .NET SDK **10.0.401**, Node **18.20.2**. 외부 NuGet 패키지는 없다. 설치된 SDK/shared framework로 빌드한다. 배포 런타임/컨테이너는 후속 검증 대상이다.

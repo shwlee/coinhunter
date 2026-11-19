@@ -66,7 +66,7 @@ internal static class ValidationChecks
         finally { await service.StopAsync(CancellationToken.None); }
 
         var recovery = records[0];
-        await accounts.SetValidation(recovery.Owner, recovery.Item.Text("id"), 1, recovery.Source.SourceKey, new JsonObject { ["state"] = "pending", ["version"] = service.Version });
+        Require(await accounts.BeginValidation(recovery.Owner, recovery.Item.Text("id"), 1, recovery.Source.SourceKey, new JsonObject { ["state"] = "pending", ["version"] = service.Version }, "javascript", recovery.Source.Sha256, Guid.NewGuid()));
         var partialKey = Guid.NewGuid();
         var partialLease = Path.Combine(settings.DataRoot, "validation-leases", partialKey + ".json");
         await AtomicFile.Json(partialLease, new JsonObject { ["sourceKey"] = partialKey.ToString() });

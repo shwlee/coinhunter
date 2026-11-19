@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-19T09:50:53.1601228+00:00",
+  "checks": 20,
+  "resources": {
+    "adapter": "windows-job-v1",
+    "processLimitUnit": "processes",
+    "reservedMemoryBytes": 0,
+    "reservedProcesses": 0,
+    "totalMemoryBytes": 6442450944,
+    "totalProcesses": 32
+  },
+  "reviewedCommit": "451b4db",
+  "resolved": ["H1", "M1", "M2"],
+  "additionalOsChecks": 2,
+  "osChecks": 7,
+  "fullBackendPassed": true,
+  "nestedCpu": {
+    "wallMs": 2000,
+    "cpuMs": 531.2
+  },
+  "buildWarnings": 0,
+  "buildErrors": 0,
+  "linuxExecuted": false,
+  "publicCSharpEnabled": false
+}

@@ -10,7 +10,7 @@ using CoinHunter.Infrastructure.Resources;
 
 namespace CoinHunter.Execution.Host.Services;
 
-public sealed record ValidationRequest(Guid RequestId, ExecutionScope Scope, SourceReference Source,string Language="javascript");
+public sealed record ValidationRequest(Guid RequestId, ExecutionScope Scope, SourceReference Source, string Language = "javascript");
 
 public sealed class ExecutionRecord
 {
@@ -23,10 +23,12 @@ public sealed class ExecutionRecord
     public Process? Process { get; set; }
     public int? EnginePid { get; set; }
     public IExecutionResourceGroup? ResourceGroup { get; set; }
-    internal List<CSharpCandidatePlayer> CSharpPlayers {get;}=[];
-    internal bool Candidate {get;init;}
+    internal List<CSharpCandidatePlayer> CSharpPlayers { get; } = [];
+    internal bool Candidate { get; init; }
     public ResourceObservation? ResourceUsage { get; set; }
     public SemaphoreSlim Input { get; } = new(1);
+    public SemaphoreSlim Persistence { get; } = new(1);
+    public bool PrivateCleanupPending { get; set; }
     public CancellationTokenSource Preparation { get; } = new();
     public TaskCompletionSource Prepared { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public TaskCompletionSource Closed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -81,11 +83,14 @@ public sealed class ExecutionManager : IHostedService, IDisposable
     private readonly ConcurrentDictionary<string, byte> validating = new();
     private readonly FileStream lease;
     private volatile bool stopping;
-    public ExecutionManager(StorageSettings settings, GameContent content, ExecutionResources resources, ExecutionResourceSettings resourceSettings,CSharpValidationService? csharp=null)
+    private readonly ConcurrentDictionary<Guid, byte> privateCleanup = new();
+    private readonly CancellationTokenSource maintenanceStop = new();
+    private Task maintenance = Task.CompletedTask;
+    public ExecutionManager(StorageSettings settings, GameContent content, ExecutionResources resources, ExecutionResourceSettings resourceSettings, CSharpValidationService? csharp = null)
     {
         this.settings = settings; this.content = content;
         this.resources = resources; this.resourceSettings = resourceSettings;
-        this.csharp=csharp;
+        this.csharp = csharp;
         Directory.CreateDirectory(settings.ExecutionRoot);
         lease = new FileStream(Path.Combine(settings.ExecutionRoot, ".writer.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
     }
@@ -95,6 +100,7 @@ public sealed class ExecutionManager : IHostedService, IDisposable
         // Startup/readiness fails closed if this OS cannot apply and verify its limits.
         resources.RecoverAbandonedGroups();
         using (resources.Reserve(resourceSettings.Validation)) { }
+        maintenance = Task.Run(() => RetryPrivateCleanup(maintenanceStop.Token));
         var games = Path.Combine(settings.ExecutionRoot, "games"); if (!Directory.Exists(games)) return;
         foreach (var directory in Directory.EnumerateDirectories(games))
         {
@@ -124,15 +130,15 @@ public sealed class ExecutionManager : IHostedService, IDisposable
                 record.Result = Failure(record, "execution-host-restarted", await JournalRecovery.Recover(settings.ExecutionRoot, request.MatchId));
             }
             record.Closed.TrySetResult(); records[request.MatchId] = record;
-            var privateSnapshot=Path.Combine(directory,"csharp-runners.private.json");if(File.Exists(privateSnapshot))File.Delete(privateSnapshot);
+            TryPrivateCleanup(record);
             await Persist(record);
         }
     }
     private static string Fingerprint(ExecutionRequest request) => Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(request, Protocol.JsonOptions)));
-    public async Task<ExecutionRecord> Accept(ExecutionRequest request, CancellationToken cancellationToken,bool candidate=false)
+    public async Task<ExecutionRecord> Accept(ExecutionRequest request, CancellationToken cancellationToken, bool candidate = false)
     {
-        if(candidate&&(csharp?.GameCandidateEnabled!=true||request.Participants?.Any(p=>p?.Language=="csharp")!=true))throw new ServiceFault(503,"C# 게임 후보 실행은 비활성입니다.");
-        ContractValidation.Execution(request,candidate);
+        if (candidate && (csharp?.GameCandidateEnabled != true || request.Participants?.Any(p => p?.Language == "csharp") != true)) throw new ServiceFault(503, "C# 게임 후보 실행은 비활성입니다.");
+        ContractValidation.Execution(request, candidate);
         var map = JsonSerializer.SerializeToNode(request.Map, Protocol.JsonOptions)!.AsObject(); map["schemaVersion"] = 1; map["name"] = "Execution snapshot"; map["description"] = "";
         MapRules.Validate(map, content, true);
         await admission.WaitAsync(cancellationToken);
@@ -148,8 +154,8 @@ public sealed class ExecutionManager : IHostedService, IDisposable
             if (records.Values.Any(value => value.Request.RequestId == request.RequestId)) throw new ServiceFault(409, "실행 요청 ID가 이미 사용되었습니다.");
             if (records.Values.Count(value => !value.Closed.Task.IsCompleted) >= 4) throw new ServiceFault(429, "동시 경기 한도에 도달했습니다.");
             if (records.Count >= 10000) throw new ServiceFault(503, "실행 기록 보존 한도입니다. 오프라인 보관 정리가 필요합니다.");
-            record = new ExecutionRecord { Request = request, Fingerprint = Fingerprint(request),Candidate=candidate };
-            if(candidate)record.Preparation.CancelAfter(TimeSpan.FromSeconds(120));
+            record = new ExecutionRecord { Request = request, Fingerprint = Fingerprint(request), Candidate = candidate };
+            if (candidate) record.Preparation.CancelAfter(TimeSpan.FromSeconds(120));
             record.ResourceGroup = resources.Reserve(resourceSettings.Game);
             try
             {
@@ -161,7 +167,7 @@ public sealed class ExecutionManager : IHostedService, IDisposable
         }
         finally { admission.Release(); }
         _ = Run(record);
-        try { await record.Prepared.Task.WaitAsync(TimeSpan.FromSeconds(candidate?120:20), cancellationToken); }
+        try { await record.Prepared.Task.WaitAsync(TimeSpan.FromSeconds(candidate ? 120 : 20), cancellationToken); }
         catch { await Stop(record, "prepare-failed"); throw new ServiceFault(400, "알고리즘을 준비하지 못했습니다. 코드 검사를 실행하세요."); }
         return record;
     }
@@ -195,15 +201,15 @@ public sealed class ExecutionManager : IHostedService, IDisposable
         {
             var sourceDirectory = Path.Combine(directory, "sources");
             foreach (var participant in record.Request.Participants) await CopySource(participant.Source, sourceDirectory, record.Preparation.Token);
-            if(record.Candidate)
+            if (record.Candidate)
             {
-                foreach(var player in record.Request.Participants.Where(p=>p.Language=="csharp"))
-                    record.CSharpPlayers.Add(await csharp!.PreparePlayer(record.Request,player,Path.Combine(sourceDirectory,player.Source.SourceKey+".js"),record.Preparation.Token));
-                await AtomicFile.Json(Path.Combine(directory,"csharp-runners.private.json"),new JsonObject{["gameId"]=record.Request.MatchId.ToString(),["players"]=new JsonArray(record.CSharpPlayers.Select(p=>(JsonNode)p.Descriptor.DeepClone()).ToArray())});
+                foreach (var player in record.Request.Participants.Where(p => p.Language == "csharp"))
+                    record.CSharpPlayers.Add(await csharp!.PreparePlayer(record.Request, player, Path.Combine(sourceDirectory, player.Source.SourceKey + ".js"), record.ResourceGroup!, resourceSettings.Game, record.Preparation.Token));
+                await AtomicFile.Json(Path.Combine(directory, "csharp-runners.private.json"), new JsonObject { ["gameId"] = record.Request.MatchId.ToString(), ["players"] = new JsonArray(record.CSharpPlayers.Select(p => (JsonNode)p.Descriptor.DeepClone()).ToArray()) });
             }
             record.Preparation.Token.ThrowIfCancellationRequested();
             var info = StartInfo("engine-host.js", sourceDirectory); info.Environment["COINHUNTER_ENGINE_LOGS"] = Path.Combine(settings.ExecutionRoot, "journals");
-            if(record.Candidate)info.Environment["COINHUNTER_CSHARP_CANDIDATE_SNAPSHOT"]=Path.Combine(directory,"csharp-runners.private.json");
+            if (record.Candidate) info.Environment["COINHUNTER_CSHARP_CANDIDATE_SNAPSHOT"] = Path.Combine(directory, "csharp-runners.private.json");
             process = new Process { StartInfo = info }; record.Process = process;
             if (!process.Start()) throw new IOException("Engine start failed.");
             record.ResourceGroup!.Assign(process); // Before initialize can load user code or spawn players.
@@ -264,13 +270,12 @@ public sealed class ExecutionManager : IHostedService, IDisposable
                     catch { record.ResourceUsage = null; }
                     if (record.ResourceUsage?.OomKills > 0)
                         record.Result = Failure(record, "resource-memory-limit", new JsonObject { ["status"] = "partial", ["key"] = record.Request.MatchId.ToString(), ["durableThroughSeq"] = 0 });
-                    Exception? cleanupFailure=null;
-                    try{record.ResourceGroup?.Dispose();}catch(Exception error){cleanupFailure=error;}
-                    // These hosts belong to the shared .NET manager, not Node's
-                    // descendant tree. Actual closure is mandatory before final receipt.
-                    try{await Task.WhenAll(record.CSharpPlayers.Select(player=>player.Close()));}catch(Exception error){cleanupFailure??=error;}
-                    if(cleanupFailure is not null)throw new IOException("Game resource cleanup unconfirmed.",cleanupFailure);
-                    var privateSnapshot=Path.Combine(directory,"csharp-runners.private.json");if(File.Exists(privateSnapshot))File.Delete(privateSnapshot);
+                    Exception? cleanupFailure = null;
+                    // Manager-owned children share this game's OS scope. Drain
+                    // their sessions/leases before releasing the parent budget.
+                    try { await Task.WhenAll(record.CSharpPlayers.Select(player => player.Close())); } catch (Exception error) { cleanupFailure ??= error; }
+                    try { record.ResourceGroup?.Dispose(); } catch (Exception error) { cleanupFailure ??= error; }
+                    if (cleanupFailure is not null) throw new IOException("Game resource cleanup unconfirmed.", cleanupFailure);
                     resourcesReleased = true;
                 }
                 catch
@@ -278,6 +283,7 @@ public sealed class ExecutionManager : IHostedService, IDisposable
                     record.State = "cleanup-unconfirmed";
                     record.Result = Failure(record, "resource-cleanup-unconfirmed", new JsonObject { ["status"] = "partial", ["key"] = record.Request.MatchId.ToString(), ["durableThroughSeq"] = 0 });
                 }
+                if (resourcesReleased) { record.CSharpPlayers.Clear(); TryPrivateCleanup(record); }
                 if (record.Result?["recording"]?.Text("status") != "complete") record.Result!["recording"] = await JournalRecovery.Recover(settings.ExecutionRoot, record.Request.MatchId);
                 await Persist(record);
             }
@@ -316,8 +322,17 @@ public sealed class ExecutionManager : IHostedService, IDisposable
     public ExecutionRecord Get(Guid id) => records.GetValueOrDefault(id) ?? throw new ServiceFault(404, "실행을 찾을 수 없습니다.");
     public JsonObject View(ExecutionRecord record)
     {
-        lock (record.Gate) return new JsonObject { ["id"] = record.Request.MatchId.ToString(), ["state"] = record.State, ["snapshot"] = record.Snapshot?.DeepClone(), ["result"] = record.Result?.DeepClone(), ["acknowledged"] = record.Acknowledged, ["enginePid"] = record.EnginePid,
-            ["resourceUsage"] = record.ResourceUsage is null ? null : JsonSerializer.SerializeToNode(record.ResourceUsage, Protocol.JsonOptions) };
+        lock (record.Gate) return new JsonObject
+        {
+            ["id"] = record.Request.MatchId.ToString(),
+            ["state"] = record.State,
+            ["snapshot"] = record.Snapshot?.DeepClone(),
+            ["result"] = record.Result?.DeepClone(),
+            ["acknowledged"] = record.Acknowledged,
+            ["enginePid"] = record.EnginePid,
+            ["privateCleanupPending"] = record.PrivateCleanupPending,
+            ["resourceUsage"] = record.ResourceUsage is null ? null : JsonSerializer.SerializeToNode(record.ResourceUsage, Protocol.JsonOptions)
+        };
     }
     public async Task Start(ExecutionRecord record)
     {
@@ -349,12 +364,42 @@ public sealed class ExecutionManager : IHostedService, IDisposable
         if (acknowledgement.MatchId != id || acknowledgement.ResultVersion != 1) throw new ServiceFault(409, "결과 버전이 일치하지 않습니다.");
         record.Acknowledged = true; await Persist(record);
     }
-    private Task Persist(ExecutionRecord record) => AtomicFile.Json(Path.Combine(DirectoryFor(record.Request.MatchId), "status.json"), View(record));
+    private async Task Persist(ExecutionRecord record)
+    {
+        await record.Persistence.WaitAsync();
+        try { await AtomicFile.Json(Path.Combine(DirectoryFor(record.Request.MatchId), "status.json"), View(record)); }
+        finally { record.Persistence.Release(); }
+    }
+    private void MarkPrivateCleanup(ExecutionRecord record, bool pending)
+    {
+        lock (record.Gate) record.PrivateCleanupPending = pending;
+        if (pending) privateCleanup[record.Request.MatchId] = 0; else privateCleanup.TryRemove(record.Request.MatchId, out _);
+    }
+    private void TryPrivateCleanup(ExecutionRecord record)
+    {
+        try { File.Delete(Path.Combine(DirectoryFor(record.Request.MatchId), "csharp-runners.private.json")); MarkPrivateCleanup(record, false); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { MarkPrivateCleanup(record, true); }
+    }
+    private async Task RetryPrivateCleanup(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+                foreach (var id in privateCleanup.Keys)
+                {
+                    if (!records.TryGetValue(id, out var record) || !record.Closed.Task.IsCompletedSuccessfully) continue;
+                    TryPrivateCleanup(record);
+                    try { await Persist(record); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { MarkPrivateCleanup(record, true); }
+                }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+    }
     public async Task<JsonObject> Validate(ValidationRequest request, CancellationToken token)
     {
         if (stopping || request.RequestId == Guid.Empty || request.Scope is null || request.Source is null || request.Scope.SubjectId == Guid.Empty || request.Scope.Kind is not ("user" or "guest")) throw new ServiceFault(400, "검사 요청을 확인하세요.");
-        if(request.Language is not ("javascript" or "csharp")||request.Source.SourceKey==Guid.Empty||request.Source.ByteLength<0||!CSharpArtifactKeys.Valid(request.Source.Sha256))throw new ServiceFault(400,"검사 언어·코드 참조를 확인하세요.");
-        if(request.Language=="csharp"&&(csharp is null||request.Scope.Kind!="user"))throw new ServiceFault(503,"C# 후보 검사가 활성화되지 않았습니다.");
+        if (request.Language is not ("javascript" or "csharp") || request.Source.SourceKey == Guid.Empty || request.Source.ByteLength < 0 || !CSharpArtifactKeys.Valid(request.Source.Sha256)) throw new ServiceFault(400, "검사 언어·코드 참조를 확인하세요.");
+        if (request.Language == "csharp" && (csharp is null || request.Scope.Kind != "user")) throw new ServiceFault(503, "C# 후보 검사가 활성화되지 않았습니다.");
         var owner = request.Scope.Kind + request.Scope.SubjectId;
         if (!validating.TryAdd(owner, 0)) throw new ServiceFault(429, "코드 검사가 진행 중입니다.");
         try { if (!await validations.WaitAsync(0, token)) throw new ServiceFault(429, "검사 한도에 도달했습니다."); }
@@ -364,10 +409,10 @@ public sealed class ExecutionManager : IHostedService, IDisposable
         var resourcesReleased = false;
         try
         {
-            if(request.Language=="csharp")
+            if (request.Language == "csharp")
             {
-                await CopySource(request.Source,directory,token);
-                return await csharp!.Validate(request.Scope,request.Source,Path.Combine(directory,request.Source.SourceKey+".js"),token);
+                await CopySource(request.Source, directory, token);
+                return await csharp!.Validate(request.Scope, request.Source, Path.Combine(directory, request.Source.SourceKey + ".js"), token);
             }
             resourceGroup = resources.Reserve(resourceSettings.Validation);
             await CopySource(request.Source, directory, token);
@@ -405,6 +450,11 @@ public sealed class ExecutionManager : IHostedService, IDisposable
         while (true) { var count = await reader.ReadAsync(buffer, token); if (count == 0) break; if (result.Length + count > limit) throw new IOException("Validation output too large."); result.Append(buffer, 0, count); }
         return result.ToString();
     }
-    public async Task StopAsync(CancellationToken cancellationToken) { stopping = true; await Task.WhenAll(records.Values.Where(record => !record.Closed.Task.IsCompleted).Select(record => Stop(record, "server-shutdown"))); }
-    public void Dispose() { lease.Dispose(); admission.Dispose(); validations.Dispose(); foreach (var record in records.Values) record.Process?.Dispose(); }
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        stopping = true;
+        try { await Task.WhenAll(records.Values.Where(record => !record.Closed.Task.IsCompleted).Select(record => Stop(record, "server-shutdown"))); }
+        finally { maintenanceStop.Cancel(); await maintenance; }
+    }
+    public void Dispose() { maintenanceStop.Cancel(); maintenance.GetAwaiter().GetResult(); lease.Dispose(); admission.Dispose(); validations.Dispose(); foreach (var record in records.Values) record.Process?.Dispose(); }
 }

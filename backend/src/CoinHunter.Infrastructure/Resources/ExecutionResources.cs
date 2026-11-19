@@ -41,6 +41,9 @@ public sealed class ExecutionResourceSettings
 
 public interface IExecutionResourceGroup : IDisposable
 {
+    // Subscopes consume the parent's already reserved budget; they never add a
+    // second global reservation. Assignment must enforce every ancestor limit.
+    IExecutionResourceGroup CreateChild(ResourceProfile profile) => throw new NotSupportedException("Nested resource scopes are required.");
     void Assign(Process trustedWaitingHost);
     ResourceObservation Observe();
     Task TerminateAndDrain(CancellationToken cancellationToken = default);

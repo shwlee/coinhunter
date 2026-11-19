@@ -65,6 +65,7 @@
 - [x] [C4-B 준비 작업 복구·artifact 36회 검사·결과 파일 어댑터](csharp-recovery-preflight-c4b.md): Windows 53개 확인·실제 부모 crash/캐시 재사용 검증.
 - [x] [C4-C 계정 언어/hash/revision CAS·검사 worker·실행 서비스 후보 검사 연결](csharp-account-validation-c4c.md): 실제 DLL 검사/보고서 바인딩·원문 보관·C# 게임 불허.
 - [x] [C4-D Node/C# 혼합 게임 후보·플레이어 pipe·게임 DLL pin](csharp-node-game-c4d.md): 독립 진행/timeout 재사용·정지/crash·partial 로그 회수. 정식 공개 지원은 비활성.
+- [x] [C4-C/D 리뷰 3건 수정](csharp-c4cd-review-fixes-2026-11-19.md): 게임 부모/자식 자원 범위, 검사 시도 CAS, private 파일 정리 대기/재시도·종료 슬롯 분리.
 - [ ] C4 후속 IPC 경로/호출 비용 균형·공정성, 공개 운영/계정 경기 연결, 볼륨 quota/보유 정책과 정식 채택/native/Linux 관문.
 - [ ] 새 4단계 채택 관문 통과: C#/Python 대체 후보, C++ 자원/힙 일관성·컴파일 격리와 기존 JS 재귀 오류 보완.
 - [ ] 새 5~10단계 구현/검증. 상세 체크는 [최신 계획](game-engine-language-runners-plan.md#7-진행-체크리스트)에서 관리.

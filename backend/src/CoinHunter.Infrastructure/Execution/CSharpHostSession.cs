@@ -62,7 +62,7 @@ public sealed class CSharpHostSession : IAsyncDisposable
         info.ArgumentList.Add(launch.HostAssembly);
         if(launch.PreparedArtifact)info.ArgumentList.Add("--artifact");
         foreach(var arg in new[]{launch.SourcePath,pipe,launch.ProbeStall.ToString(System.Globalization.CultureInfo.InvariantCulture),launch.PlayerNumber.ToString(),launch.Columns.ToString(),launch.Rows.ToString()})info.ArgumentList.Add(arg);
-        resources=ledger.Reserve(launch.Resources);process=new Process{StartInfo=info};
+        resources=launch.ParentResources?.CreateChild(launch.Resources)??ledger.Reserve(launch.Resources);process=new Process{StartInfo=info};
         try { if(!process.Start())throw new IOException("Host start failed.");processId=process.Id;resources.Assign(process); }
         catch
         {

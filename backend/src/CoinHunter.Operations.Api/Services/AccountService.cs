@@ -74,27 +74,38 @@ public sealed class AccountService(IAccountStore store, ISourceStore sources)
             JsonData.Array(data, "algorithms").Add(item);
         }
         language ??= item.Text("language", "javascript");
-        if(language is not ("javascript" or "csharp"))throw new ServiceFault(400,"지원하지 않는 코드 저장 언어입니다.");
-        if(language=="csharp"&&!CoinHunter.Contracts.CSharpArtifactKeys.Valid(sourceHash))throw new ServiceFault(400,"C# 코드의 내용 해시가 필요합니다.");
-        item["language"]=language;
+        if (language is not ("javascript" or "csharp")) throw new ServiceFault(400, "지원하지 않는 코드 저장 언어입니다.");
+        if (language == "csharp" && !CoinHunter.Contracts.CSharpArtifactKeys.Valid(sourceHash)) throw new ServiceFault(400, "C# 코드의 내용 해시가 필요합니다.");
+        item["language"] = language;
         item["name"] = name.Trim(); item["sourceKey"] = sourceKey.ToString(); item["revision"] = item.Int("revision") + 1; item["updatedAt"] = now;
         item["validation"] = new JsonObject { ["state"] = "unverified", ["message"] = "저장됨 · 코드 검사가 필요합니다." };
-        if(language=="csharp")item["validation"]!["executionAllowed"]=false;
+        if (language == "csharp") item["validation"]!["executionAllowed"] = false;
         item["sourceHash"] = sourceHash;
+        item.Remove("validationAttempt");
         return Task.FromResult(JsonData.Metadata(item));
     });
     public Task<JsonObject[]> ValidationTargets(string owner, string hash, string language = "javascript") => store.Read(data => JsonData.Array(data, "algorithms").OfType<JsonObject>()
-        .Where(item => item.Text("ownerId") == owner && item.Text("sourceHash") == hash && item.Text("language","javascript")==language).Select(item => item.CloneObject()).ToArray());
-    public Task<bool> SetValidation(string owner, string id, int revision, Guid sourceKey, JsonObject validation, string? expectedLanguage = null, string? expectedHash = null) => store.Change(data =>
+        .Where(item => item.Text("ownerId") == owner && item.Text("sourceHash") == hash && item.Text("language", "javascript") == language).Select(item => item.CloneObject()).ToArray());
+    public Task<bool> BeginValidation(string owner, string id, int revision, Guid sourceKey, JsonObject validation, string language, string? hash, Guid attempt)
+        => ChangeValidation(owner, id, revision, sourceKey, validation, language, hash, attempt, true);
+    public Task<bool> SetValidation(string owner, string id, int revision, Guid sourceKey, JsonObject validation, string? expectedLanguage = null, string? expectedHash = null, Guid? expectedAttempt = null)
+        => ChangeValidation(owner, id, revision, sourceKey, validation, expectedLanguage, expectedHash, expectedAttempt, false);
+    private Task<bool> ChangeValidation(string owner, string id, int revision, Guid sourceKey, JsonObject validation, string? expectedLanguage, string? expectedHash, Guid? attempt, bool begin) => store.Change(data =>
     {
         var item = JsonData.Array(data, "algorithms").OfType<JsonObject>().SingleOrDefault(item => item.Text("id") == id && item.Text("ownerId") == owner);
         var user = JsonData.Array(data, "users").OfType<JsonObject>().SingleOrDefault(item => item.Text("id") == owner && item.Bool("active"));
         if (user is null || item is null || item.Int("revision") != revision || item.Text("sourceKey") != sourceKey.ToString()) return Task.FromResult(false);
-        if(expectedLanguage is not null&&item.Text("language","javascript")!=expectedLanguage||expectedHash is not null&&item.Text("sourceHash")!=expectedHash)return Task.FromResult(false);
-        if(item.Text("language")=="csharp"&&(expectedLanguage!="csharp"||expectedHash!=item.Text("sourceHash")))return Task.FromResult(false);
-        if(item.Text("language")=="csharp"&&validation["sourceHash"] is not null&&validation.Text("sourceHash")!=expectedHash)return Task.FromResult(false);
+        if (expectedLanguage is not null && item.Text("language", "javascript") != expectedLanguage || expectedHash is not null && item.Text("sourceHash") != expectedHash) return Task.FromResult(false);
+        if (item.Text("language") == "csharp" && (expectedLanguage != "csharp" || expectedHash != item.Text("sourceHash"))) return Task.FromResult(false);
+        if (item.Text("language") == "csharp" && validation["sourceHash"] is not null && validation.Text("sourceHash") != expectedHash) return Task.FromResult(false);
+        if (begin)
+        {
+            if (attempt is null || attempt == Guid.Empty) throw new ArgumentException("Validation attempt required.");
+            item["validationAttempt"] = attempt.Value.ToString();
+        }
+        else if (item.Text("validationAttempt") != (attempt?.ToString() ?? "")) return Task.FromResult(false);
         item["validation"] = validation.DeepClone();
-        if(item.Text("language")=="csharp")item["validation"]!["executionAllowed"]=false;
+        if (item.Text("language") == "csharp") item["validation"]!["executionAllowed"] = false;
         return Task.FromResult(true);
     });
     public Task<bool> RecoverValidations(string version) => store.Change(data =>
@@ -102,9 +113,9 @@ public sealed class AccountService(IAccountStore store, ISourceStore sources)
         foreach (var item in JsonData.Array(data, "algorithms").OfType<JsonObject>())
         {
             var validation = item["validation"] as JsonObject;
-            if (validation?.Text("state") == "pending") item["validation"] = new JsonObject { ["state"] = "unverified", ["message"] = "검사가 중단됐습니다. 다시 검사하세요." };
-            else if (item.Text("language","javascript")!="javascript" || validation is null || validation.Text("version") != version) item["validation"] = new JsonObject { ["state"] = "stale", ["message"] = "현재 규약으로 다시 검사해야 합니다." };
-            if(item.Text("language")=="csharp")item["validation"]!["executionAllowed"]=false;
+            if (validation?.Text("state") == "pending") { item["validation"] = new JsonObject { ["state"] = "unverified", ["message"] = "검사가 중단됐습니다. 다시 검사하세요." }; item.Remove("validationAttempt"); }
+            else if (item.Text("language", "javascript") != "javascript" || validation is null || validation.Text("version") != version) { item["validation"] = new JsonObject { ["state"] = "stale", ["message"] = "현재 규약으로 다시 검사해야 합니다." }; item.Remove("validationAttempt"); }
+            if (item.Text("language") == "csharp") item["validation"]!["executionAllowed"] = false;
         }
         return Task.FromResult(true);
     });

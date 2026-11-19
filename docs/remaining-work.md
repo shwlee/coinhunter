@@ -26,6 +26,7 @@
 - C4 기반: [준비 프로세스·불변 DLL 캐시·lease](csharp-preparation-c4a.md)에 이어 [C4-B 복구·36회 실행 검사·결과 파일 어댑터](csharp-recovery-preflight-c4b.md)를 구현했다. 다음은 계정 revision/검사 worker·Node 연결과 운영 볼륨 정책이며 C# capability는 계속 비활성이다. native/Linux 관문도 남는다.
 - C4-C 후속: [계정 language/hash/revision CAS·백그라운드 검사·실행 내부 요청](csharp-account-validation-c4c.md)을 연결했다. 다음은 Node 어댑터·게임 source/artifact snapshot이다. 공개 C# 저장/게임 UI는 활성화하지 않았으며 정식 채택·볼륨 정책·native/Linux 관문은 유지한다.
 - C4-D 후보: [Node 공통 C# 어댑터·혼합 게임·private pipe·게임 DLL pin](csharp-node-game-c4d.md)을 연결했다. 다음은 언어 간 IPC 경로/호출 비용 균형·공정성, 운영 정책·native/Linux 관문과 공개 계정 경기/기록 연결이다. 현재 C#은 내부 opt-in 시험만 가능하며 공개 지원은 비활성이다.
+- C4 리뷰 후속: [게임 자원 범위·검사 시도 CAS·파일 정리 3건 수정](csharp-c4cd-review-fixes-2026-11-19.md)을 반영했다. Windows 회귀를 확인했으며 Linux 계층형 cgroup의 실제 배포/장애 검증은 남긴다. 공개 C# 활성화나 남은 호출 비용/native 관문을 완료한 작업은 아니다.
 - 현재 진행: [BE 분리 1~9단계](backend-separation-implementation-plan.md)와 FE/BE 폴더 정리는 `1183977`로 커밋/푸시했다. [결과·검증·제한](backend-split-completion.md), [실행법](../backend/README.md), [이전·복귀](backend-cutover-runbook.md). 실제 사용자 이전·Google 왕복·외부 배포는 별도다.
 - 관련: [진행 결과](progress.md), [저장 어댑터](storage-adapters.md), [관리자 계획](admin-page-plan.md), [개인정보 운영 준비](privacy-operations-plan.md), [고도화 보관 목록](enhancement-backlog.md).
 

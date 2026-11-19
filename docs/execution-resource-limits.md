@@ -2,6 +2,8 @@
 
 작성: 2026-11-16. 현재 Windows에서 강제 제한과 실제 게임/검사 연동을 검증했다. Linux cgroup v2 어댑터와 CI 실행 경로는 작성했지만 이 Windows 환경에서 실행하지 않았다. R0 전체나 C# 지원 완료를 의미하지 않는다.
 
+2026-11-19 후속: [C4-C/D 리뷰 수정](csharp-c4cd-review-fixes-2026-11-19.md)에서 게임 전체를 부모 scope로 유지하고 C# 호스트를 하위 Job/cgroup에 포함했다. 자식은 전역 예산을 다시 예약하지 않으며 게임 사용량에 포함된다. Windows 부모 메모리/CPU 제한 상속을 실측했다. 아래 플레이어별 독립 그룹 미구현 설명은 최초 R0 시점의 기록이다.
+
 ## 적용 경계와 수명
 
 `CoinHunter.Infrastructure/Resources`의 `ExecutionResources`가 전체 예약량을 관리하고 `IExecutionResourceGroup` 뒤에 OS별 구현을 둔다. 실행 관리 서비스가 사용자 코드 로딩 전에 다음 순서로 연결한다.

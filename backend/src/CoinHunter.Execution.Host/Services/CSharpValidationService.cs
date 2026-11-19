@@ -19,7 +19,7 @@ public sealed class CSharpValidationService(StorageSettings settings, GameConten
     private ResourceProfile? profile;
     private bool closed;
     internal bool GameCandidateEnabled => configuration.GetValue("Backend:CSharpGameCandidate:Enabled", false) && preparations is not null && !closed;
-    internal async Task<CSharpCandidatePlayer> PreparePlayer(ExecutionRequest game, ParticipantRequest player, string snapshot, CancellationToken token)
+    internal async Task<CSharpCandidatePlayer> PreparePlayer(ExecutionRequest game, ParticipantRequest player, string snapshot, IExecutionResourceGroup gameScope, ResourceProfile gameLimits, CancellationToken token)
     {
         if (!GameCandidateEnabled || game.Scope.Kind != "user") throw new ServiceFault(503, "C# 게임 후보 실행은 비활성입니다.");
         var result = await Validate(game.Scope, player.Source, snapshot, token);
@@ -29,7 +29,10 @@ public sealed class CSharpValidationService(StorageSettings settings, GameConten
         try
         {
             var watchdogs = new CSharpWatchdogs(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5));
-            return new CSharpCandidatePlayer(game, player, lease, preparations, manager, new CSharpPreparedLaunch(host!, game.Scope.SubjectId, report.Key, player.PlayerId, game.Map.Columns, game.Map.Rows, profile!, watchdogs));
+            // A child may use its share of the parent CPU cap, never a fraction
+            // of that cap again. Windows interprets child CPU rates relatively.
+            var member = new ResourceProfile("csharp-game-member-v1", Math.Min(gameLimits.MemoryBytes, 768L * 1024 * 1024), Math.Min(gameLimits.ProcessCount, OperatingSystem.IsWindows() ? 1 : 128), 10000);
+            return new CSharpCandidatePlayer(game, player, lease, preparations, manager, new CSharpPreparedLaunch(host!, game.Scope.SubjectId, report.Key, player.PlayerId, game.Map.Columns, game.Map.Rows, member, watchdogs) { ParentResources = gameScope });
         }
         catch { lease.Dispose(); throw; }
     }

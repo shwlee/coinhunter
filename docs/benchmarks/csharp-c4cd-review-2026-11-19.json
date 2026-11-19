@@ -1,0 +1,68 @@
+{
+  "date": "2026-11-19",
+  "commit": "451b4db",
+  "findings": [
+    {
+      "id": "H1",
+      "severity": "high",
+      "configuration": {
+        "gameProcesses": 1,
+        "gameCpuRate": 1000
+      },
+      "state": "prepared",
+      "enginePid": 18636,
+      "csharpMembership": [
+        {
+          "pid": 16844,
+          "inGameJob": false
+        }
+      ],
+      "csharpLaunchCpuRate": 10000
+    },
+    {
+      "id": "M1",
+      "severity": "medium",
+      "observation": {
+        "mode": "receipt-order",
+        "afterNewCheck": {
+          "state": "failed",
+          "message": "newer manual result",
+          "version": "javascript-preflight-v2/fixture-2.0.0/500ms/32MiB/sha256:c1acb38bd23e76d7abe0806bfb3786ae4c5e9a4867c8636282f5cbe3a3bb3b7f",
+          "checkedAt": "2026-11-19T08:26:05.2644029+00:00",
+          "sourceHash": "c57eb35858cdd2778c3f98122c51902901e382976838cfeda98ab0feda810993",
+          "diagnostic": {
+            "stage": "execution"
+          }
+        },
+        "afterOldWrite": {
+          "state": "passed",
+          "message": "저장됨 · 코드 검사 통과",
+          "version": "javascript-preflight-v2/fixture-2.0.0/500ms/32MiB/sha256:c1acb38bd23e76d7abe0806bfb3786ae4c5e9a4867c8636282f5cbe3a3bb3b7f",
+          "checkedAt": "2026-11-19T08:26:05.2618358+00:00",
+          "sourceHash": "c57eb35858cdd2778c3f98122c51902901e382976838cfeda98ab0feda810993"
+        }
+      }
+    },
+    {
+      "id": "M2",
+      "severity": "medium",
+      "observation": {
+        "mode": "private-file-lock",
+        "stop": "TimeoutException",
+        "state": "cleanup-unconfirmed",
+        "closed": false,
+        "managedHosts": 0,
+        "resources": {
+          "adapter": "windows-job-v1",
+          "processLimitUnit": "processes",
+          "reservedMemoryBytes": 0,
+          "reservedProcesses": 0,
+          "totalMemoryBytes": 6442450944,
+          "totalProcesses": 32
+        },
+        "closedAfterUnlock": false
+      }
+    }
+  ],
+  "productionCodeModified": false
+}

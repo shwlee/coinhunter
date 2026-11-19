@@ -50,6 +50,7 @@ public static class JsonData
         var result = node.CloneObject();
         result.Remove("sourceKey");
         result.Remove("source");
+        result.Remove("validationAttempt");
         return result;
     }
     public static JsonArray Array(JsonObject data, string key) => (JsonArray)(data[key] ??= new JsonArray());
