@@ -1,0 +1,306 @@
+using System.Diagnostics;
+using System.IO.Pipes;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using CoinHunter.Infrastructure.Resources;
+
+namespace CoinHunter.Infrastructure.Execution;
+
+public sealed class CSharpHostSession : IAsyncDisposable
+{
+    private readonly CSharpHostLaunch launch;
+    private readonly Process process;
+    private readonly int processId;
+    private readonly IExecutionResourceGroup resources;
+    private readonly NamedPipeClientStream control;
+    private StreamReader? controlReader;
+    private StreamWriter? controlWriter;
+    private readonly SemaphoreSlim controlGate=new(1);
+    private readonly object gate=new();
+    private readonly CancellationTokenSource lifetime=new();
+    private readonly CancellationTokenSource monitoring=new();
+    private readonly TaskCompletionSource activated=new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<CSharpHostReady> ready=new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly Action<CSharpHostSession> released;
+    private Task dataTask=Task.CompletedTask, errorsTask=Task.CompletedTask, exitTask=Task.CompletedTask, heartbeatTask=Task.CompletedTask;
+    private Task<CSharpHostClosure>? closing;
+    private Guid? generation,instance;
+    private long lastCall;
+    private long? preparationCall;
+    private string state="preparing";
+    private Pending? pending;
+    private sealed class Pending
+    {
+        public Pending(){ObserveFault(Started.Task);ObserveFault(Settled.Task);}
+        public string Id { get; }=Guid.NewGuid().ToString("N");
+        public TaskCompletionSource Started { get; }=new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<CSharpParentCall> Settled { get; }=new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public long? Call;
+        public long StartedTicks;
+        public long ReceivedTicks;
+    }
+    public string State { get { lock(gate)return state; } }
+    public CSharpHostReady? Identity { get; private set; }
+    public int ProcessId=>processId;
+    private static void ObserveFault(Task task)=>_ = task.ContinueWith(t=>{_ = t.Exception;},CancellationToken.None,TaskContinuationOptions.OnlyOnFaulted|TaskContinuationOptions.ExecuteSynchronously,TaskScheduler.Default);
+    internal CSharpHostSession(CSharpHostLaunch launch,ExecutionResources ledger,Action<CSharpHostSession> released)
+    {
+        launch.Watchdogs.Validate();launch.Resources.Validate();
+        if(!Path.IsPathFullyQualified(launch.HostAssembly)||!File.Exists(launch.HostAssembly)||!Path.IsPathFullyQualified(launch.SourcePath)||!File.Exists(launch.SourcePath)||
+            launch.SourceHash.Length!=64||!launch.SourceHash.All(Uri.IsHexDigit)||launch.PlayerNumber is <0 or >3||launch.Columns<=0||launch.Rows<=0)
+            throw new ArgumentException("Trusted host/source paths, SHA-256 and initialization values required.");
+        this.launch=launch;this.released=released;
+        ObserveFault(ready.Task);
+        var pipe="coinhunter-managed-"+Guid.NewGuid().ToString("N");
+        control=new NamedPipeClientStream(".",pipe,PipeDirection.InOut,PipeOptions.Asynchronous);
+        var info=new ProcessStartInfo("dotnet"){UseShellExecute=false,CreateNoWindow=true,RedirectStandardInput=true,RedirectStandardOutput=true,RedirectStandardError=true};
+        RestrictEnvironment(info);
+        foreach(var arg in new[]{launch.HostAssembly,launch.SourcePath,pipe,launch.ProbeStall.ToString(System.Globalization.CultureInfo.InvariantCulture),launch.PlayerNumber.ToString(),launch.Columns.ToString(),launch.Rows.ToString()})info.ArgumentList.Add(arg);
+        resources=ledger.Reserve(launch.Resources);process=new Process{StartInfo=info};
+        try { if(!process.Start())throw new IOException("Host start failed.");processId=process.Id;resources.Assign(process); }
+        catch
+        {
+            try{if(!process.HasExited){process.Kill(true);process.WaitForExit(10000);}}catch(InvalidOperationException){}
+            resources.Dispose();control.Dispose();process.Dispose();throw;
+        }
+    }
+    public static void RestrictEnvironment(ProcessStartInfo info)
+    {
+        var allowed=new HashSet<string>(StringComparer.OrdinalIgnoreCase){"PATH","PATHEXT","SystemRoot","WINDIR","COMSPEC","TEMP","TMP","HOME","USERPROFILE","APPDATA","LOCALAPPDATA","DOTNET_ROOT","DOTNET_ROOT_X64","DOTNET_CLI_HOME","DOTNET_CLI_TELEMETRY_OPTOUT","DOTNET_NOLOGO"};
+        foreach(var key in info.Environment.Keys.ToArray())if(!allowed.Contains(key))info.Environment.Remove(key);
+    }
+    internal async Task ActivateAsync(CancellationToken token)
+    {
+        dataTask=Task.Run(ReadDataAsync);errorsTask=Task.Run(DiscardErrors);exitTask=Task.Run(ObserveExit);
+        activated.TrySetResult();
+        using var cancellation=token.Register(()=>{_ = StopAsync("caller-cancelled");});
+        try
+        {
+            using var timeout=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token,token);timeout.CancelAfter(launch.Watchdogs.Preparation);
+            await process.StandardInput.WriteLineAsync("authorize".AsMemory(),timeout.Token);
+            await control.ConnectAsync(timeout.Token);
+            controlReader=new StreamReader(control,leaveOpen:true);controlWriter=new StreamWriter(control,leaveOpen:true){AutoFlush=true};
+            Identity=await ready.Task.WaitAsync(timeout.Token);
+            lock(gate)
+            {
+                if(closing is not null)throw new IOException("Host closed during preparation.");
+                state="ready";heartbeatTask=Task.Run(Heartbeat);
+            }
+        }
+        catch
+        {
+            var closed=await CloseAsync(token.IsCancellationRequested?"caller-cancelled":"preparation-failed",true);
+            if(!closed.CleanupConfirmed)throw new CSharpHostFailure(closed.Reason,false);
+            token.ThrowIfCancellationRequested();throw new CSharpHostFailure(closed.Reason,closed.CleanupConfirmed);
+        }
+    }
+    public async Task<CSharpParentCall> MoveNextAsync(int[] map,int position,int[] items,CancellationToken token=default)
+    {
+        token.ThrowIfCancellationRequested();
+        if(map.Length==0||position<0||position>=map.Length||items.Length!=4)throw new ArgumentException("Invalid judgement snapshot.");
+        var snapshot=(int[])map.Clone();var itemSnapshot=(int[])items.Clone();
+        Pending call;
+        lock(gate)
+        {
+            if(state!="ready"||closing is not null)throw new InvalidOperationException("Host is not ready for another call.");
+            call=pending=new Pending();state="computing";
+        }
+        using var cancellation=token.Register(()=>{_ = StopAsync("caller-cancelled");});
+        try
+        {
+            var json=JsonSerializer.Serialize(new { Id=call.Id,Map=snapshot,Position=position,Items=itemSnapshot });
+            if(json.Length>1048576)throw new InvalidOperationException("Judgement frame too large.");
+            using(var dispatch=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token))
+            {
+                dispatch.CancelAfter(launch.Watchdogs.StartNotification);
+                await process.StandardInput.WriteLineAsync(json.AsMemory(),dispatch.Token);
+                await call.Started.Task.WaitAsync(dispatch.Token);
+            }
+            var result=await call.Settled.Task.WaitAsync(launch.Watchdogs.UnsettledExecution);
+            if(token.IsCancellationRequested){var stopped=await StopAsync("caller-cancelled");if(!stopped.CleanupConfirmed)throw new CSharpHostFailure(stopped.Reason,false);token.ThrowIfCancellationRequested();}
+            return result;
+        }
+        catch(Exception error)
+        {
+            if(error is CSharpHostFailure failure){if(token.IsCancellationRequested&&failure.CleanupConfirmed)token.ThrowIfCancellationRequested();throw;}
+            string reason=token.IsCancellationRequested?"caller-cancelled":!call.Started.Task.IsCompletedSuccessfully?"start-notification-missing":"execution-unsettled";
+            var closed=await CloseAsync(reason,true);
+            if(!closed.CleanupConfirmed)throw new CSharpHostFailure(closed.Reason,false);
+            token.ThrowIfCancellationRequested();throw new CSharpHostFailure(closed.Reason,closed.CleanupConfirmed);
+        }
+    }
+    private async Task ReadDataAsync()
+    {
+        try
+        {
+            await foreach(var text in ReadFrames(process.StandardOutput,65536,lifetime.Token))
+            {
+                var value=JsonNode.Parse(text,documentOptions:new JsonDocumentOptions{MaxDepth=16})!.AsObject();
+                Accept(value);
+            }
+            lock(gate){if(closing is not null)return;}
+            _=CloseAsync("data-disconnected",true);
+        }
+        catch(OperationCanceledException)when(lifetime.IsCancellationRequested){}
+        catch{_=CloseAsync("protocol-failure",true);}
+    }
+    private void Accept(JsonObject message)
+    {
+        lock(gate)
+        {
+            var gen=Guid.Parse(message["generation"]!.GetValue<string>());
+            if(gen==Guid.Empty)throw new IOException("Empty generation.");
+            if(generation is { } old&&gen!=old)throw new IOException("Generation mismatch.");
+            generation=gen;
+            var data=message["data"];
+            var request=(string?)message["request"];
+            var kind=message["kind"]!.GetValue<string>();
+            var ticks=message["ticks"]!.GetValue<long>();if(ticks<=0)throw new IOException("Invalid clock.");
+            if(kind=="ready")
+            {
+                if(ready.Task.IsCompleted||request is not null)throw new IOException("Duplicate readiness.");
+                var identity=Guid.Parse(data!["InstanceId"]!.GetValue<string>());
+                if(instance!=identity||preparationCall is not null||lastCall!=3||data["pid"]!.GetValue<int>()!=process.Id||data["frequency"]!.GetValue<long>()<=0||
+                    !string.Equals((string?)data["SourceHash"],launch.SourceHash,StringComparison.OrdinalIgnoreCase)||
+                    (string?)data["Profile"]!="csharp-restricted-c1-v2"||(string?)data["guardVersion"]!="c2-poll-bounded-v2")throw new IOException("Readiness identity/profile mismatch.");
+                ready.TrySetResult(new(gen,identity,process.Id,data["frequency"]!.GetValue<long>(),(string)data["SourceHash"]!, (string)data["Profile"]!, (string)data["guardVersion"]!));return;
+            }
+            if(kind is "host-failed" or "rejected"){_=CloseAsync(kind,true);return;}
+            if(kind=="closed"){if(closing is null)_=CloseAsync("unexpected-host-close",true);return;}
+            if(kind is not ("execution-started" or "deadline-reached" or "execution-settled"))throw new IOException("Unknown host event.");
+            if(request is null)
+            {
+                if(ready.Task.IsCompleted)throw new IOException("Unbound event after preparation.");
+                if(kind=="execution-started")
+                {
+                    var identity=Guid.Parse(data!["InstanceId"]!.GetValue<string>());var id=data["call"]!.GetValue<long>();
+                    if(identity==Guid.Empty||instance is { } prior&&prior!=identity||preparationCall is not null||id!=lastCall+1||data["budgetMs"]!.GetValue<double>()!=500)throw new IOException("Invalid preparation call.");
+                    instance=identity;preparationCall=id;
+                }
+                else if(kind=="execution-settled")
+                {
+                    var id=data!["CallId"]!.GetValue<long>();
+                    if(preparationCall!=id||Guid.Parse(data["InstanceId"]!.GetValue<string>())!=instance||data["ProcessId"]!.GetValue<int>()!=process.Id||!data["ExecutionSettled"]!.GetValue<bool>())throw new IOException("Invalid preparation settlement.");
+                    lastCall=id;preparationCall=null;
+                }
+                return;
+            }
+            if(pending is null||pending.Id!=request)throw new IOException("Request mismatch.");
+            if(kind=="execution-started")
+            {
+                if(pending.Call is not null||Guid.Parse(data!["InstanceId"]!.GetValue<string>())!=instance||data["budgetMs"]!.GetValue<double>()!=500)throw new IOException("Invalid start.");
+                var id=data["call"]!.GetValue<long>();if(id<=lastCall)throw new IOException("Call sequence mismatch.");
+                pending.Call=id;pending.StartedTicks=data["StartedTicks"]!.GetValue<long>();pending.ReceivedTicks=Stopwatch.GetTimestamp();
+                if(pending.StartedTicks<=0||pending.StartedTicks>ticks)throw new IOException("Start clock mismatch.");
+                pending.Started.TrySetResult();return;
+            }
+            if(kind=="deadline-reached")
+            {
+                if(pending.Call!=data!["call"]!.GetValue<long>()||data["StartedTicks"]!.GetValue<long>()!=pending.StartedTicks||data["executionSettled"]!.GetValue<bool>())throw new IOException("Invalid deadline.");
+                // Keep busy until actual settlement or independent parent cleanup.
+                return;
+            }
+            var call=data!["CallId"]!.GetValue<long>();
+            var identityId=Guid.Parse(data["InstanceId"]!.GetValue<string>());
+            var elapsed=data["ElapsedMs"]!.GetValue<double>();var expired=data["DeadlineReached"]!.GetValue<bool>();var status=data["Status"]!.GetValue<string>();
+            if(pending.Call!=call||identityId!=instance||data["ProcessId"]!.GetValue<int>()!=process.Id||!data["ExecutionSettled"]!.GetValue<bool>()||
+                data["BudgetMs"]!.GetValue<double>()!=500||!double.IsFinite(elapsed)||elapsed<0||ticks<pending.StartedTicks||expired!=(elapsed>=500)||
+                status is not ("ok" or "timeout" or "cancelled" or "exception" or "invalid-result" or "operation-limit")||expired!=(status=="timeout"))throw new IOException("Invalid settlement.");
+            var direction=(int?)data["Value"];
+            if(status=="ok"&&(direction is null or <-1 or >3)||status!="ok"&&direction is not null)throw new IOException("Invalid direction.");
+            var result=new CSharpParentCall(gen,identityId,call,process.Id,status,direction,expired,true,500,elapsed,(string?)data["LimitCode"]);
+            var completed=pending;pending=null;lastCall=call;if(closing is null)state="ready";
+            completed.Settled.TrySetResult(result);
+            if(status is "exception" or "operation-limit")_=CloseAsync("candidate-failed",false);
+        }
+    }
+    private async Task Heartbeat()
+    {
+        try
+        {
+            while(true)
+            {
+                await Task.Delay(launch.Watchdogs.HeartbeatInterval,monitoring.Token);
+                var pong=await ControlAsync("ping");
+                if((string?)pong["kind"]!="pong"||Guid.Parse(pong["generation"]!.GetValue<string>())!=Identity!.Generation||pong["frequency"]!.GetValue<long>()!=Identity.Frequency)throw new IOException("Control identity mismatch.");
+            }
+        }
+        catch(OperationCanceledException)when(monitoring.IsCancellationRequested){}
+        catch{_=CloseAsync("control-unresponsive",true);}
+    }
+    private async Task<JsonObject> ControlAsync(string command)
+    {
+        using var timeout=new CancellationTokenSource(launch.Watchdogs.HeartbeatResponse);
+        await controlGate.WaitAsync(timeout.Token);
+        try
+        {
+            await controlWriter!.WriteLineAsync(command.AsMemory(),timeout.Token);
+            // One bounded frame per serialized control request; timeout poisons the session.
+            await foreach(var line in ReadFrames(controlReader!,4096,timeout.Token))return JsonNode.Parse(line)!.AsObject();
+            throw new IOException("Control disconnected.");
+        }
+        finally{controlGate.Release();}
+    }
+    private async Task ObserveExit()
+    {
+        await process.WaitForExitAsync();
+        lock(gate){if(closing is not null)return;}
+        _=CloseAsync("process-exited",true);
+    }
+    private async Task DiscardErrors()
+    {var buffer=new char[1024];try{while(await process.StandardError.ReadAsync(buffer.AsMemory(),lifetime.Token)!=0){}}catch(OperationCanceledException)when(lifetime.IsCancellationRequested){}}
+    public Task<CSharpHostClosure> StopAsync(string reason="stopped")=>CloseAsync(reason,false);
+    private Task<CSharpHostClosure> CloseAsync(string reason,bool force)
+    {
+        lock(gate)
+        {
+            if(closing is not null)return closing;
+            state="closing";closing=Task.Run(()=>CloseCore(reason,force));return closing;
+        }
+    }
+    private async Task<CSharpHostClosure> CloseCore(string reason,bool forced)
+    {
+        await activated.Task;monitoring.Cancel();
+        bool confirmed=false;
+        try
+        {
+            if(!forced&&!process.HasExited)
+            {
+                try
+                {
+                    var ack=await ControlAsync("stop");if((string?)ack["kind"]!="stop-requested"||(bool?)ack["executionSettled"]!=false)throw new IOException("Stop not acknowledged.");
+                    await process.WaitForExitAsync().WaitAsync(launch.Watchdogs.StopGrace);
+                }
+                catch{forced=true;reason="stop-unsettled";}
+            }
+            using var deadline=new CancellationTokenSource(launch.Watchdogs.Cleanup);
+            await resources.TerminateAndDrain(deadline.Token);await process.WaitForExitAsync(deadline.Token);resources.Dispose();confirmed=true;
+        }
+        catch{reason="cleanup-unconfirmed";}
+        if(confirmed)
+        {
+            lifetime.Cancel();control.Dispose();
+            try{await Task.WhenAll(dataTask,errorsTask,exitTask,heartbeatTask).WaitAsync(launch.Watchdogs.Cleanup);}catch{}
+        }
+        var failure=new CSharpHostFailure(reason,confirmed);
+        lock(gate)
+        {
+            state=confirmed?"closed":"cleanup-unconfirmed";
+            ready.TrySetException(failure);pending?.Started.TrySetException(failure);pending?.Settled.TrySetException(failure);pending=null;
+        }
+        if(confirmed){process.Dispose();released(this);}
+        return new(reason,forced,confirmed);
+    }
+    public async ValueTask DisposeAsync()
+    {var closed=await StopAsync();if(!closed.CleanupConfirmed)throw new CSharpHostFailure(closed.Reason,false);}
+    private static async IAsyncEnumerable<string> ReadFrames(TextReader reader,int limit,[System.Runtime.CompilerServices.EnumeratorCancellation]CancellationToken token)
+    {
+        var buffer=new char[1024];var frame=new StringBuilder();int count;
+        while((count=await reader.ReadAsync(buffer.AsMemory(),token))!=0)
+            for(int i=0;i<count;i++)
+                if(buffer[i]=='\n'){yield return frame.ToString().TrimEnd('\r');frame.Clear();}
+                else{if(frame.Length>=limit)throw new IOException("Frame too large.");frame.Append(buffer[i]);}
+        if(frame.Length!=0)throw new IOException("Truncated frame.");
+    }
+}

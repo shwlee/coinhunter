@@ -6,7 +6,12 @@
 - 후속 구현: [JavaScript preflight v2](javascript-preflight-v2.md)에서 try문·확인 가능한 재귀 거부, 36회 시나리오 검사와 진단을 구현했다. J1의 전체 승인 API/간접 호출 분석과 낮은 수준 재귀 오류 분류, J2 저장 연결은 미완료다.
 - J2 후속: [저장/검사 상태·실행 허가 연결](algorithm-validation-storage.md)을 분리 BE에 구현했다. 실패 코드 저장·비동기 상태 조회, 현재 snapshot의 실행 전 재검사와 공개 경로 우회 방지를 적용했다. 위 J1 분석의 미완료 범위와 J3 집중 부하/복구 검증은 유지한다.
 - J3 후속: [포화/재시작/동시 게임 검증](validation-lifecycle-j3-results.md)을 완료했다. startup recovery 경합과 검사 snapshot의 crash 정리/파일 충돌 보호를 수정했다. 다음은 R0 공통 강제 자원 기반과 C# 후보 작업이며 J1 미완료 분석은 유지한다.
-- R0 기반: [OS 그룹·admission](execution-resource-limits.md)을 게임/검사 경로에 적용하고 Windows 메모리/CPU/프로세스 한도·자손/부모 장애 회수를 실측했다. Linux cgroup 어댑터는 실제 검증 전이며 언어별 승인 API/컴파일·개별 호스트 격리는 남는다. C# C1 분석기는 아직 미착수다.
+- R0 기반: [OS 그룹·admission](execution-resource-limits.md)을 게임/검사 경로에 적용하고 Windows 메모리/CPU/프로세스 한도·자손/부모 장애 회수를 실측했다. Linux cgroup 어댑터는 실제 검증 전이며 언어별 승인 API/컴파일·개별 호스트 격리는 남는다.
+- C1 후보: [C# 정적 규약 분석기](csharp-analysis-c1.md)의 제한 프로필·심볼/API·호출 순환·필수 서명·52건 검증을 구현했다. C2 자동 중단과 준비 프로세스 격리·확장 프로필·제품 연결은 남는다.
+- C2 후보: [자동 guard·실제 중단/동일 객체 재호출](csharp-budget-c2.md)의 Windows OS 제한 프로세스 실험 149개 확인 통과. 긴 builtin의 중간 선점·허용 프로필 조정은 여전히 관문이며 C3·운영 준비/제품 연결은 미구현이다.
+- C3 후보: [전용 host·IPC·감시](csharp-host-c3.md)의 Windows 30개 확인을 통과했다. 시작/마감/settled·중단/강제 drain·새 generation을 분리했다. 운영 부모·복구 정책·C4와 C2/Linux 관문은 남는다.
+- 기본 연산 후속: [bounded 프로필 v2](csharp-builtins-profile-v2.md)에서 26개 측정 묶음·검색 내부 guard·컬렉션/배열 한도·우회 차단을 구현했다. C2는 정책 포함 211개 확인으로 확장했다. native 할당/GC·암묵적 연산과 운영용 감시/복구 관문은 유지한다.
+- 운영 부모 모듈: [CSharpHostManager/Session](csharp-parent-manager.md)을 실행 서비스에 등록하고 Windows 확인 37개를 수행했다. 호출자가 지정한 준비/시작/미종료/heartbeat/정리 watchdog을 적용한다. C4·게임 연결, 운영 grace/반복 실패 정책과 native/Linux 관문은 남는다.
 - 대상: C#, Python, C++. 기존 JavaScript의 검사·저장 연결도 공통 정책 적용 대상으로 포함한다.
 - 연결: [상위 10단계 계획](game-engine-language-runners-plan.md), [4단계 실측](runner-stage4-results.md), [현재 실행 계약 v1](algorithm-runner-contract.md).
 - 언어별 상세: [C#](csharp-runner-implementation-plan.md), [Python](python-runner-implementation-plan.md), [C++](cpp-runner-implementation-plan.md).

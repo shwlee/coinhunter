@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../CoinHunter.CSharp.Analysis/CoinHunter.CSharp.Analysis.csproj" /></ItemGroup>
+</Project>

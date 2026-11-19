@@ -1,0 +1,47 @@
+{
+  "profile": "csharp-restricted-c1-v2",
+  "analyzerVersion": "c1-2",
+  "guardVersion": "c2-poll-bounded-v2",
+  "status": "candidate-not-activated",
+  "maxCollectionCount": 65536,
+  "maxRequestedCollectionCapacity": 65536,
+  "maxArrayElements": 1048576,
+  "linearSearchPollInterval": 256,
+  "checkedLinearSearch": [
+    "List<int>.Contains",
+    "List<int>.IndexOf",
+    "List<int>.Remove",
+    "Queue<int>.Contains"
+  ],
+  "checkedGrowth": [
+    "List<int>.Add",
+    "Queue<int>.Enqueue",
+    "HashSet<int>.Add",
+    "Dictionary<int,int>.Add",
+    "PriorityQueue<int,int>.Enqueue"
+  ],
+  "boundedIndivisibleOperations": [
+    "array allocation",
+    "collection allocation and expansion",
+    "List<int>.RemoveAt",
+    "int hash operations",
+    "clear operations"
+  ],
+  "rejected": [
+    "dictionary indexer writes",
+    "user comparers",
+    "Sort",
+    "LINQ",
+    "Dispose",
+    "unapproved callbacks"
+  ],
+  "runtimeLimitStatus": "operation-limit",
+  "runtimeLimitCodes": ["array-elements", "collection-capacity", "collection-count"],
+  "hardRealtimeGuarantee": false,
+  "residuals": [
+    "GC and allocation cannot be forcibly preempted",
+    "cumulative allocation and retention are governed by OS group limits",
+    "string operations and other implicit runtime operations need further profiling",
+    "Linux not measured"
+  ]
+}

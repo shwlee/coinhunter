@@ -9,7 +9,21 @@ using Microsoft.Extensions.Hosting;
 
 if (args.Length < 1) throw new ArgumentException("Repository root is required.");
 var root = Path.GetFullPath(args[0]);
+if (args.Length == 2 && args[1] == "csharp-manager") { await CSharpManagerChecks.Run(root); return; }
+if (args.Length == 2 && args[1] == "csharp-builtins-child") { if (await Console.In.ReadLineAsync() != "go") throw new InvalidOperationException("Resource gate closed."); CSharpBuiltinChecks.Child(); return; }
+if (args.Length == 2 && args[1] == "csharp-builtins") { await CSharpBuiltinChecks.Run(root); return; }
+if (args.Length == 2 && args[1] == "csharp-host") { await CSharpHostChecks.Run(root); return; }
+if (args.Length == 2 && args[1] == "csharp-budget-child") { if (await Console.In.ReadLineAsync() != "go") throw new InvalidOperationException("Resource gate closed."); CSharpBudgetChecks.Child(root); return; }
+if (args.Length == 2 && args[1] == "csharp-budget") { await CSharpBudgetChecks.Run(root); return; }
 if (args.Length >= 3 && args[1] == "resource-child") { await ResourceChecks.Child(args.Skip(2).ToArray()); return; }
+if (args.Length >= 2 && args[1] == "csharp-analysis") { Console.WriteLine($"C# analysis checks: {CSharpAnalysisChecks.Run(root)} passed."); return; }
+if (args.Length == 3 && args[1] == "analyze-csharp")
+{
+    var analysis = CoinHunter.CSharp.Analysis.PlayerAnalyzer.Analyze(await File.ReadAllTextAsync(args[2]));
+    Console.WriteLine(JsonSerializer.Serialize(analysis, Protocol.JsonOptions));
+    Environment.ExitCode = analysis.StaticPassed ? 0 : 1;
+    return;
+}
 var example = JsonSerializer.Deserialize<EngineEnvelope>(
     await File.ReadAllTextAsync(Path.Combine(root, "backend/contracts/initialize.example.json")), Protocol.JsonOptions)!;
 if (args.Length == 3 && args[1] == "verify-frame")
@@ -158,6 +172,10 @@ await CheckAsync("terminal execution wakes an unchanged-snapshot subscriber", as
 });
 Console.WriteLine($"Backend contract checks passed: {checks}");
 await BusinessChecks.Run(root);
+Console.WriteLine($"C# analysis checks: {CSharpAnalysisChecks.Run(root)} passed.");
+await CSharpBudgetChecks.Run(root);
+await CSharpHostChecks.Run(root);
+await CSharpManagerChecks.Run(root);
 Console.WriteLine($"OS resource checks: {await ResourceChecks.Run(root)} passed.");
 
 sealed class FragmentedStream(byte[] bytes) : MemoryStream(bytes)

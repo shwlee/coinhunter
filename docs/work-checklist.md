@@ -51,6 +51,16 @@
 - [ ] R0~R5 다국어 규약/강제 자원 제한·자동 중단/복구·공통 검사 경로 연결과 검증.
 - [x] [R0 자원 제한 기반](execution-resource-limits.md): 공통 예약/OS 그룹·로드 전 승인, Windows 메모리/CPU/프로세스 제한·자손/부모 장애 회수·4게임/16실행기 검증.
 - [ ] R0 Linux cgroup 실제 제한/권한·부모 장애 수명 감독 검증, 언어별 허용 API/준비·컴파일 격리.
+- [x] [C# C1 제한 프로필 후보 분석기](csharp-analysis-c1.md): 실제 심볼·필수 서명·API 승인·호출 순환·진단·52건 검증.
+- [ ] C# C1 준비 프로세스 자원 격리/확장 프로필, C2 자동 예산 검사·동일 객체 재호출 관문.
+- [x] [C2 자동 guard 후보/Windows 전용 자식 실험](csharp-budget-c2.md): 149개 확인 항목·실제 timeout 이후 동일 객체 재호출·마감 우선 판정.
+- [ ] C2 긴 builtin 중단/허용 프로필 관문, C3 전용 호스트·IPC·감시·시간/복구 계약 및 운영 연결.
+- [x] [C3 전용 host·독립 제어/마감·수명 실험](csharp-host-c3.md): Windows 30개 확인과 전체 그룹 예약 회수.
+- [ ] C3 운영 부모/시계·JIT/예비 비용·복구 정책, C4 준비 산출물/검사/저장·게임 연결 및 C2/Linux 관문.
+- [x] [긴 기본 연산 측정·bounded 프로필 v2](csharp-builtins-profile-v2.md): 26개 측정 묶음·검색 guard·배열/컬렉션 한도·정책 검증 추가.
+- [ ] native 할당/GC·문자열 등 암묵적 연산의 잔여 관문, 운영 부모 감시·미종료 복구 정책.
+- [x] [운영 부모 관리 모듈](csharp-parent-manager.md): 실행 서비스 등록·명시적 watchdog·취소/실제 drain·Windows 37개 확인.
+- [ ] 운영 watchdog/grace/반복 실패 정책·Linux/잔여 중단 관문·C4/Node·계정 경로 연결.
 - [ ] 새 4단계 채택 관문 통과: C#/Python 대체 후보, C++ 자원/힙 일관성·컴파일 격리와 기존 JS 재귀 오류 보완.
 - [ ] 새 5~10단계 구현/검증. 상세 체크는 [최신 계획](game-engine-language-runners-plan.md#7-진행-체크리스트)에서 관리.
 

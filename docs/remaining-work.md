@@ -18,6 +18,11 @@
 - J3 후속 완료: [검사 포화·재시작·동시 게임](validation-lifecycle-j3-results.md)을 검증하고 startup 경합·소유 snapshot 회수를 수정했다. 다음 실행 영역은 공통 R0 강제 자원 기반, C# 규약 분석/자동 중단 후보 순서다. J1의 미완료 분석은 별도 유지한다.
 - R0 기반 구현: [게임/검사 OS 강제 자원 제한](execution-resource-limits.md)의 Windows Job·전체 예약과 실제 부하/부모 장애 회수를 검증했다. Linux cgroup 어댑터는 미실측이며 외부 수명 감독·위임 검증이 남는다. 다음 C# 작업은 C1 규약 분석기와 제한된 준비/컴파일 경로다. 전체 승인 API/언어별 자원 격리 완료로 취급하지 않는다.
 - 기존 회귀 불안정: R0 전체 Node 직렬 실행에서도 legacy 다중 프로세스 계정 파일 잠금의 EPERM 1건이 재현됐다. 분리 재실행은 통과했으나 원인/수정 검증은 남는다. 분리 C# BE의 자원/통합 검사 통과와 구분한다.
+- C1 후보 구현: [C# 정적 규약 분석기](csharp-analysis-c1.md)의 제한 프로필·진단·52건 검증을 추가했다. 다음은 C2 자동 예산 검사와 동일 인스턴스 재호출 실험이며, 분석/컴파일의 R0 준비 프로세스 연결·추가 타입/API 승인·제품 연결은 남는다.
+- C2 후보 구현: [자동 guard·동일 객체 재호출](csharp-budget-c2.md)을 OS 제한 전용 프로세스에서 검증했다. 다음은 C3 호스트/IPC·독립 감시·시간/복구 계약이다. C2 긴 builtin의 중간 실제 중단·허용 프로필 관문은 남으며 정식 C# 지원은 아직 비활성이다.
+- C3 후보 구현: [전용 호스트·IPC·독립 감시](csharp-host-c3.md)의 Windows 30개 확인을 수행했다. 운영용 부모 감시·복구 정책, 긴 builtin 실제 중단·Linux 관문과 C4 준비/artifact·검사/저장·게임 어댑터 연결은 남는다.
+- 긴 기본 연산 후속: [bounded 프로필 v2](csharp-builtins-profile-v2.md)에서 검색/확장·배열/GC를 측정하고 검색 guard·객체별 한도·우회 차단을 구현했다. C2 211개 확인으로 확장. 다음은 운영용 부모 감시와 실제 미종료 복구 정책이며, native/GC·문자열 등 암묵적 연산·Linux 관문도 유지한다.
+- 운영 부모 구현: [CSharpHostManager/Session](csharp-parent-manager.md)의 준비/시작/미종료/heartbeat 감시·실제 회수·서비스 종료를 모듈화했다. Node/C4 연결은 아직 없으며 watchdog/grace·반복 실패 운영 정책과 native/Linux 관문은 후속이다.
 - 현재 진행: [BE 분리 1~9단계](backend-separation-implementation-plan.md)와 FE/BE 폴더 정리는 `1183977`로 커밋/푸시했다. [결과·검증·제한](backend-split-completion.md), [실행법](../backend/README.md), [이전·복귀](backend-cutover-runbook.md). 실제 사용자 이전·Google 왕복·외부 배포는 별도다.
 - 관련: [진행 결과](progress.md), [저장 어댑터](storage-adapters.md), [관리자 계획](admin-page-plan.md), [개인정보 운영 준비](privacy-operations-plan.md), [고도화 보관 목록](enhancement-backlog.md).
 

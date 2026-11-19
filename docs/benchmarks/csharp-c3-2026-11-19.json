@@ -1,0 +1,94 @@
+{
+  "date": "2026-11-19T00:17:25.4527538\u002B00:00",
+  "checks": 30,
+  "observations": [
+    {
+      "kind": "execution-settled",
+      "generation": "c293c8d1-8d2a-4fb9-adf3-18693a10e228",
+      "request": "slow0",
+      "ticks": 28279170030904,
+      "data": {
+        "InstanceId": "19dc4f71-edf7-48c3-bd3d-6e9e0fa0ac40",
+        "CallId": 4,
+        "ProcessId": 27432,
+        "Status": "timeout",
+        "Value": null,
+        "BudgetMs": 500,
+        "ElapsedMs": 501.6146,
+        "DeadlineReached": true,
+        "ExecutionSettled": true,
+        "Line": 1,
+        "Column": 175,
+        "ErrorType": "BudgetExpiredException"
+      }
+    },
+    {
+      "kind": "execution-settled",
+      "generation": "c293c8d1-8d2a-4fb9-adf3-18693a10e228",
+      "request": "slow1",
+      "ticks": 28279175214724,
+      "data": {
+        "InstanceId": "19dc4f71-edf7-48c3-bd3d-6e9e0fa0ac40",
+        "CallId": 6,
+        "ProcessId": 27432,
+        "Status": "timeout",
+        "Value": null,
+        "BudgetMs": 500,
+        "ElapsedMs": 500.1287,
+        "DeadlineReached": true,
+        "ExecutionSettled": true,
+        "Line": 1,
+        "Column": 175,
+        "ErrorType": "BudgetExpiredException"
+      }
+    },
+    {
+      "kind": "execution-settled",
+      "generation": "c293c8d1-8d2a-4fb9-adf3-18693a10e228",
+      "request": "slow2",
+      "ticks": 28279180538927,
+      "data": {
+        "InstanceId": "19dc4f71-edf7-48c3-bd3d-6e9e0fa0ac40",
+        "CallId": 8,
+        "ProcessId": 27432,
+        "Status": "timeout",
+        "Value": null,
+        "BudgetMs": 500,
+        "ElapsedMs": 500.0701,
+        "DeadlineReached": true,
+        "ExecutionSettled": true,
+        "Line": 1,
+        "Column": 175,
+        "ErrorType": "BudgetExpiredException"
+      }
+    },
+    {
+      "kind": "clock-sample",
+      "parentBeforeTicks": 28279197860495,
+      "parentAfterTicks": 28279197909484,
+      "parentFrequency": 10000000,
+      "hostTicks": 28279197864103,
+      "hostFrequency": 10000000
+    },
+    {
+      "kind": "execution-settled",
+      "generation": "65027248-b93b-4cea-8fe0-7318043095d9",
+      "request": "stalled",
+      "ticks": 28279212768618,
+      "data": {
+        "InstanceId": "13821e7c-db99-49a5-90dd-5855cc988cdd",
+        "CallId": 4,
+        "ProcessId": 13140,
+        "Status": "timeout",
+        "Value": null,
+        "BudgetMs": 500,
+        "ElapsedMs": 2010.8188,
+        "DeadlineReached": true,
+        "ExecutionSettled": true,
+        "Line": 1,
+        "Column": 111,
+        "ErrorType": "BudgetExpiredException"
+      }
+    }
+  ]
+}

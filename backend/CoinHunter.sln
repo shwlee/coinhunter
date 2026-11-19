@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -16,6 +16,10 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoinHunter.Backend.Checks", "tests\CoinHunter.Backend.Checks\CoinHunter.Backend.Checks.csproj", "{74048293-57F9-453E-AD26-1A32939B9565}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoinHunter.CSharp.Analysis", "src\CoinHunter.CSharp.Analysis\CoinHunter.CSharp.Analysis.csproj", "{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoinHunter.CSharp.Host", "src\CoinHunter.CSharp.Host\CoinHunter.CSharp.Host.csproj", "{C30403CE-11B7-4D54-945B-AD9ED2726A7F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -87,6 +91,30 @@ Global
 		{74048293-57F9-453E-AD26-1A32939B9565}.Release|x64.Build.0 = Release|Any CPU
 		{74048293-57F9-453E-AD26-1A32939B9565}.Release|x86.ActiveCfg = Release|Any CPU
 		{74048293-57F9-453E-AD26-1A32939B9565}.Release|x86.Build.0 = Release|Any CPU
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}.Debug|x64.Build.0 = Debug|Any CPU
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}.Debug|x86.Build.0 = Debug|Any CPU
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}.Release|x64.ActiveCfg = Release|Any CPU
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}.Release|x64.Build.0 = Release|Any CPU
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}.Release|x86.ActiveCfg = Release|Any CPU
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB}.Release|x86.Build.0 = Release|Any CPU
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F}.Debug|x64.Build.0 = Debug|Any CPU
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F}.Debug|x86.Build.0 = Debug|Any CPU
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F}.Release|x64.ActiveCfg = Release|Any CPU
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F}.Release|x64.Build.0 = Release|Any CPU
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F}.Release|x86.ActiveCfg = Release|Any CPU
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -97,5 +125,7 @@ Global
 		{4392D98E-C9C9-4A0E-9715-6CB387F3734F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{A9121B1B-0E33-495F-AEB2-E72B51666374} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{74048293-57F9-453E-AD26-1A32939B9565} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{EEA3FF4D-F6BA-46D9-80F7-6D21F4DFC5AB} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{C30403CE-11B7-4D54-945B-AD9ED2726A7F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

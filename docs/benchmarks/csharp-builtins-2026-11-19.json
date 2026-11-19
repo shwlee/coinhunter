@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-19T00:31:58.886Z",
+  "platform": "win32",
+  "architecture": "x64",
+  "logicalProcessors": 16,
+  "profile": "csharp-restricted-c1-v2",
+  "guardVersion": "c2-poll-bounded-v2",
+  "limits": {
+    "memoryMiB": 768,
+    "processes": 2,
+    "cpuRate": 10000
+  },
+  "method": "trusted synthetic fixture; 5 standalone samples and 1 near-deadline sample per case; preparation excluded; near-deadline starts around 499ms; not a production bound",
+  "samples": [
+    {
+      "Operation": "array-allocate-touch",
+      "Size": 65536,
+      "Milliseconds": [0.3412, 0.0287, 0.025, 0.0277, 0.0272],
+      "NearDeadlineElapsedMs": 499.3928,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "list-contains",
+      "Size": 65536,
+      "Milliseconds": [0.5496, 0.0159, 0.0099, 0.0125, 0.0133],
+      "NearDeadlineElapsedMs": 499.0243,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "list-remove-first",
+      "Size": 65536,
+      "Milliseconds": [0.0742, 0.0047, 0.0045, 0.0044, 0.0045],
+      "NearDeadlineElapsedMs": 499.0209,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "list-grow",
+      "Size": 65536,
+      "Milliseconds": [0.0982, 0.0254, 0.0265, 0.0179, 0.0448],
+      "NearDeadlineElapsedMs": 499.0885,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "queue-grow",
+      "Size": 65536,
+      "Milliseconds": [0.0794, 0.0253, 0.0249, 0.0559, 0.0512],
+      "NearDeadlineElapsedMs": 499.0635,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "array-allocate-touch",
+      "Size": 1048576,
+      "Milliseconds": [0.4294, 0.5245, 0.184, 0.3062, 0.4104],
+      "NearDeadlineElapsedMs": 499.1585,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "list-contains",
+      "Size": 1048576,
+      "Milliseconds": [0.259, 0.255, 0.2556, 0.3165, 0.4721],
+      "NearDeadlineElapsedMs": 499.2797,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "list-remove-first",
+      "Size": 1048576,
+      "Milliseconds": [0.3081, 0.3032, 0.3036, 0.3382, 0.3102],
+      "NearDeadlineElapsedMs": 499.3571,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "list-grow",
+      "Size": 1048576,
+      "Milliseconds": [0.9195, 0.6786, 2.1356, 1.4742, 0.9416],
+      "NearDeadlineElapsedMs": 499.7771,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "queue-grow",
+      "Size": 1048576,
+      "Milliseconds": [0.5612, 0.6794, 0.595, 0.9225, 0.7182],
+      "NearDeadlineElapsedMs": 499.9963,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "array-allocate-touch",
+      "Size": 8388608,
+      "Milliseconds": [4.1086, 4.642, 6.3286, 7.6927, 1.5015],
+      "NearDeadlineElapsedMs": 500.1728,
+      "Verdict": "timeout"
+    },
+    {
+      "Operation": "list-contains",
+      "Size": 8388608,
+      "Milliseconds": [2.2007, 2.1724, 2.4278, 2.3024, 2.1824],
+      "NearDeadlineElapsedMs": 502.1127,
+      "Verdict": "timeout"
+    },
+    {
+      "Operation": "list-remove-first",
+      "Size": 8388608,
+      "Milliseconds": [3.4983, 2.7922, 2.773, 2.831, 2.8653],
+      "NearDeadlineElapsedMs": 501.777,
+      "Verdict": "timeout"
+    },
+    {
+      "Operation": "list-grow",
+      "Size": 8388608,
+      "Milliseconds": [6.6269, 9.8689, 15.5564, 10.093, 12.6228],
+      "NearDeadlineElapsedMs": 525.872,
+      "Verdict": "timeout"
+    },
+    {
+      "Operation": "queue-grow",
+      "Size": 8388608,
+      "Milliseconds": [3.8127, 7.0944, 19.2941, 8.9705, 9.253],
+      "NearDeadlineElapsedMs": 512.3017,
+      "Verdict": "timeout"
+    },
+    {
+      "Operation": "dictionary-rehash",
+      "Size": 65536,
+      "Milliseconds": [0.5183, 0.3904, 0.3971, 0.4541, 0.4495],
+      "NearDeadlineElapsedMs": 499.4083,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "hashset-rehash",
+      "Size": 65536,
+      "Milliseconds": [0.3122, 0.3246, 0.4638, 0.3725, 0.3135],
+      "NearDeadlineElapsedMs": 499.3421,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "dictionary-rehash",
+      "Size": 1048576,
+      "Milliseconds": [9.1249, 5.564, 5.8502, 5.4642, 9.1349],
+      "NearDeadlineElapsedMs": 504.6371,
+      "Verdict": "timeout"
+    },
+    {
+      "Operation": "hashset-rehash",
+      "Size": 1048576,
+      "Milliseconds": [4.7708, 5.1501, 5.0126, 4.8397, 7.6573],
+      "NearDeadlineElapsedMs": 503.9084,
+      "Verdict": "timeout"
+    },
+    {
+      "Operation": "array-allocation-gc-churn",
+      "Size": 1048576,
+      "Milliseconds": [8.622, 28.227, 32.0643, 5.5145, 27.4131],
+      "NearDeadlineElapsedMs": 534.4504,
+      "Verdict": "timeout"
+    },
+    {
+      "Operation": "checked-list-search",
+      "Size": 65536,
+      "Milliseconds": [0.8441, 0.1978, 0.1976, 0.2066, 0.2658],
+      "NearDeadlineElapsedMs": 499.4634,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "checked-list-grow",
+      "Size": 32768,
+      "Milliseconds": [0.2141, 0.0127, 0.0126, 0.0147, 0.0364],
+      "NearDeadlineElapsedMs": 499.0566,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "checked-queue-grow",
+      "Size": 32768,
+      "Milliseconds": [0.135, 0.0116, 0.0111, 0.0116, 0.0125],
+      "NearDeadlineElapsedMs": 499.0315,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "checked-dictionary-grow",
+      "Size": 32768,
+      "Milliseconds": [0.3164, 0.2671, 0.1993, 0.4524, 0.1225],
+      "NearDeadlineElapsedMs": 499.5955,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "checked-array-allocate-touch",
+      "Size": 1048576,
+      "Milliseconds": [0.5514, 0.4041, 0.4005, 0.5506, 0.1254],
+      "NearDeadlineElapsedMs": 499.307,
+      "Verdict": "ok"
+    },
+    {
+      "Operation": "checked-array-allocation-gc-churn",
+      "Size": 1048576,
+      "Milliseconds": [6.4894, 10.6921, 8.3308, 10.2656, 10.0057],
+      "NearDeadlineElapsedMs": 500.8515,
+      "Verdict": "timeout"
+    }
+  ]
+}

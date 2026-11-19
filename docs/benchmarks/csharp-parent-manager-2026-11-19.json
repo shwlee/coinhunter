@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "platform": "win32",
+  "architecture": "x64",
+  "purpose": "synthetic isolated Windows checks of the reusable parent module; not a production grace/restart policy",
+  "watchdogMilliseconds": {
+    "preparation": 15000,
+    "startNotification": 1000,
+    "unsettledExecution": 900,
+    "heartbeatInterval": 50,
+    "heartbeatResponse": 500,
+    "stopGrace": 700,
+    "cleanup": 5000
+  },
+  "probe": {
+    "date": "2026-11-19T01:51:48.7172209+00:00",
+    "checks": 37,
+    "observations": [
+      {
+        "Generation": "1651f134-8f38-4f0a-82b7-17086579c9e9",
+        "InstanceId": "3561ae30-9416-46b6-9f46-80c2aaa89285",
+        "CallId": 4,
+        "ProcessId": 4512,
+        "Status": "timeout",
+        "Direction": null,
+        "DeadlineReached": true,
+        "ExecutionSettled": true,
+        "BudgetMs": 500,
+        "ElapsedMs": 501.5685,
+        "LimitCode": null
+      },
+      {
+        "Generation": "1651f134-8f38-4f0a-82b7-17086579c9e9",
+        "InstanceId": "3561ae30-9416-46b6-9f46-80c2aaa89285",
+        "CallId": 6,
+        "ProcessId": 4512,
+        "Status": "timeout",
+        "Direction": null,
+        "DeadlineReached": true,
+        "ExecutionSettled": true,
+        "BudgetMs": 500,
+        "ElapsedMs": 500.1333,
+        "LimitCode": null
+      },
+      {
+        "Generation": "1651f134-8f38-4f0a-82b7-17086579c9e9",
+        "InstanceId": "3561ae30-9416-46b6-9f46-80c2aaa89285",
+        "CallId": 8,
+        "ProcessId": 4512,
+        "Status": "timeout",
+        "Direction": null,
+        "DeadlineReached": true,
+        "ExecutionSettled": true,
+        "BudgetMs": 500,
+        "ElapsedMs": 500.0679,
+        "LimitCode": null
+      }
+    ]
+  }
+}
