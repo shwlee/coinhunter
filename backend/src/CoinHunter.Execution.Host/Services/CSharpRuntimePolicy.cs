@@ -26,14 +26,14 @@ public sealed record CSharpRuntimePolicy(CSharpWatchdogs Watchdogs, long Minimum
     {
         if(new DriveInfo(Path.GetPathRoot(Path.GetFullPath(path))!).AvailableFreeSpace<MinimumFreeDiskBytes)throw new CoinHunter.Infrastructure.Storage.ServiceFault(507,"C# 실행 준비를 위한 디스크 여유가 부족합니다.");
     }
-    public object Readiness(bool candidateEnabled,object? hostStatistics=null,bool experimentalGcWindow=false,bool gcEntryCollection=false)=>new
+    public object Readiness(bool candidateEnabled,object? hostStatistics=null,bool experimentalGcWindow=false,bool gcEntryCollection=false,bool publicEnabled=false)=>new
     {
-        language="csharp",publicEnabled=false,candidateEnabled,profile="csharp-restricted-c1-v4",algorithmBudgetMs=500,
+        language="csharp",publicEnabled,candidateEnabled,profile="csharp-restricted-c1-v4",algorithmBudgetMs=500,
         transport="node-direct-player-pipe-v2",watchdogs=Watchdogs,minimumFreeDiskBytes=MinimumFreeDiskBytes,artifactRetentionDays=ArtifactRetention.TotalDays,
         automaticRestartAfterTimeout=false,forcedStopIsInfrastructureFailure=true,
         experimentalGcWindowEnabled=candidateEnabled&&experimentalGcWindow,
         experimentalGcEntryCollectionEnabled=candidateEnabled&&experimentalGcWindow&&gcEntryCollection,
         hosts=hostStatistics,
-        pendingAcceptance=new[]{"native-gc-pressure-boundaries","linux-cgroup-and-sandbox","production-load-and-cache-retention","public-operations-history-ui"}
+        pendingAcceptance=new[]{"native-gc-pressure-boundaries","linux-cgroup-and-sandbox","production-load-and-cache-retention","final-user-flow-review-and-beta-acceptance"}
     };
 }

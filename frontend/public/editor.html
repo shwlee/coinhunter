@@ -150,6 +150,13 @@
             <span id="document-origin">새 문서 · 아직 저장하지 않음</span>
           </div>
           <span id="save-state">미저장</span>
+          <label class="language-select"
+            >언어
+            <select id="algorithm-language" aria-label="알고리즘 언어">
+              <option value="javascript">JavaScript</option>
+              <option value="csharp" disabled>C# · 베타 준비 중</option>
+            </select></label
+          >
           <button
             id="new"
             class="icon-button"
@@ -169,6 +176,7 @@
           </button>
         </div>
         <p id="test-code-state" role="status" hidden></p>
+        <p id="language-status" role="status" hidden></p>
         <div class="columns">
           <section class="writing">
             <div class="editing-layout ai-open">
@@ -228,7 +236,50 @@
                     aria-label="검사 진단 내용"
                   ></textarea>
                 </details>
-                <label for="code">JavaScript · 단일 파일</label>
+                <div class="code-language-tools">
+                  <label id="code-language-label" for="code">JavaScript · 단일 파일</label
+                  ><a id="language-example" href="/api/example" download="nearest-coin.js">샘플</a
+                  ><button id="language-rules-button" class="secondary" type="button">
+                    작성 규약
+                  </button>
+                </div>
+                <details id="language-rules" hidden>
+                  <summary>C# 작성 규약</summary>
+                  <p>
+                    기본 타입 int·long·double·bool·char·string과 1차원 배열, int 기반
+                    Queue·List·HashSet·Dictionary·PriorityQueue를 지원합니다. 컬렉션은 승인된
+                    생성·추가·조회·삭제 메서드만 허용하며 LINQ·Sort·사용자 comparer는 지원하지
+                    않습니다. Dictionary의 새 키 추가에는 Add를 사용하세요.
+                  </p>
+                  <p>
+                    Math는 Abs·Min·Max·Clamp·Sqrt·Pow·Floor·Ceiling의 승인된 overload를 지원합니다.
+                    단일 배열은 최대 1,048,576요소, 컬렉션 Count/요청 용량은 65,536, 문자열은
+                    65,536자로 제한됩니다. 현재 C# 베타 이동 호출에는 누적 관리 할당 32MiB 한도도
+                    적용됩니다.
+                  </p>
+                  <p>
+                    전역 public class Player 하나에 Initialize(int,int,int), GetName(),
+                    MoveNext(int[],int,int[])를 public 인스턴스 메서드로 작성하세요. 반환 방향은
+                    0=왼쪽, 1=위, 2=오른쪽, 3=아래, -1=제자리입니다.
+                  </p>
+                  <p>
+                    map은 1차원 int[]이며 -1은 벽, 0은 빈칸, 양수는 코인 점수입니다. myPosition은
+                    현재 칸 인덱스이며 좌표는 열=myPosition%column, 행=myPosition/column입니다.
+                    items는 신발·망치·x2·랜덤점프 순서의 위치 int[4]이며 없으면 -1입니다.
+                    Debug.Print(값)으로 출력합니다.
+                  </p>
+                  <p>
+                    단일 파일·동기 코드와 승인된 기본 API만 사용하세요. 외부 라이브러리, 사용자
+                    static 선언, 재귀, goto, try/catch/finally, 비동기·스레드·Task, sleep,
+                    파일·네트워크·리플렉션을 허용하지 않습니다. 명시적 생성자·추가
+                    클래스·상속·LINQ·lambda도 지원하지 않습니다.
+                  </p>
+                  <p>
+                    각 호출의 알고리즘 제한은 500ms이며 timeout은 해당 턴의 제자리 패널티입니다.
+                    승인 API도 크기/연산 한도가 있습니다. 검사는 모든 입력의 종료를 증명하지
+                    않습니다. 프롬프트 생성은 현재 JavaScript용입니다.
+                  </p>
+                </details>
                 <textarea
                   id="code"
                   spellcheck="false"

@@ -310,6 +310,37 @@ section {
 .editing-layout.ai-open {
   grid-template-columns: minmax(0, 1fr) minmax(0, var(--ai-sidebar-width));
 }
+.language-select,
+.code-language-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.language-select select {
+  width: auto;
+}
+.code-language-tools {
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.code-language-tools label {
+  margin: 0;
+  flex: 1;
+}
+#language-status,
+#language-rules {
+  color: #b6c7d9;
+  font-size: 13px;
+}
+#language-rules {
+  margin-bottom: 12px;
+}
+.editing-layout.csharp-document {
+  grid-template-columns: minmax(0, 1fr);
+}
+.editing-layout.csharp-document .ai-sidebar {
+  display: none;
+}
 .editing-layout.resizing {
   transition: none;
 }

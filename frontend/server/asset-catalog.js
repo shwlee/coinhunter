@@ -23,6 +23,7 @@ export const assets = new Map([
   ['/entry.js', ['entry.js', 'text/javascript; charset=utf-8']],
   ['/editor', ['editor.html', 'text/html; charset=utf-8']],
   ['/editor.js', ['editor.js', 'text/javascript; charset=utf-8']],
+  ['/algorithm-languages.js', ['algorithm-languages.js', 'text/javascript; charset=utf-8']],
   ['/prompt-assistant.js', ['prompt-assistant.js', 'text/javascript; charset=utf-8']],
   ['/prompt-builder.js', ['prompt-builder.js', 'text/javascript; charset=utf-8']],
   ['/code-editor.js', ['generated/code-editor.js', 'text/javascript; charset=utf-8']],

@@ -26,6 +26,7 @@ internal sealed class CSharpCandidatePlayer
     private readonly SemaphoreSlim writes = new(1);
     private readonly Task serving;
     private CSharpHostSession? session;
+    internal CSharpHostReady? RuntimeIdentity => session?.Identity;
     private int busy;
     private bool released;
     private bool cleanupUnknown;

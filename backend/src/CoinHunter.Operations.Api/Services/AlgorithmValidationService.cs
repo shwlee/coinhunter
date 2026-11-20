@@ -5,13 +5,16 @@ using CoinHunter.Contracts;
 using CoinHunter.Infrastructure.Storage;
 using CoinHunter.Infrastructure.Execution;
 using System.Text.Json;
+using CoinHunter.Infrastructure;
+using Microsoft.Extensions.Configuration;
 
 namespace CoinHunter.Operations.Api.Services;
 
 // Bounded background validation never determines whether source persistence succeeds.
 // Game admission always revalidates its immutable exchange snapshot; no client receipt is trusted.
-public sealed class AlgorithmValidationService(AccountService accounts, StorageSettings settings, GameContent content, ExecutionClient execution) : BackgroundService
+public sealed class AlgorithmValidationService(AccountService accounts, StorageSettings settings, GameContent content, ExecutionClient execution, IConfiguration? configuration = null) : BackgroundService
 {
+    private readonly AlgorithmLanguages languages = new(configuration ?? new ConfigurationBuilder().Build());
     private sealed record Job(string Owner, string Id, int Revision, Guid SourceKey, string Language, string Hash, Guid Attempt)
     {
         public bool SameSource(Job other) => Owner == other.Owner && Id == other.Id && Revision == other.Revision && SourceKey == other.SourceKey && Language == other.Language && Hash == other.Hash;
@@ -21,7 +24,7 @@ public sealed class AlgorithmValidationService(AccountService accounts, StorageS
     private readonly object gatesLock = new();
     private readonly Dictionary<string, (SemaphoreSlim Gate, int Users)> gates = new();
     public string Version => "javascript-preflight-v2/fixture-2.0.0/500ms/32MiB/" + content.Contract.Text("contentVersion");
-    public string VersionFor(string language) => language == "javascript" ? Version : CSharpArtifactPreflight.Profile + "/" + content.PreflightHash + "/500ms/candidate-only";
+    public string VersionFor(string language) => language == "javascript" ? Version : CSharpArtifactPreflight.Profile + "/" + content.PreflightHash + "/500ms/" + (languages.CSharpEnabled ? AlgorithmLanguages.CSharpPolicy + "/" + AlgorithmLanguages.CSharpProfile : "candidate-only");
     private FileSourceStore Exchange => new(settings.ExchangeRoot);
 
     public async Task Queue(string owner, JsonObject saved, Guid sourceKey)
@@ -114,10 +117,17 @@ public sealed class AlgorithmValidationService(AccountService accounts, StorageS
         }
     }
 
-    public async Task RequirePassed(ExecutionScope scope, SourceReference source)
+    public async Task RequirePassed(ExecutionScope scope, SourceReference source, string language = "javascript")
     {
-        var result = await Check(scope, source);
+        languages.Require(language, scope.Kind == "user");
+        var result = await Check(scope, source, language: language);
         if (!result.Bool("ok")) throw new ServiceFault(400, result.Text("error", "알고리즘 검사에 실패했습니다. 작업실에서 검사 결과를 확인하세요."));
+        if (language == "csharp")
+        {
+            var state = CSharpResultState(result, source.Sha256, scope.SubjectId);
+            if (state.Text("state") != "passed" || !state.Bool("executionAllowed")) throw new ServiceFault(503, state.Text("message"));
+            return;
+        }
         if (result.Text("profileVersion") != "javascript-preflight-v2" || result.Text("fixtureVersion") != "2.0.0")
             throw new ServiceFault(503, "검사 서비스 버전이 일치하지 않습니다. 서버를 업데이트하세요.");
     }
@@ -125,7 +135,7 @@ public sealed class AlgorithmValidationService(AccountService accounts, StorageS
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
         RecoverSnapshotLeases();
-        await accounts.RecoverValidations(Version);
+        await accounts.RecoverValidations(Version, languages.CSharpEnabled ? VersionFor("csharp") : null, languages.CSharpEnabled);
         await base.StartAsync(cancellationToken);
     }
 
@@ -238,6 +248,8 @@ public sealed class AlgorithmValidationService(AccountService accounts, StorageS
         else if (result.Bool("ok") || result["diagnostic"]?.Text("stage") is not ("compile" or "environment")) bound = false;
         bool infrastructure = result["diagnostic"]?.Text("stage") == "environment" || report?.Status == "unverified";
         var state = State(!bound || infrastructure ? "unverified" : result.Bool("ok") ? "passed" : "failed", !bound ? "검사 결과의 코드·소유자·버전이 일치하지 않습니다." : result.Bool("ok") ? "저장됨 · C# 후보 검사 통과 · 게임 지원 대기" : result.Text("error", "C# 코드 검사 실패"), "csharp");
+        state["executionAllowed"] = bound && !infrastructure && result.Bool("ok") && languages.CSharpEnabled;
+        if (state.Bool("executionAllowed")) state["message"] = "저장됨 · C# 코드 검사 통과 · 베타 실행 가능";
         state["sourceHash"] = hash;
         if (bound && report is not null)
         {

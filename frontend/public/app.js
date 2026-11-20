@@ -12,6 +12,14 @@ import { renderResultAnalysis } from './result-analysis.js';
 import { renderLeaderboard } from './leaderboard.js';
 import { loadCoins, drawCoin, drawCoinPickup, drawCoinSample } from './coin-renderer.js';
 import { GamePresentation } from './game-presentation.js';
+import {
+  ALGORITHM_LANGUAGES,
+  DEFAULT_CAPABILITIES,
+  algorithmLanguage,
+  languageFromFilename,
+  unavailableLanguage,
+  diagnosticPosition,
+} from './algorithm-languages.js';
 const presentation = new GamePresentation();
 const $ = (id) => document.getElementById(id);
 const testMode =
@@ -32,6 +40,8 @@ const stepTitles = [
   '시작 위치를 선택하세요',
 ];
 let selectedStartSlot = 0;
+let sourceLanguage = 'javascript';
+let languageCapabilities = DEFAULT_CAPABILITIES;
 let validatingFile = false;
 let fileLoadVersion = 0;
 let finishStage = null;
@@ -129,13 +139,35 @@ function controls() {
   $('file-next-reason').textContent = missingSelection
     ? !history.length
       ? '완료한 경기 기록이 없습니다. 로그인 상태에서 게임을 한 번 진행한 뒤 다시 선택하세요.'
-      : !source
-        ? '현재 알고리즘 파일이나 저장 코드를 먼저 선택하세요.'
-        : '대결할 이전 경기 기록을 선택하면 다음으로 진행할 수 있습니다.'
+      : history.every((entry) =>
+            unavailableLanguage(languageCapabilities, entry.language || 'javascript', loggedIn),
+          )
+        ? '현재 서버에서 실행할 수 있는 이전 경기 알고리즘이 없습니다.'
+        : !source
+          ? '현재 알고리즘 파일이나 저장 코드를 먼저 선택하세요.'
+          : '대결할 이전 경기 기록을 선택하면 다음으로 진행할 수 있습니다.'
     : '';
   $('settings-next').disabled =
     !filesReady() || !maps.length || !charactersReady || busy || active();
   for (const id of ['file-back', 'settings-back']) $(id).disabled = busy || active();
+}
+function refreshLanguageUi() {
+  const supported = ALGORITHM_LANGUAGES.filter(
+    (item) => !unavailableLanguage(languageCapabilities, item.id, loggedIn),
+  );
+  $('algorithm-file').accept = supported.map((item) => item.extension).join(',');
+  if (!source)
+    $('file-label').textContent =
+      `${supported.map((item) => item.extension).join(' / ')} 파일을 선택하세요`;
+  $('file-help').textContent =
+    `한 파일의 동기 알고리즘 · ${supported.map((item) => item.name).join(' / ')}`;
+  $('algorithm-language-status').textContent = source
+    ? `선택한 코드: ${algorithmLanguage(sourceLanguage).name}${sourceLanguage === 'csharp' ? ' · 베타' : ''}`
+    : '';
+  $('algorithm-language-status').hidden = !source;
+  $('csharp-example').hidden = Boolean(
+    unavailableLanguage(languageCapabilities, 'csharp', loggedIn),
+  );
 }
 function showSetupStep(step) {
   if (busy || active()) return;
@@ -161,7 +193,7 @@ function showSetupStep(step) {
   $('arena-message').querySelector('p').hidden = false;
   $('arena-message').querySelector('p').textContent =
     step === 'file'
-      ? '샘플 파일을 내려받거나 자신의 .js 파일을 올리세요.'
+      ? '샘플 파일을 내려받거나 지원하는 알고리즘 파일을 올리세요.'
       : '선택한 값은 이전 단계로 돌아가도 유지됩니다.';
   if (testMode) {
     $('settings-step').hidden = false;
@@ -212,7 +244,7 @@ $('file-next').addEventListener('click', async () => {
   fileValidation('알고리즘의 문법과 실행 결과를 검사하고 있습니다…');
   let passed = false;
   try {
-    await api('/api/game/validate', {
+    await api(`/api/game/validate?language=${sourceLanguage}`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
       body: source,
@@ -220,9 +252,8 @@ $('file-next').addEventListener('click', async () => {
     passed = true;
     fileValidation('알고리즘 검사 통과');
   } catch (error) {
-    const position = error.diagnostic
-      ? ` (${error.diagnostic.line}행 ${error.diagnostic.column}열)`
-      : '';
+    const diagnostic = diagnosticPosition(error.diagnostic, source);
+    const position = diagnostic ? ` (${diagnostic.line}행 ${diagnostic.column}열)` : '';
     fileValidation(`${error.message}${position} · 코드를 수정하거나 다른 파일을 선택하세요.`, true);
   } finally {
     busy = false;
@@ -248,15 +279,23 @@ for (const input of document.querySelectorAll('input[name="start-slot"]')) {
     showSetupStep('position');
   });
 }
-async function loadFile(file, savedId = '') {
+async function loadFile(file, savedId = '', expectedLanguage = null) {
   if (busy || active() || !file) return;
   const version = ++fileLoadVersion;
   source = '';
+  refreshLanguageUi();
   $('saved-current').value = savedId;
   fileValidation();
   controls();
-  if (!file.name.toLowerCase().endsWith('.js')) {
-    setError('.js 파일을 선택하세요.');
+  let language;
+  try {
+    language = languageFromFilename(file.name);
+    if (expectedLanguage && expectedLanguage !== language)
+      throw new Error('파일과 알고리즘 언어가 일치하지 않습니다.');
+    const reason = unavailableLanguage(languageCapabilities, language, loggedIn);
+    if (reason) throw new Error(reason);
+  } catch (error) {
+    setError(error.message);
     controls();
     return;
   }
@@ -269,7 +308,9 @@ async function loadFile(file, savedId = '') {
   }
   if (version !== fileLoadVersion) return;
   source = text;
+  sourceLanguage = language;
   $('file-label').textContent = file.name;
+  refreshLanguageUi();
   setError('');
   controls();
 }
@@ -364,6 +405,7 @@ $('setup-form').addEventListener('submit', async (event) => {
         'Content-Type': 'text/plain; charset=utf-8',
         'X-Coinhunter-Options': JSON.stringify({
           characterId: selectedCharacter,
+          language: sourceLanguage,
           startSlot: selectedStartSlot,
           mapId: $('map-select').value,
           mode: !testMode && isDuel() ? 'duel' : 'practice',
@@ -784,8 +826,15 @@ controls();
 draw();
 
 try {
-  const session = testMode ? null : await accountBar();
-  if (session?.user) {
+  const session = testMode ? await api('/api/session') : await accountBar();
+  loggedIn = Boolean(session?.user);
+  try {
+    languageCapabilities = await api('/api/languages');
+  } catch {
+    languageCapabilities = DEFAULT_CAPABILITIES;
+  }
+  refreshLanguageUi();
+  if (session?.user && !testMode) {
     loggedIn = true;
     const duelOption = $('match-mode').querySelector('option[value="duel"]');
     duelOption.hidden = false;
@@ -797,14 +846,26 @@ try {
       $('history-select').replaceChildren(new Option('경기 기록을 선택하세요', ''));
       for (const entry of history) {
         const playedAt = new Date(entry.playedAt).toLocaleString('ko-KR');
-        $('history-select').add(
-          new Option(
-            `${playedAt} · ${entry.mapName} · ${entry.algorithmName} · ${entry.score}점`,
-            entry.id,
-          ),
+        const option = new Option(
+          `${playedAt} · ${entry.mapName} · ${entry.algorithmName} · ${algorithmLanguage(entry.language).name} · ${entry.score}점`,
+          entry.id,
         );
+        const reason = unavailableLanguage(
+          languageCapabilities,
+          entry.language || 'javascript',
+          loggedIn,
+        );
+        option.disabled = Boolean(reason);
+        option.title = reason;
+        $('history-select').add(option);
       }
-      $('history-select').value = history.some((entry) => entry.id === selected) ? selected : '';
+      $('history-select').value = history.some(
+        (entry) =>
+          entry.id === selected &&
+          !unavailableLanguage(languageCapabilities, entry.language || 'javascript', loggedIn),
+      )
+        ? selected
+        : '';
       historyId = $('history-select').value;
       controls();
     };
@@ -817,7 +878,21 @@ try {
       const data = await api('/api/algorithms');
       for (const id of ['saved-current']) {
         $(id).replaceChildren(new Option('현재 코드 불러오기', ''));
-        for (const item of data.algorithms) $(id).add(new Option(item.name, item.id));
+        for (const item of data.algorithms) {
+          const option = new Option(
+            `${item.name} · ${algorithmLanguage(item.language).name}`,
+            item.id,
+          );
+          option.disabled = Boolean(
+            unavailableLanguage(languageCapabilities, item.language || 'javascript', loggedIn),
+          );
+          option.title = unavailableLanguage(
+            languageCapabilities,
+            item.language || 'javascript',
+            loggedIn,
+          );
+          $(id).add(option);
+        }
       }
       controls();
     };
@@ -843,7 +918,8 @@ try {
           const item = JSON.parse(decodeURIComponent(encoded));
           const text = await response.text();
           if (busy || active() || version !== fileLoadVersion || $(id).value !== selectedId) return;
-          await loadFile(new File([text], item.name + '.js'), selectedId);
+          const language = algorithmLanguage(item.language);
+          await loadFile(new File([text], item.name + language.extension), selectedId, language.id);
           controls();
         } catch (error) {
           if (version === fileLoadVersion) setError(error.message);
@@ -867,6 +943,7 @@ window.addEventListener('message', async (event) => {
   try {
     if (busy || active()) throw new Error('진행 중인 경기를 먼저 종료하세요.');
     if (!(await api('/api/session')).user) throw new Error('로그인이 필요합니다.');
+    loggedIn = true;
     if (typeof event.data.source !== 'string') throw new Error('코드가 필요합니다.');
     events?.close();
     matchId = null;
@@ -874,7 +951,15 @@ window.addEventListener('message', async (event) => {
     renderLogs([]);
     setupStep = 'file';
     preview();
-    await loadFile(new File([event.data.source], '편집 중 코드.js'));
+    const language = algorithmLanguage(event.data.language || 'javascript');
+    const reason = unavailableLanguage(languageCapabilities, language.id, loggedIn);
+    if (reason) throw new Error(reason);
+    await loadFile(
+      new File([event.data.source], '편집 중 코드' + language.extension),
+      '',
+      language.id,
+    );
+    if (!source) throw new Error('테스트 코드를 준비하지 못했습니다.');
     showSetupStep('settings');
     window.parent.postMessage(
       { type: 'editor-prepared', requestId: event.data.requestId },

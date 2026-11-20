@@ -53,6 +53,13 @@ export async function startBackend({ frontend = false, build = true } = {}) {
         Backend__PublicUrl: publicUrl,
         Backend__UseStdinControl: 'true',
         Backend__RepositoryRoot: root,
+        ...(name === 'CoinHunter.Execution.Host'
+          ? {
+              Backend__CSharpValidation__HostAssembly:
+                process.env.Backend__CSharpValidation__HostAssembly ||
+                serviceAssembly('CoinHunter.CSharp.Host'),
+            }
+          : {}),
         Backend__TrustedProxies__0: name === 'CoinHunter.Operations.Api' ? '127.0.0.1' : undefined,
         // Only Operations receives the explicitly selected authentication configuration.
         ...(name === 'CoinHunter.Operations.Api'

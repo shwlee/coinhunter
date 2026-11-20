@@ -1,5 +1,9 @@
 # Coin Hunter 분리 백엔드
 
+C# 사용자 연결: [1~4단계 구현·최종 검증 대기](../docs/csharp-user-support-plan.md). 공통 언어 capability·저장/검사·작업실·게임/기록 연결을 구현했다. 두 서비스의 `Backend:Languages:CSharpBetaEnabled`는 기본 false이며 최종 검증/베타 활성화는 수행하지 않았다. Windows·로그인 전용이고 C# 베타 게임 자원은 일반 JS와 분리한다.
+
+최신 장시간 검증: [자동화 사용법](../docs/csharp-endurance-automation.md) · [실측 결과](../docs/csharp-endurance-2026-11-20.md). Windows 로컬에서 실제 두 게임(C# 4명·JS 2명)을 30분 3.986초 실행했고 C# 107,091회·GC 진입 복구 5회를 확인했다. 반복 시작/종료·엔진/실행기 강제 종료·장애 후 재실행·전량 로그 대조와 최종 자원 회수도 통과했다. 운영 사양·Linux 격리·엄격한 500ms 선점·공개 지원 관문은 남는다.
+
 최신 GC 진입 후보: [압축·메모리 반환 1회 복구 v2](../docs/csharp-gc-entry-recovery-2026-11-20.md). 내부 `Backend:CSharpGameCandidate:GcEntryCollection=true`를 기존 GC 후보와 함께 켜는 시험 경로다. 기본값은 false이며 C# 공개 지원은 활성화하지 않는다. 같은 자원 한도의 반복 10,000회·실제 두 게임 180초 목표를 통과했고 진입 비용을 진행/왕복 시간에 그대로 기록한다.
 
 최신 실제 게임 검증: [GC 연결·실행 정책·동시 부하](../docs/csharp-gc-actual-games-2026-11-20.md). 실제 Node 게임/JSONL/최종 결과 연결은 구현했지만 반복 실행에서 GC 예약 실패가 재현돼 기본 채택은 거절한다. 내부 `Backend:CSharpGameCandidate:ExperimentalGcWindow`는 기본 false이며 사용자 옵션이 아니다. 엔진/C# 한도 합산이 게임 예산을 넘으면 시작 전에 거절한다.

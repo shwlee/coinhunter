@@ -1,12 +1,59 @@
 import { EditorView, basicSetup } from 'codemirror';
 import { Decoration } from '@codemirror/view';
-import { EditorState, StateEffect, StateField } from '@codemirror/state';
+import { EditorState, StateEffect, StateField, Compartment } from '@codemirror/state';
 import { javascript } from '@codemirror/lang-javascript';
+import { StreamLanguage } from '@codemirror/language';
 import { undo, redo, isolateHistory } from '@codemirror/commands';
 import { oneDark } from '@codemirror/theme-one-dark';
 
+// Display lexer only. Roslyn and the execution preflight own C# diagnostics.
+const csharpKeywords = new Set(
+  'public private protected internal class void return if else for foreach while do break continue new this using namespace const static int long double bool char string true false null var in switch case default sizeof'.split(
+    ' ',
+  ),
+);
+const csharp = StreamLanguage.define({
+  startState: () => ({ blockComment: false }),
+  token(stream, state) {
+    if (state.blockComment) {
+      if (stream.skipTo('*/')) {
+        stream.match('*/');
+        state.blockComment = false;
+      } else stream.skipToEnd();
+      return 'comment';
+    }
+    if (stream.eatSpace()) return null;
+    if (stream.match('//')) {
+      stream.skipToEnd();
+      return 'comment';
+    }
+    if (stream.match('/*')) {
+      state.blockComment = true;
+      return 'comment';
+    }
+    if (stream.match(/@?"(?:[^"\\]|\\.|"")*"?/) || stream.match(/'(?:[^'\\]|\\.)*'/))
+      return 'string';
+    if (stream.match(/\b(?:0[xX][0-9a-fA-F]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)[uUlLfFdDmM]*\b/))
+      return 'number';
+    const word = stream.match(/^@?[\p{L}_][\p{L}\p{N}_]*/u);
+    if (word) return csharpKeywords.has(word[0]) ? 'keyword' : 'variableName';
+    stream.next();
+    return null;
+  },
+  languageData: { commentTokens: { line: '//', block: { open: '/*', close: '*/' } } },
+});
+
 export function createCodeEditor(textarea, parent, cursor) {
   const nativeValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+  const languageMode = new Compartment();
+  let language = 'javascript';
+  const languageExtensions = () => [
+    language === 'csharp' ? csharp : javascript(),
+    EditorView.contentAttributes.of({
+      'aria-label': `${language === 'csharp' ? 'C#' : 'JavaScript'} 알고리즘 코드`,
+      spellcheck: 'false',
+    }),
+  ];
   const markError = StateEffect.define();
   const errorLine = StateField.define({
     create: () => Decoration.none,
@@ -28,13 +75,8 @@ export function createCodeEditor(textarea, parent, cursor) {
   const extensions = [
     basicSetup,
     errorLine,
-    javascript(),
     oneDark,
     EditorView.cspNonce.of(document.querySelector('meta[name="style-nonce"]').content),
-    EditorView.contentAttributes.of({
-      'aria-label': 'JavaScript 알고리즘 코드',
-      spellcheck: 'false',
-    }),
     EditorView.theme(
       {
         '&': { height: '490px', backgroundColor: '#0d1420', color: '#e4eaf2' },
@@ -57,13 +99,21 @@ export function createCodeEditor(textarea, parent, cursor) {
   ];
   const view = new EditorView({
     parent,
-    state: EditorState.create({ doc: textarea.value, extensions }),
+    state: EditorState.create({
+      doc: textarea.value,
+      extensions: [...extensions, languageMode.of(languageExtensions())],
+    }),
   });
   Object.defineProperty(textarea, 'value', {
     get: () => view.state.doc.toString(),
     set: (value) => {
       nativeValue.set.call(textarea, value);
-      view.setState(EditorState.create({ doc: value, extensions }));
+      view.setState(
+        EditorState.create({
+          doc: value,
+          extensions: [...extensions, languageMode.of(languageExtensions())],
+        }),
+      );
     },
   });
   Object.defineProperty(textarea, 'selectionEnd', { get: () => view.state.selection.main.to });
@@ -73,6 +123,12 @@ export function createCodeEditor(textarea, parent, cursor) {
   };
   textarea.hidden = true;
   return {
+    setLanguage(value) {
+      if (!['javascript', 'csharp'].includes(value))
+        throw new Error('Unsupported editor language.');
+      language = value;
+      view.dispatch({ effects: languageMode.reconfigure(languageExtensions()) });
+    },
     showError(offset) {
       const at = Math.max(0, Math.min(offset, view.state.doc.length));
       view.dispatch({ effects: markError.of(at), selection: { anchor: at }, scrollIntoView: true });

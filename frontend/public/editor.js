@@ -2,18 +2,22 @@ import { api, accountBar } from './account.js';
 import { createCodeEditor } from '/code-editor.js';
 import { PRIORITY_WEIGHTS, STRATEGY_TEMPLATES } from '../../shared/strategy-templates.js';
 import { initializePromptAssistant } from './prompt-assistant.js';
+import {
+  ALGORITHM_LANGUAGES,
+  DEFAULT_CAPABILITIES,
+  algorithmLanguage,
+  languageFromFilename,
+  unavailableLanguage,
+  emptyAlgorithmFor,
+  diagnosticPosition,
+} from './algorithm-languages.js';
 const $ = (id) => document.getElementById(id);
 const editor = createCodeEditor($('code'), $('code-editor'), $('cursor'));
-const emptyAlgorithm = `module.exports = class Player {
-  initialize(myNumber, column, row) {
-  }
-
-  getName() {
-  }
-
-  moveNext(map, myPosition, items) {
-  }
-};`;
+const emptyAlgorithm = emptyAlgorithmFor('javascript');
+let documentLanguage = 'javascript';
+let languageCapabilities = DEFAULT_CAPABILITIES;
+let authenticated = false;
+let testLanguage = null;
 let documentId = null,
   revision = null,
   documentName = '새 알고리즘',
@@ -28,6 +32,7 @@ let documentId = null,
   testRequestId = 0;
 let validationRequestId = 0;
 let savedValidationRequestId = 0;
+let documentLoadVersion = 0;
 let promptAssistant = null;
 const templateControls = new Map();
 const priorityIds = [];
@@ -152,13 +157,26 @@ function validationStatus(state, message) {
 }
 function validationDetails(error) {
   const diagnostic = error.diagnostic;
+  const position = diagnosticPosition(diagnostic, $('code').value);
+  const detail = typeof diagnostic?.detail === 'object' ? diagnostic.detail : null;
   const lines = [
     `검사 단계: ${diagnostic?.stageLabel || '검사 요청'}`,
-    `오류: ${diagnostic?.detail || error.message}`,
+    `오류: ${detail?.message || (typeof diagnostic?.detail === 'string' ? diagnostic.detail : error.message)}`,
   ];
+  for (const entry of diagnostic?.details || [])
+    lines.push(
+      `${entry.code || ''} · ${entry.line || '?'}줄 ${entry.column || '?'}열 · ${entry.message}`,
+    );
+  if (detail?.code) lines.push(`진단 코드: ${detail.code}`);
+  if (detail?.phase) lines.push(`실행 단계: ${detail.phase} · 판정: ${detail.status}`);
+  if (detail?.scenario)
+    lines.push(
+      `검사 조건: ${detail.scenario} · 플레이어 ${detail.player} · ${detail.turn || '?'}회 이동`,
+    );
+  if (Number.isFinite(detail?.elapsedMs))
+    lines.push(`실행 시간: ${detail.elapsedMs.toFixed(2)}ms / 제한 ${detail.limitMs}ms`);
   if (diagnostic?.hint) lines.push('', `수정 안내: ${diagnostic.hint}`);
-  if (Number.isInteger(diagnostic?.line))
-    lines.push('', `위치: ${diagnostic.line}줄 ${diagnostic.column}열`);
+  if (position) lines.push('', `위치: ${position.line}줄 ${position.column}열`);
   if (diagnostic?.context) {
     const { columns, rows, player, call } = diagnostic.context;
     lines.push(
@@ -182,7 +200,8 @@ function setValidationBusy(busy) {
   button.setAttribute('aria-busy', String(busy));
   button.dataset.tooltip = label;
 }
-const contents = () => JSON.stringify({ name: documentName, source: $('code').value });
+const contents = () =>
+  JSON.stringify({ name: documentName, language: documentLanguage, source: $('code').value });
 const dirty = () => contents() !== saved;
 const notice = (text) => {
   $('notice').textContent = text;
@@ -203,7 +222,8 @@ function setDocumentOrigin(kind, detail = '') {
   $('document-origin').textContent = documentOrigin;
 }
 function refreshTestCodeState() {
-  const changed = testSource !== null && $('code').value !== testSource;
+  const changed =
+    testSource !== null && ($('code').value !== testSource || documentLanguage !== testLanguage);
   $('test-code-state').hidden = !changed;
   $('test-code-state').textContent = testing
     ? '현재 편집 코드가 실행 중인 코드와 다릅니다. 변경 사항은 다음 테스트에 적용됩니다.'
@@ -215,6 +235,58 @@ const run = (operation) => async () => {
   } catch (error) {
     notice(error.message);
   }
+};
+function refreshLanguageUi() {
+  const language = algorithmLanguage(documentLanguage);
+  $('algorithm-language').replaceChildren();
+  for (const item of ALGORITHM_LANGUAGES) {
+    const reason = unavailableLanguage(languageCapabilities, item.id, authenticated);
+    const option = new Option(
+      `${item.name}${item.id === 'csharp' ? ' · 베타' : ''}${reason ? ' · 사용 불가' : ''}`,
+      item.id,
+    );
+    option.disabled = Boolean(reason);
+    option.title = reason;
+    $('algorithm-language').add(option);
+  }
+  $('algorithm-language').value = documentLanguage;
+  const reason = unavailableLanguage(languageCapabilities, documentLanguage, authenticated);
+  $('language-status').hidden = !reason && documentLanguage !== 'csharp';
+  $('language-status').textContent =
+    reason || 'C# 베타 · 승인된 API만 지원합니다. 프롬프트 생성은 현재 JavaScript용입니다.';
+  $('code-language-label').textContent = `${language.name} · 단일 파일`;
+  $('code').setAttribute('aria-label', `${language.name} 알고리즘 코드`);
+  $('import').accept = ALGORITHM_LANGUAGES.filter(
+    (item) => !unavailableLanguage(languageCapabilities, item.id, authenticated),
+  )
+    .map((item) => item.extension)
+    .join(',');
+  $('import').setAttribute('aria-label', '내 PC에서 알고리즘 파일 가져오기');
+  $('language-example').href = `/api/example?language=${documentLanguage}`;
+  $('language-example').download = `nearest-coin${language.extension}`;
+  $('language-example').hidden = Boolean(reason);
+  $('language-rules-button').hidden = documentLanguage !== 'csharp';
+  $('language-rules').hidden = true;
+  aiLayout.classList.toggle('csharp-document', documentLanguage === 'csharp');
+  queueEditorRefresh();
+}
+$('algorithm-language').onchange = run(async () => {
+  const selected = $('algorithm-language').value;
+  $('algorithm-language').value = documentLanguage;
+  if (selected === documentLanguage) return;
+  if (saving || testing) throw new Error('저장 또는 테스트가 끝난 뒤 언어를 변경하세요.');
+  const reason = unavailableLanguage(languageCapabilities, selected, authenticated);
+  if (reason) throw new Error(reason);
+  if (!(await mayDiscard())) return;
+  reset({ language: selected, source: emptyAlgorithmFor(selected) });
+  showPanel('writing');
+  notice(
+    `${algorithmLanguage(selected).name} 새 문서를 만들었습니다. 다른 언어로 변경한 문서는 새 알고리즘으로 저장합니다.`,
+  );
+});
+$('language-rules-button').onclick = () => {
+  $('language-rules').hidden = !$('language-rules').hidden;
+  $('language-rules').open = !$('language-rules').hidden;
 };
 function showPanel(panel) {
   if (panel !== 'writing') setCodeMaximized(false);
@@ -353,11 +425,16 @@ document.addEventListener('keydown', (event) => {
   setCodeMaximized(false);
 });
 function reset(item, origin = item?.id ? 'library' : 'new', detail = item?.name || '') {
+  documentLoadVersion++;
   savedValidationRequestId++;
   validationRequestId++;
   documentId = item?.id || null;
   revision = item?.revision || null;
   documentName = item?.name || '새 알고리즘';
+  documentLanguage = item?.language || 'javascript';
+  algorithmLanguage(documentLanguage);
+  editor.setLanguage(documentLanguage);
+  refreshLanguageUi();
   $('document-title').textContent = documentName;
   setDocumentOrigin(origin, detail);
   $('code').value = item?.source || '';
@@ -400,17 +477,23 @@ async function library() {
   // Preserve the selection made while fetching, rather than the value before the request.
   const selected = $('library').value;
   $('library').replaceChildren(new Option('저장 코드 선택', ''));
-  for (const item of algorithms) $('library').add(new Option(item.name, item.id));
+  for (const item of algorithms)
+    $('library').add(
+      new Option(`${item.name} · ${algorithmLanguage(item.language).name}`, item.id),
+    );
   $('library').value = algorithms.some((item) => item.id === selected) ? selected : '';
 }
 async function save(copy, name) {
   if (saving) return false;
   const source = $('code').value;
+  const language = documentLanguage;
+  const unavailable = unavailableLanguage(languageCapabilities, language, authenticated);
+  if (unavailable) throw new Error(unavailable);
   saving = true;
   $('confirm-save').disabled = $('cancel-save').disabled = true;
   try {
     const target = documentId && !copy ? `/api/algorithms/${documentId}` : '/api/algorithms';
-    const query = new URLSearchParams({ name });
+    const query = new URLSearchParams({ name, language });
     if (documentId && !copy) query.set('revision', String(revision));
     const item = await api(`${target}?${query}`, {
       method: documentId && !copy ? 'PUT' : 'POST',
@@ -422,7 +505,7 @@ async function save(copy, name) {
     documentName = item.name;
     $('document-title').textContent = item.name;
     setDocumentOrigin('saved', item.name);
-    saved = JSON.stringify({ name: item.name, source });
+    saved = JSON.stringify({ name: item.name, language, source });
     refreshState();
     followSavedValidation(item, source);
     try {
@@ -440,7 +523,7 @@ async function save(copy, name) {
 }
 async function followSavedValidation(item, source) {
   const requestId = ++savedValidationRequestId;
-  for (let attempt = 0; attempt < 45; attempt++) {
+  for (let attempt = 0; attempt < (item.language === 'csharp' ? 130 : 45); attempt++) {
     if (
       requestId !== savedValidationRequestId ||
       item.id !== documentId ||
@@ -572,7 +655,7 @@ $('new').onclick = run(async () => {
   clearTemplates();
   $('prompt').value = '';
   $('search').value = '';
-  reset({ source: emptyAlgorithm });
+  reset({ language: documentLanguage, source: emptyAlgorithmFor(documentLanguage) });
   showPanel('writing');
   notice('새 문서를 만들었습니다.');
 });
@@ -596,6 +679,8 @@ $('open').onclick = async () => {
 async function loadSavedAlgorithm(id) {
   if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id))
     throw new Error('불러올 알고리즘 ID를 확인하세요.');
+  const version = ++documentLoadVersion;
+  const previous = contents();
   const response = await fetch(`/api/algorithms/${id}/source`);
   if (!response.ok)
     throw new Error(
@@ -604,7 +689,10 @@ async function loadSavedAlgorithm(id) {
   const encodedMetadata = response.headers.get('X-Coinhunter-Metadata');
   if (!encodedMetadata) throw new Error('저장된 코드 정보를 불러오지 못했습니다.');
   const metadata = JSON.parse(decodeURIComponent(encodedMetadata));
-  reset({ ...metadata, source: await response.text() });
+  const source = await response.text();
+  if (version !== documentLoadVersion || previous !== contents())
+    throw new Error('불러오는 동안 문서가 변경되었습니다. 현재 코드를 확인한 뒤 다시 불러오세요.');
+  reset({ ...metadata, source });
 }
 $('import').onchange = async () => {
   const file = $('import').files[0];
@@ -612,8 +700,14 @@ $('import').onchange = async () => {
   $('load-error').hidden = true;
   try {
     if (!(await mayDiscard())) return;
-    if (!file.name.endsWith('.js')) throw new Error('.js 파일을 선택하세요.');
-    reset({ name: file.name.replace(/\.js$/, ''), source: await file.text() }, 'file', file.name);
+    const language = languageFromFilename(file.name);
+    const unavailable = unavailableLanguage(languageCapabilities, language, authenticated);
+    if (unavailable) throw new Error(unavailable);
+    reset(
+      { name: file.name.replace(/\.(js|cs)$/i, ''), language, source: await file.text() },
+      'file',
+      file.name,
+    );
     $('load-panel').close();
     showPanel('writing');
   } catch (error) {
@@ -623,12 +717,13 @@ $('import').onchange = async () => {
   }
 };
 $('export').onclick = () => {
-  const url = URL.createObjectURL(new Blob([$('code').value], { type: 'text/javascript' }));
+  const language = algorithmLanguage(documentLanguage);
+  const url = URL.createObjectURL(new Blob([$('code').value], { type: language.mime }));
   const link = document.createElement('a');
   link.href = url;
   link.download =
     ($('name').value.trim() || documentName || 'algorithm').replace(/[^\p{L}\p{N}_-]/gu, '_') +
-    '.js';
+    language.extension;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   $('save-feedback').textContent = '현재 편집 코드를 파일로 내보냈습니다.';
@@ -637,18 +732,25 @@ $('export').onclick = () => {
 async function validateEditorSource() {
   savedValidationRequestId++;
   const source = $('code').value;
+  const language = documentLanguage;
+  const unavailable = unavailableLanguage(languageCapabilities, language, authenticated);
+  if (unavailable) throw new Error(unavailable);
   const requestId = ++validationRequestId;
   $('code-error').hidden = true;
   setValidationBusy(true);
   validationStatus('pending', '변수·사용 제한과 초기화·이름 조회·이동 실행을 검사하고 있습니다…');
   try {
     editor.clearError();
-    await api('/api/algorithms/validate', {
+    await api(`/api/algorithms/validate?language=${language}`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
       body: source,
     });
-    if (requestId !== validationRequestId || source !== $('code').value)
+    if (
+      requestId !== validationRequestId ||
+      source !== $('code').value ||
+      language !== documentLanguage
+    )
       throw new Error('검사 중 코드가 변경되었습니다. 다시 검사하세요.');
     validationStatus(
       'success',
@@ -663,11 +765,11 @@ async function validateEditorSource() {
         : '검사 중 코드가 변경되었습니다. 다시 검사하세요.',
     );
     if (source === $('code').value) validationDetails(error);
-    if (source === $('code').value && Number.isInteger(error.diagnostic?.offset)) {
+    const position = diagnosticPosition(error.diagnostic, source);
+    if (source === $('code').value && position) {
       showPanel('writing');
-      editor.showError(error.diagnostic.offset);
-      $('code-error').textContent =
-        `${error.diagnostic.line}줄 ${error.diagnostic.column}열 · ${error.message}`;
+      editor.showError(position.offset);
+      $('code-error').textContent = `${position.line}줄 ${position.column}열 · ${error.message}`;
       $('code-error').hidden = false;
     }
     throw error;
@@ -690,10 +792,13 @@ function testPreparation(message = '', busy = Boolean(message)) {
 }
 async function prepareTest() {
   if (testing) throw new Error('진행 중인 경기를 종료한 뒤 다시 테스트하세요.');
+  const language = documentLanguage;
   const source = await validateEditorSource();
+  if (language !== documentLanguage) throw new Error('언어가 변경되었습니다. 다시 테스트하세요.');
   const payload = {
     type: 'editor-prepare',
     source,
+    language,
     name: documentName,
     requestId: ++testRequestId,
   };
@@ -724,6 +829,7 @@ window.addEventListener('message', (event) => {
     event.data.requestId === preparedRequest?.requestId
   ) {
     testSource = preparedRequest.source;
+    testLanguage = preparedRequest.language;
     preparedRequest = null;
     testPreparation();
     refreshTestCodeState();
@@ -754,9 +860,16 @@ window.addEventListener('beforeunload', (event) => {
 });
 try {
   const session = await accountBar();
+  authenticated = Boolean(session.user);
   if (!session.user) {
     notice('로그인 후 알고리즘을 작성할 수 있습니다. 목업 로그인은 로컬 개발 전용입니다.');
   } else {
+    try {
+      languageCapabilities = await api('/api/languages');
+    } catch {
+      languageCapabilities = DEFAULT_CAPABILITIES;
+    }
+    refreshLanguageUi();
     reset({ source: emptyAlgorithm });
     await library();
     $('workbench').hidden = false;

@@ -74,9 +74,18 @@ export function createFrontendServer({ operationsUrl, publicUrl }) {
     });
   }
   function proxy(req, res) {
+    // C# admission rechecks both immutable sources and prepares the game hosts.
+    // Each internal phase is bounded separately; preserve those server-owned waits.
+    const path = new URL(req.url, external).pathname;
+    const timeout =
+      req.method === 'POST' && path === '/api/matches'
+        ? 360000
+        : req.method === 'POST' && ['/api/algorithms/validate', '/api/game/validate'].includes(path)
+          ? 150000
+          : 60000;
     const upstream = http.request(
       new URL(req.url, operations),
-      { method: req.method, headers: forwardHeaders(req), timeout: 60000 },
+      { method: req.method, headers: forwardHeaders(req), timeout },
       (response) => {
         res.writeHead(response.statusCode, cleanHeaders(response.headers));
         void pipeline(response, res).catch(() => upstream.destroy());

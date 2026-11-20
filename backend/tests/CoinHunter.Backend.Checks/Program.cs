@@ -9,6 +9,8 @@ using Microsoft.Extensions.Hosting;
 
 if (args.Length < 1) throw new ArgumentException("Repository root is required.");
 var root = Path.GetFullPath(args[0]);
+if(args.Length==2&&args[1]=="csharp-user-components"){try{await CSharpUserSupportChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if(args.Length==3&&args[1]=="csharp-endurance"){try{Environment.ExitCode=await CSharpEnduranceChecks.Run(root,args[2]);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
 if(args.Length==2&&args[1]=="csharp-gc-recovered-games"){try{await CSharpGcActualGameChecks.Run(root,180,10000,true);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
 if(args.Length==2&&args[1]=="csharp-gc-recovery"){try{await CSharpGcRecoveryChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
 if(args.Length==2&&args[1]=="csharp-gc-game-smoke"){try{await CSharpGcActualGameChecks.Run(root,1);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}

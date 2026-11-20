@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using CoinHunter.Contracts;
+using CoinHunter.Infrastructure;
 using CoinHunter.Infrastructure.Execution;
 using CoinHunter.Infrastructure.Resources;
 using CoinHunter.Infrastructure.Storage;
@@ -19,9 +20,10 @@ public sealed class CSharpValidationService(StorageSettings settings, GameConten
     private ResourceProfile? profile;
     private bool closed;
     private CSharpRuntimePolicy runtime=CSharpRuntimePolicy.Read(configuration);
-    public object Readiness=>runtime.Readiness(GameCandidateEnabled,manager.Status,configuration.GetValue("Backend:CSharpGameCandidate:ExperimentalGcWindow",false),configuration.GetValue("Backend:CSharpGameCandidate:GcEntryCollection",false));
+    public object Readiness=>runtime.Readiness(GameCandidateEnabled,manager.Status,PublicBetaEnabled || configuration.GetValue("Backend:CSharpGameCandidate:ExperimentalGcWindow",false),PublicBetaEnabled || configuration.GetValue("Backend:CSharpGameCandidate:GcEntryCollection",false),PublicBetaEnabled);
     public Task<CSharpCacheMaintenance> MaintainCache(bool dryRun,CancellationToken token)=>preparations is null?throw new ServiceFault(503,"C# 후보 캐시는 비활성입니다."):preparations.MaintainAsync(runtime.ArtifactRetention,dryRun,token);
-    internal bool GameCandidateEnabled => configuration.GetValue("Backend:CSharpGameCandidate:Enabled", false) && preparations is not null && !closed;
+    public bool PublicBetaEnabled => new AlgorithmLanguages(configuration).CSharpEnabled && preparations is not null && !closed;
+    internal bool GameCandidateEnabled => (configuration.GetValue("Backend:CSharpGameCandidate:Enabled", false) || PublicBetaEnabled) && preparations is not null && !closed;
     internal CSharpGcGameLaunch? PlanGcGame(ExecutionRequest game,IExecutionResourceGroup scope,ResourceProfile limits)=>CSharpGcGameLaunch.Create(configuration,game,scope,limits);
     internal async Task<CSharpCandidatePlayer> PreparePlayer(ExecutionRequest game, ParticipantRequest player, string snapshot, IExecutionResourceGroup gameScope, ResourceProfile gameLimits, CancellationToken token,CSharpGcGameLaunch? gc=null,int gcIndex=0)
     {
@@ -42,7 +44,7 @@ public sealed class CSharpValidationService(StorageSettings settings, GameConten
     }
     public Task StartAsync(CancellationToken token)
     {
-        if (!configuration.GetValue("Backend:CSharpValidation:Enabled", false)) return Task.CompletedTask;
+        if (!configuration.GetValue("Backend:CSharpValidation:Enabled", false) && !new AlgorithmLanguages(configuration).CSharpEnabled) return Task.CompletedTask;
         runtime=CSharpRuntimePolicy.Read(configuration);runtime.EnsureDiskSpace(settings.ExecutionRoot);
         host = configuration["Backend:CSharpValidation:HostAssembly"];
         if (string.IsNullOrWhiteSpace(host) || !Path.IsPathFullyQualified(host) || !File.Exists(host)) throw new InvalidOperationException("C# candidate validation requires an explicit trusted HostAssembly.");

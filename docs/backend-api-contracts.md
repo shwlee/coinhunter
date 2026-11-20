@@ -2,35 +2,37 @@
 
 - 기준일: 2026-11-15, 기존 `src/server.js`, `src/authoring-api.js`, `src/auth/*`, `src/admin-maps-api.js`.
 - 구현 상태: 아래 업무 API를 C# 운영/실행 관리로 이전했고 기존 화면은 Node 정적 중계를 통해 연결한다. [완료 결과/제한](backend-split-completion.md), [실행법](../backend/README.md). 실제 사용자 데이터 이전/외부 Google 왕복은 별도다.
-- 기계적으로 확인할 목록: `backend/src/CoinHunter.Contracts/ApiCatalog.cs`, Development의 `GET /api/system/contracts`. 기존 36개와 신규 기록 다운로드 1개로 총 37개다.
+- 기계적으로 확인할 최신 목록: `backend/src/CoinHunter.Contracts/ApiCatalog.cs`, Development의 `GET /api/system/contracts`.
+- C# 후속 계약: [사용자 지원 1~4단계](csharp-user-support-plan.md). `GET /api/languages`와 원문 저장/검사·게임 요청의 `language`를 추가했다. 기존 요청은 JavaScript로 호환하며 C# 베타는 기본 비활성·최종 검증 대기다.
 
 ## 1. 경로·메서드·권한
 
-| 영역                  | 메서드/경로                                                                         | 권한·후속 단계                    |
-| --------------------- | ----------------------------------------------------------------------------------- | --------------------------------- |
-| 세션                  | GET `/api/session`                                                                  | 공개, 3단계                       |
-| Google 시작/콜백      | GET `/api/auth/google/start`, GET `/api/auth/google/callback`                       | 공개 OAuth flow, 3단계            |
-| 개발 로그인/로그아웃  | POST `/api/auth/mock`, POST `/api/auth/logout`                                      | 개발/세션 정책, 3단계             |
-| 사용자 관리           | GET `/api/admin/users`, PUT `/api/admin/users/{id}`                                 | 관리자, 3단계                     |
-| 작성 규약             | GET `/api/algorithm-assistant/contract`                                             | 로그인, 5단계                     |
-| 알고리즘 목록/생성    | GET·POST `/api/algorithms`                                                          | 로그인, 5단계                     |
-| 코드 검사             | POST `/api/algorithms/validate`                                                     | 로그인, 5단계                     |
-| 알고리즘 조회/수정    | GET·PUT `/api/algorithms/{id}`                                                      | 소유자, 5단계                     |
-| 원문 다운로드         | GET `/api/algorithms/{id}/source`                                                   | 소유자, 5단계                     |
-| 이전 경기             | GET `/api/history`                                                                  | 로그인, 5단계                     |
-| 공개 맵/예제          | GET `/api/maps`, GET `/api/example`                                                 | 공개, 5단계                       |
-| 맵 기본값             | GET `/api/admin/maps/default-settings`                                              | 관리자, 5단계                     |
-| 맵 입력 검사          | POST `/api/admin/maps/validate-array`, POST `/api/admin/maps/validate-json`         | 관리자, 5단계                     |
-| 맵 순서               | PUT `/api/admin/maps/order`                                                         | 관리자, 5단계                     |
-| 맵 목록/생성          | GET·POST `/api/admin/maps`                                                          | 관리자, 5단계                     |
-| 맵 복제               | POST `/api/admin/maps/{id}/copy`                                                    | 관리자, 5단계                     |
-| 맵 옵션               | GET·PUT `/api/admin/maps/{id}/settings`                                             | 관리자, 5단계                     |
-| 맵 미리보기           | GET `/api/admin/maps/{id}/preview`                                                  | 관리자, 5단계                     |
-| 맵 게시/노출          | POST `/api/admin/maps/{id}/publish`, PUT `/api/admin/maps/{id}/visibility`          | 관리자, 5단계                     |
-| 맵 초안               | GET·PUT `/api/admin/maps/{id}/draft`                                                | 관리자, 5단계                     |
-| 플레이 전 검사        | POST `/api/game/validate`                                                           | 게스트/계정, 6단계                |
-| 경기 생성             | POST `/api/matches`                                                                 | 게스트/계정, 재대결은 계정, 6단계 |
-| 경기 조회/이벤트/종료 | GET `/api/matches/{id}`, GET `/api/matches/{id}/events`, DELETE `/api/matches/{id}` | 경기 소유 범위, 6단계             |
+| 영역                  | 메서드/경로                                                                         | 권한·후속 단계                             |
+| --------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------ |
+| 세션                  | GET `/api/session`                                                                  | 공개, 3단계                                |
+| 지원 언어             | GET `/api/languages`                                                                | 공개, C# 사용은 로그인·서버 베타 설정 필요 |
+| Google 시작/콜백      | GET `/api/auth/google/start`, GET `/api/auth/google/callback`                       | 공개 OAuth flow, 3단계                     |
+| 개발 로그인/로그아웃  | POST `/api/auth/mock`, POST `/api/auth/logout`                                      | 개발/세션 정책, 3단계                      |
+| 사용자 관리           | GET `/api/admin/users`, PUT `/api/admin/users/{id}`                                 | 관리자, 3단계                              |
+| 작성 규약             | GET `/api/algorithm-assistant/contract`                                             | 로그인, 5단계                              |
+| 알고리즘 목록/생성    | GET·POST `/api/algorithms`                                                          | 로그인, 5단계                              |
+| 코드 검사             | POST `/api/algorithms/validate`                                                     | 로그인, 5단계                              |
+| 알고리즘 조회/수정    | GET·PUT `/api/algorithms/{id}`                                                      | 소유자, 5단계                              |
+| 원문 다운로드         | GET `/api/algorithms/{id}/source`                                                   | 소유자, 5단계                              |
+| 이전 경기             | GET `/api/history`                                                                  | 로그인, 5단계                              |
+| 공개 맵/예제          | GET `/api/maps`, GET `/api/example`                                                 | 공개, 5단계                                |
+| 맵 기본값             | GET `/api/admin/maps/default-settings`                                              | 관리자, 5단계                              |
+| 맵 입력 검사          | POST `/api/admin/maps/validate-array`, POST `/api/admin/maps/validate-json`         | 관리자, 5단계                              |
+| 맵 순서               | PUT `/api/admin/maps/order`                                                         | 관리자, 5단계                              |
+| 맵 목록/생성          | GET·POST `/api/admin/maps`                                                          | 관리자, 5단계                              |
+| 맵 복제               | POST `/api/admin/maps/{id}/copy`                                                    | 관리자, 5단계                              |
+| 맵 옵션               | GET·PUT `/api/admin/maps/{id}/settings`                                             | 관리자, 5단계                              |
+| 맵 미리보기           | GET `/api/admin/maps/{id}/preview`                                                  | 관리자, 5단계                              |
+| 맵 게시/노출          | POST `/api/admin/maps/{id}/publish`, PUT `/api/admin/maps/{id}/visibility`          | 관리자, 5단계                              |
+| 맵 초안               | GET·PUT `/api/admin/maps/{id}/draft`                                                | 관리자, 5단계                              |
+| 플레이 전 검사        | POST `/api/game/validate`                                                           | 게스트/계정, 6단계                         |
+| 경기 생성             | POST `/api/matches`                                                                 | 게스트/계정, 재대결은 계정, 6단계          |
+| 경기 조회/이벤트/종료 | GET `/api/matches/{id}`, GET `/api/matches/{id}/events`, DELETE `/api/matches/{id}` | 경기 소유 범위, 6단계                      |
 
 `/api/ai`와 하위 경로는 제거된 기능으로 410을 유지한다. `/api/system/contracts`는 Development 전용 점검 경로이며 Production에는 404다. 업무 API는 실제 인가/서비스로 처리하며 501 placeholder를 사용하지 않는다. 소유 경기의 `GET /api/matches/{id}/recording`을 추가해 원본 JSONL을 스트리밍한다.
 

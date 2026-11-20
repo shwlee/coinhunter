@@ -105,17 +105,17 @@ public sealed class AccountService(IAccountStore store, ISourceStore sources)
         }
         else if (item.Text("validationAttempt") != (attempt?.ToString() ?? "")) return Task.FromResult(false);
         item["validation"] = validation.DeepClone();
-        if (item.Text("language") == "csharp") item["validation"]!["executionAllowed"] = false;
+        // Trusted validation service derives executionAllowed after binding owner/hash/profile.
         return Task.FromResult(true);
     });
-    public Task<bool> RecoverValidations(string version) => store.Change(data =>
+    public Task<bool> RecoverValidations(string version, string? csharpVersion = null, bool csharpEnabled = false) => store.Change(data =>
     {
         foreach (var item in JsonData.Array(data, "algorithms").OfType<JsonObject>())
         {
             var validation = item["validation"] as JsonObject;
             if (validation?.Text("state") == "pending") { item["validation"] = new JsonObject { ["state"] = "unverified", ["message"] = "검사가 중단됐습니다. 다시 검사하세요." }; item.Remove("validationAttempt"); }
-            else if (item.Text("language", "javascript") != "javascript" || validation is null || validation.Text("version") != version) { item["validation"] = new JsonObject { ["state"] = "stale", ["message"] = "현재 규약으로 다시 검사해야 합니다." }; item.Remove("validationAttempt"); }
-            if (item.Text("language") == "csharp") item["validation"]!["executionAllowed"] = false;
+            else if (validation is null || validation.Text("version") != (item.Text("language", "javascript") == "javascript" ? version : csharpVersion ?? "")) { item["validation"] = new JsonObject { ["state"] = "stale", ["message"] = "현재 규약으로 다시 검사해야 합니다." }; item.Remove("validationAttempt"); }
+            if (item.Text("language") == "csharp") item["validation"]!["executionAllowed"] = csharpEnabled && item["validation"]!.Text("state") == "passed";
         }
         return Task.FromResult(true);
     });

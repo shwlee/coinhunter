@@ -23,6 +23,7 @@ var settings = BackendSettings.Read(builder.Configuration, builder.Environment, 
 builder.AddBackendFoundation(settings);
 builder.Services.AddSingleton<StorageSettings>();
 builder.Services.AddSingleton<GameContent>();
+builder.Services.AddSingleton<AlgorithmLanguages>();
 builder.Services.AddSingleton<IAccountStore, FileAccountStore>();
 builder.Services.AddSingleton<ISourceStore>(services => new FileSourceStore(Path.Combine(services.GetRequiredService<StorageSettings>().DataRoot, "accounts/sources")));
 builder.Services.AddSingleton<IMapStore, FileMapStore>();

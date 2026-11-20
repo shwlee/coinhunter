@@ -1,0 +1,339 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-11-20T09:18:42.960381+00:00",
+  "implementationBase": "1acb5207940b5693adcc56201c0bbf1a2a0981be",
+  "sourceChanges": "Endurance harness and internal readonly runtime identity; uncommitted at measurement",
+  "rawArtifacts": "artifacts/csharp-endurance-f92921bf-5170-4886-91a2-23f8c6708cdf",
+  "environment": {
+    "os": "Microsoft Windows 10.0.26200",
+    "architecture": "X64",
+    "runtime": "10.0.12"
+  },
+  "fixture": {
+    "columns": 40,
+    "rows": 30,
+    "centralCoins": 4,
+    "actionMs": 50,
+    "playersPerGame": {
+      "csharp": 2,
+      "javascript": 1
+    },
+    "persistentBytesPerCSharp": 134217728,
+    "normalCallAllocationBytes": 65536,
+    "scheduledTimeoutModulo": 257,
+    "scheduledTimeoutRemainder": 6,
+    "invalidDirectionModulo": 509,
+    "invalidDirectionRemainder": 4,
+    "stayInPlace": true
+  },
+  "options": {
+    "durationSeconds": 1800,
+    "games": 2,
+    "restartCycles": 3,
+    "sampleSeconds": 5,
+    "noProgressSeconds": 20,
+    "minimumFreeDiskMiB": 1024,
+    "maxJournalMiB": 4096,
+    "smoke": false
+  },
+  "passed": true,
+  "qualifiedLongRun": true,
+  "checks": 3287,
+  "totalElapsedMs": 1859233.2756,
+  "concurrentSoakMs": 1803986.3424,
+  "phases": [
+    {
+      "phase": "restart-cycles",
+      "cycle": 1,
+      "matchId": "ec38ab45-5749-4256-84a2-635b11357c8b",
+      "passed": true
+    },
+    {
+      "phase": "restart-cycles",
+      "cycle": 2,
+      "matchId": "6597f2cb-7a02-46df-94b9-f742bf37fc07",
+      "passed": true
+    },
+    {
+      "phase": "restart-cycles",
+      "cycle": 3,
+      "matchId": "04e2f07b-86ec-43dd-9b4d-c84c4b358314",
+      "passed": true
+    },
+    {
+      "phase": "engine-crash",
+      "matchId": "7abfb1da-feab-41de-a8bb-5d7dc58f4e59",
+      "passed": true
+    },
+    {
+      "phase": "runner-crash",
+      "matchId": "871d1a1d-14e7-4836-ad05-e775fd101ce9",
+      "passed": true
+    },
+    {
+      "phase": "restart-after-fault",
+      "matchId": "af3b137a-64ce-419f-8871-efa498576cbe",
+      "passed": true
+    },
+    {
+      "phase": "soak",
+      "plannedSeconds": 1800,
+      "actualMs": 1803986.3424,
+      "games": 2,
+      "passed": true
+    }
+  ],
+  "healthySoak": {
+    "games": 2,
+    "events": 918493,
+    "results": 162280,
+    "cSharpResults": 107091,
+    "gcObservations": 107091,
+    "gcEntryRecoveries": 5,
+    "timeouts": 418,
+    "unscheduledLoggedTimeouts": 0,
+    "lateResults": 0,
+    "runtimeFailures": 0,
+    "maxEntryMs": 22.2321,
+    "maxExecutionMs": 500.2182,
+    "journalBytes": 1124049948
+  },
+  "journals": [
+    {
+      "matchId": "ec38ab45-5749-4256-84a2-635b11357c8b",
+      "bytes": 78614,
+      "events": 66,
+      "results": 11,
+      "cSharpResults": 5,
+      "observations": 5,
+      "recoveries": 0,
+      "timeouts": 0,
+      "unscheduledTimeouts": 0,
+      "lateResults": 0,
+      "runtimeFailures": 0,
+      "maxEntryMs": 0.4201,
+      "maxExecutionMs": 0.9416,
+      "recording": "complete"
+    },
+    {
+      "matchId": "6597f2cb-7a02-46df-94b9-f742bf37fc07",
+      "bytes": 78604,
+      "events": 66,
+      "results": 11,
+      "cSharpResults": 5,
+      "observations": 5,
+      "recoveries": 0,
+      "timeouts": 0,
+      "unscheduledTimeouts": 0,
+      "lateResults": 0,
+      "runtimeFailures": 0,
+      "maxEntryMs": 0.4289,
+      "maxExecutionMs": 0.9416,
+      "recording": "complete"
+    },
+    {
+      "matchId": "04e2f07b-86ec-43dd-9b4d-c84c4b358314",
+      "bytes": 78615,
+      "events": 66,
+      "results": 11,
+      "cSharpResults": 5,
+      "observations": 5,
+      "recoveries": 0,
+      "timeouts": 0,
+      "unscheduledTimeouts": 0,
+      "lateResults": 0,
+      "runtimeFailures": 0,
+      "maxEntryMs": 0.4823,
+      "maxExecutionMs": 0.9202,
+      "recording": "complete"
+    },
+    {
+      "matchId": "7abfb1da-feab-41de-a8bb-5d7dc58f4e59",
+      "bytes": 39354,
+      "events": 34,
+      "results": 6,
+      "cSharpResults": 3,
+      "observations": 3,
+      "recoveries": 0,
+      "timeouts": 0,
+      "unscheduledTimeouts": 0,
+      "lateResults": 0,
+      "runtimeFailures": 0,
+      "maxEntryMs": 0.4206,
+      "maxExecutionMs": 0.9081,
+      "recording": "partial"
+    },
+    {
+      "matchId": "871d1a1d-14e7-4836-ad05-e775fd101ce9",
+      "bytes": 78537,
+      "events": 66,
+      "results": 11,
+      "cSharpResults": 5,
+      "observations": 5,
+      "recoveries": 0,
+      "timeouts": 0,
+      "unscheduledTimeouts": 0,
+      "lateResults": 0,
+      "runtimeFailures": 1,
+      "maxEntryMs": 0.4347,
+      "maxExecutionMs": 0.945,
+      "recording": "complete"
+    },
+    {
+      "matchId": "af3b137a-64ce-419f-8871-efa498576cbe",
+      "bytes": 43206,
+      "events": 35,
+      "results": 6,
+      "cSharpResults": 3,
+      "observations": 3,
+      "recoveries": 0,
+      "timeouts": 0,
+      "unscheduledTimeouts": 0,
+      "lateResults": 0,
+      "runtimeFailures": 0,
+      "maxEntryMs": 0.4256,
+      "maxExecutionMs": 0.9151,
+      "recording": "complete"
+    },
+    {
+      "matchId": "238a1303-0a4e-45df-a0a3-982810a14d65",
+      "bytes": 563432601,
+      "events": 460344,
+      "results": 81334,
+      "cSharpResults": 53673,
+      "observations": 53673,
+      "recoveries": 2,
+      "timeouts": 210,
+      "unscheduledTimeouts": 0,
+      "lateResults": 0,
+      "runtimeFailures": 0,
+      "maxEntryMs": 22.1579,
+      "maxExecutionMs": 500.2009,
+      "recording": "complete"
+    },
+    {
+      "matchId": "42d05558-34c1-44b5-aeaa-02b4ce3ef8b8",
+      "bytes": 560617347,
+      "events": 458149,
+      "results": 80946,
+      "cSharpResults": 53418,
+      "observations": 53418,
+      "recoveries": 3,
+      "timeouts": 208,
+      "unscheduledTimeouts": 0,
+      "lateResults": 0,
+      "runtimeFailures": 0,
+      "maxEntryMs": 22.2321,
+      "maxExecutionMs": 500.2182,
+      "recording": "complete"
+    }
+  ],
+  "samples": {
+    "count": 359,
+    "firstElapsedSeconds": 0.0144945,
+    "lastElapsedSeconds": 1798.9774942,
+    "memory": [
+      {
+        "matchId": "238a1303-0a4e-45df-a0a3-982810a14d65",
+        "engineAndCSharpPrivateBytes": {
+          "first": 978788352,
+          "last": 1169858560,
+          "min": 848125952,
+          "max": 1226461184
+        },
+        "engineAndCSharpExcludesJavaScriptChild": true,
+        "osGroupPeakIncludesDescendantsBytes": 1276325888,
+        "osGroupLimitBytes": 2415919104,
+        "finalSampleTurns": [26759, 26758, 27583],
+        "enginePid": 20676,
+        "actorPids": [18416, 9632],
+        "instances": [
+          "f78c6cea-5b9c-45a4-80be-526dce702343",
+          "1c939c72-75ab-4104-8b18-484fa75af199"
+        ]
+      },
+      {
+        "matchId": "42d05558-34c1-44b5-aeaa-02b4ce3ef8b8",
+        "engineAndCSharpPrivateBytes": {
+          "first": 926142464,
+          "last": 1138966528,
+          "min": 850190336,
+          "max": 1326338048
+        },
+        "engineAndCSharpExcludesJavaScriptChild": true,
+        "osGroupPeakIncludesDescendantsBytes": 1380986880,
+        "osGroupLimitBytes": 2415919104,
+        "finalSampleTurns": [26630, 26630, 27449],
+        "enginePid": 24400,
+        "actorPids": [7356, 22036],
+        "instances": [
+          "c411ad9f-f870-4de8-a386-f7a5a9787c07",
+          "d07f3617-1e24-4c88-9afd-59b49e799f61"
+        ]
+      }
+    ]
+  },
+  "finalResources": {
+    "adapter": "windows-job-v1",
+    "processLimitUnit": "processes",
+    "reservedMemoryBytes": 0,
+    "reservedProcesses": 0,
+    "totalMemoryBytes": 6442450944,
+    "totalProcesses": 32
+  },
+  "finalHosts": {
+    "active": 0,
+    "cleanupUnconfirmed": 0,
+    "closed": 130,
+    "forced": 1
+  },
+  "supervisor": {
+    "exitCode": 0,
+    "stopReason": null,
+    "forced": false,
+    "passed": true,
+    "reportPresent": true
+  },
+  "smoke": {
+    "passed": true,
+    "qualifiedLongRun": false,
+    "checks": 222,
+    "soakMs": 20599.2839
+  },
+  "operatorCancellation": {
+    "output": "D:\\proj\\algorithms\\coinhunter\\artifacts\\csharp-endurance-362189b2-9e55-4839-a2d4-f11bc51736fb",
+    "exitCode": 2,
+    "passed": false,
+    "qualifiedLongRun": false,
+    "finalReservedMemoryBytes": 0,
+    "finalReservedProcesses": 0,
+    "activeHosts": 0,
+    "cleanupUnconfirmed": 0,
+    "supervisor": {
+      "exitCode": 2,
+      "stopReason": "operator-file",
+      "forced": false,
+      "passed": false,
+      "reportPresent": true
+    }
+  },
+  "argumentChecks": {
+    "rejections": 9,
+    "help": true
+  },
+  "additionalVerification": {
+    "isolatedBuildWarnings": 0,
+    "isolatedBuildErrors": 0,
+    "csharpMixedGameChecks": 39,
+    "nodeSyntax": true
+  },
+  "publicCSharpEnabled": false,
+  "defaultGcEnabled": false,
+  "limitations": [
+    "Windows local single workload only",
+    "No strict physical 500ms preemption proof",
+    "No Linux isolation acceptance",
+    "No deployment capacity approval",
+    "No public CSharp activation"
+  ]
+}

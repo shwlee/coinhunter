@@ -18,6 +18,7 @@ public sealed class ExecutionResourceSettings
 {
     public ResourceProfile Game { get; }
     public ResourceProfile Validation { get; }
+    public ResourceProfile CSharpBetaGame { get; }
     public long TotalMemoryBytes { get; }
     public int TotalProcesses { get; }
     public string? CgroupRoot { get; }
@@ -27,6 +28,7 @@ public sealed class ExecutionResourceSettings
         long Bytes(string key, int fallback) => checked(configuration.GetValue("Backend:Resources:" + key, fallback) * 1024L * 1024L);
         Game = new("game-group-v1", Bytes("GameMemoryMiB", 1024), configuration.GetValue("Backend:Resources:GameProcesses", OperatingSystem.IsWindows() ? 5 : 256), configuration.GetValue("Backend:Resources:GameCpuRate", 2500));
         Validation = new("validation-group-v1", Bytes("ValidationMemoryMiB", 512), configuration.GetValue("Backend:Resources:ValidationProcesses", OperatingSystem.IsWindows() ? 3 : 128), configuration.GetValue("Backend:Resources:ValidationCpuRate", 1250));
+        CSharpBetaGame = new("csharp-windows-beta-game-v1", checked(configuration.GetValue("Backend:Languages:CSharpGameMemoryMiB", 2304) * 1024L * 1024), 5, configuration.GetValue("Backend:Languages:CSharpGameCpuRate", 10000));
         TotalMemoryBytes = Bytes("TotalMemoryMiB", 6144);
         TotalProcesses = configuration.GetValue("Backend:Resources:TotalProcesses", OperatingSystem.IsWindows() ? 32 : 1536);
         CgroupRoot = configuration["Backend:Resources:CgroupRoot"];
@@ -34,6 +36,12 @@ public sealed class ExecutionResourceSettings
         var executionRoot = Path.GetFullPath(configuration["Backend:ExecutionRoot"] ?? Path.Combine(repository, "data/backend/execution"));
         ScopeKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(executionRoot))).ToLowerInvariant()[..16];
         Game.Validate(); Validation.Validate();
+        if (new AlgorithmLanguages(configuration).CSharpEnabled)
+        {
+            CSharpBetaGame.Validate();
+            if (CSharpBetaGame.MemoryBytes < 2304L * 1024 * 1024 || TotalMemoryBytes < CSharpBetaGame.MemoryBytes + 1536L * 1024 * 1024)
+                throw new InvalidOperationException("C# beta requires a 2304MiB game budget and 1536MiB preparation headroom.");
+        }
         if (TotalMemoryBytes < Math.Max(Game.MemoryBytes, Validation.MemoryBytes) || TotalProcesses < Math.Max(Game.ProcessCount, Validation.ProcessCount))
             throw new InvalidOperationException("Execution resource budget cannot admit one configured group.");
     }

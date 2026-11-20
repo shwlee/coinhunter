@@ -1,0 +1,498 @@
+{
+  "reviewedCommit": "1acb5207940b5693adcc56201c0bbf1a2a0981be",
+  "reviewedAt": "2026-11-20T08:26:42.897Z",
+  "newFindings": {
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "productCodeChangedDuringReview": false,
+  "policyChecks": {
+    "reviewedCommit": "1acb520",
+    "checks": 16,
+    "rows": [
+      {
+        "name": "legal",
+        "expected": true,
+        "result": {
+          "sourceHash": "b12367312c83bb5950eada337cc91b401a63a8d7d55604dc7fd708a8df16f211",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": true,
+          "executionAllowed": false,
+          "diagnostics": [],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "direct-gc",
+        "expected": false,
+        "result": {
+          "sourceHash": "5e7c0c42c1ea67a74bf1eff43bdea919067586d5d9ba4807444524614b8875d2",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AR002",
+              "message": "승인되지 않은 메서드/생성자: Collect",
+              "line": 1,
+              "column": 155
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "aliased-gc",
+        "expected": false,
+        "result": {
+          "sourceHash": "5356e7919d6268c3d65ec313b8299b4f92a2ad97ea2f1b2fd615ba0b6f767bf0",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AR002",
+              "message": "승인되지 않은 메서드/생성자: Collect",
+              "line": 1,
+              "column": 173
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "thread-sleep",
+        "expected": false,
+        "result": {
+          "sourceHash": "ad6e4deb84d3fad460e3c2630d9ecee5af4890f4e68e402e5c765a943221f5aa",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AR002",
+              "message": "승인되지 않은 메서드/생성자: Sleep",
+              "line": 1,
+              "column": 155
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "task",
+        "expected": false,
+        "result": {
+          "sourceHash": "0f873b84b9d22a48559634ce937ea4b776204564377afc8acf4f9da0317fff88",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AR002",
+              "message": "승인되지 않은 메서드/생성자: Run",
+              "line": 1,
+              "column": 155
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "file",
+        "expected": false,
+        "result": {
+          "sourceHash": "9c0626c099a9c892d5c0c2c68e38e466d64587c37fb8b92329f02f92065070f3",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AR002",
+              "message": "승인되지 않은 메서드/생성자: ReadAllText",
+              "line": 1,
+              "column": 164
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "static",
+        "expected": false,
+        "result": {
+          "sourceHash": "428ad838837fae682ead3252fe44ec9b5e05c2c1653e07d216eef72f4326e367",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AR003",
+              "message": "사용자 static 선언은 금지됩니다.",
+              "line": 1,
+              "column": 22
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "catch",
+        "expected": false,
+        "result": {
+          "sourceHash": "e873cc88cdb1f6b0b04583b2ce073393907b44d77eb9ec68ef5751b4b62c4d24",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AR011",
+              "message": "허용 프로필에 없는 구문: TryStatement",
+              "line": 1,
+              "column": 155
+            },
+            {
+              "code": "AP001",
+              "message": "허용 프로필에 없는 구문: CatchClause",
+              "line": 1,
+              "column": 174
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "recursion",
+        "expected": false,
+        "result": {
+          "sourceHash": "f493e776116a828320b09bbe4250b84346547826232e21a7981443d66a7294a3",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AR009",
+              "message": "직접/상호 재귀 호출은 금지됩니다.",
+              "line": 1,
+              "column": 175
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "dynamic",
+        "expected": false,
+        "result": {
+          "sourceHash": "eee85048563d6a47d8723582ab46a81cc27b6294f7c981a1e14313ec10d2c299",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AP001",
+              "message": "동적 타입과 동적 접근은 지원하지 않습니다.",
+              "line": 1,
+              "column": 155
+            },
+            {
+              "code": "AR002",
+              "message": "허용되지 않은 변수/필드 타입입니다.",
+              "line": 1,
+              "column": 155
+            },
+            {
+              "code": "AP001",
+              "message": "동적 타입과 동적 접근은 지원하지 않습니다.",
+              "line": 1,
+              "column": 177
+            },
+            {
+              "code": "AP001",
+              "message": "호출 대상을 확정할 수 없습니다.",
+              "line": 1,
+              "column": 177
+            },
+            {
+              "code": "AP001",
+              "message": "동적 타입과 동적 접근은 지원하지 않습니다.",
+              "line": 1,
+              "column": 179
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "goto",
+        "expected": false,
+        "result": {
+          "sourceHash": "1609a3d86fc9af392de5308a4d8a9a3cc0f65ed25138c2df2a8e297eccb8f95e",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AP001",
+              "message": "허용 프로필에 없는 구문: LabeledStatement",
+              "line": 1,
+              "column": 155
+            },
+            {
+              "code": "AR010",
+              "message": "허용 프로필에 없는 구문: GotoStatement",
+              "line": 1,
+              "column": 161
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "string-compound",
+        "expected": false,
+        "result": {
+          "sourceHash": "69a4787db708cc33ab5f1636d58cb7124a14fd882b3fd7f6603cba6257bc9d2c",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AP001",
+              "message": "문자열 += 대신 s = s + value 형태를 사용하세요.",
+              "line": 1,
+              "column": 168
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "dictionary-index-write",
+        "expected": false,
+        "result": {
+          "sourceHash": "252534ee108e0ceb8d258eb12ee669fc9c22a4fd77c6181d0fd66c5960ee9161",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AP001",
+              "message": "사전 인덱서 변경은 미지원입니다. 추가는 Add 메서드를 사용하세요.",
+              "line": 1,
+              "column": 214
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "oversize-constant-array",
+        "expected": false,
+        "result": {
+          "sourceHash": "b3f1357f04f113275bb57ef3dfbdc48a6d61f9535f8abef7ec4a6f5cc3023d5a",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AP001",
+              "message": "단일 배열 요소 한도는 1048576개입니다.",
+              "line": 1,
+              "column": 171
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "host-guard-reference",
+        "expected": false,
+        "result": {
+          "sourceHash": "badccac2cd84a0694ea6a96b0c5f91a08c33a9f6849ef4d5cbba3b8f8bf949fe",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AX001",
+              "message": "'CoinHunter' 이름이 현재 컨텍스트에 없습니다.",
+              "line": 1,
+              "column": 155
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      },
+      {
+        "name": "reflection",
+        "expected": false,
+        "result": {
+          "sourceHash": "c3614612be8d5acdb7f2aa3c9d51b1bd6f667a374552798946897e3cfa076b27",
+          "profile": "csharp-restricted-c1-v4",
+          "staticPassed": false,
+          "executionAllowed": false,
+          "diagnostics": [
+            {
+              "code": "AR002",
+              "message": "허용되지 않은 변수/필드 타입입니다.",
+              "line": 1,
+              "column": 155
+            },
+            {
+              "code": "AR002",
+              "message": "승인되지 않은 메서드/생성자: GetType",
+              "line": 1,
+              "column": 161
+            },
+            {
+              "code": "AR002",
+              "message": "승인되지 않은 속성입니다.",
+              "line": 1,
+              "column": 185
+            }
+          ],
+          "policyVersion": "authoring-policy-v1",
+          "analyzerVersion": "c1-5",
+          "runtimeVersion": "10.0.12",
+          "roslynVersion": "5.9.0.0"
+        }
+      }
+    ]
+  },
+  "protocolChecks": {
+    "reviewedCommit": "1acb520",
+    "checks": 15,
+    "rows": [
+      {
+        "name": "valid-recovery",
+        "accepted": true,
+        "passed": true
+      },
+      {
+        "name": "valid-fast-entry",
+        "accepted": true,
+        "passed": true
+      },
+      {
+        "name": "wrong-policy",
+        "accepted": false,
+        "passed": true
+      },
+      {
+        "name": "zero-attempt-completion",
+        "accepted": false,
+        "passed": true
+      },
+      {
+        "name": "unbounded-retry",
+        "accepted": false,
+        "passed": true
+      },
+      {
+        "name": "negative-entry-gc",
+        "accepted": false,
+        "passed": true
+      },
+      {
+        "name": "fractional-entry-gc",
+        "accepted": false,
+        "passed": true
+      },
+      {
+        "name": "missing-success-snapshot",
+        "accepted": false,
+        "passed": true
+      },
+      {
+        "name": "extra-private-snapshot-field",
+        "accepted": false,
+        "passed": true
+      },
+      {
+        "name": "negative-heap",
+        "accepted": false,
+        "passed": true
+      },
+      {
+        "name": "gc-inside-guest",
+        "accepted": false,
+        "passed": true
+      },
+      {
+        "name": "over-host-budget",
+        "accepted": false,
+        "passed": true
+      },
+      {
+        "name": "valid-partial",
+        "accepted": true,
+        "passed": true
+      },
+      {
+        "name": "missing-before",
+        "accepted": false,
+        "passed": true
+      },
+      {
+        "name": "extra-failure-field",
+        "accepted": false,
+        "passed": true
+      }
+    ]
+  },
+  "actualCachePreparationChecks": 37,
+  "actualDirectChannelChecks": 10022,
+  "residualAcceptance": [
+    "strict 500ms settlement not established",
+    "Linux sandbox/cgroup and deployment load not executed",
+    "public C# and GC defaults remain disabled",
+    "legacy account lock intermittent EPERM not fixed"
+  ]
+}

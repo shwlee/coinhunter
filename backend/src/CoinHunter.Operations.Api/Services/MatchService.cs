@@ -3,11 +3,14 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using CoinHunter.Contracts;
 using CoinHunter.Infrastructure.Storage;
+using CoinHunter.Infrastructure;
+using Microsoft.Extensions.Configuration;
 
 namespace CoinHunter.Operations.Api.Services;
 
-public sealed class MatchService(IAccountStore store, AccountService accounts, IMapStore maps, GameContent content, StorageSettings storage, ExecutionClient execution, AlgorithmValidationService validation) : BackgroundService
+public sealed class MatchService(IAccountStore store, AccountService accounts, IMapStore maps, GameContent content, StorageSettings storage, ExecutionClient execution, AlgorithmValidationService validation, IConfiguration? configuration = null) : BackgroundService
 {
+    private readonly AlgorithmLanguages languagePolicy = new(configuration ?? new ConfigurationBuilder().Build());
     private readonly SemaphoreSlim creation = new(1);
     private readonly SemaphoreSlim reconciliation = new(1);
     private readonly SemaphoreSlim applying = new(1);
@@ -28,33 +31,41 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
                 throw new ServiceFault(400, "이전 경기 대결은 로그인 후 본인의 경기 기록으로만 가능합니다.");
             var map = await maps.Get(input.Text("mapId"), published: true); MapRules.Validate(map, content, true);
             SourceReference primary;
+            string language = input.Text("language", "javascript");
             if (input["algorithmId"] is not null)
             {
                 if (scope.Kind != "user") throw new ServiceFault(401, "로그인이 필요합니다.");
                 if (upload is not null || input.ContainsKey("source")) throw new ServiceFault(400, "파일과 저장 알고리즘 중 하나만 선택하세요.");
                 var saved = await accounts.Algorithm(scope.SubjectId.ToString(), input.Text("algorithmId"));
-                if(saved.Text("language","javascript")!="javascript")throw new ServiceFault(503,"이 언어의 게임 지원은 아직 활성화되지 않았습니다.");
+                language = saved.Text("language", "javascript");
+                if (input.ContainsKey("language") && input.Text("language") != language) throw new ServiceFault(400, "저장 알고리즘의 언어가 일치하지 않습니다.");
+                languagePolicy.Require(language, true);
                 primary = await accounts.Sources.Copy(Guid.Parse(saved.Text("sourceKey")), Exchange);
                 staged.Add(primary.SourceKey);
             }
             else primary = upload ?? throw new ServiceFault(400, "알고리즘 코드가 필요합니다.");
+            languagePolicy.Require(language, scope.Kind == "user");
             var sources = new List<SourceReference> { primary };
+            var languages = new List<string> { language };
             if (mode == "duel")
             {
                 var previous = await accounts.Algorithm(scope.SubjectId.ToString(), input.Text("opponentHistoryId"), true);
-                if(previous.Text("language","javascript")!="javascript")throw new ServiceFault(503,"이 언어의 게임 지원은 아직 활성화되지 않았습니다.");
+                var previousLanguage = previous.Text("language", "javascript");
+                languagePolicy.Require(previousLanguage, true);
                 var copied = await accounts.Sources.Copy(Guid.Parse(previous.Text("sourceKey")), Exchange); staged.Add(copied.SourceKey); sources.Add(copied);
+                languages.Add(previousLanguage);
             }
             else
                 for (var i = 0; i < dummy; i++)
                 {
                     await using var example = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content.Value.Text("example")));
                     var copied = await Exchange.Put(example); staged.Add(copied.SourceKey); sources.Add(copied);
+                    languages.Add("javascript");
                 }
             var requestKey = Guid.NewGuid();
             if (idempotencyKey is not null && (!Guid.TryParseExact(idempotencyKey, "D", out requestKey) || requestKey == Guid.Empty)) throw new ServiceFault(400, "Idempotency-Key는 UUID 형식이어야 합니다.");
             var fingerprintInput = input.CloneObject(); fingerprintInput.Remove("source");
-            var fingerprint = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Canonical(fingerprintInput)!.ToJsonString() + string.Join(',', sources.Select(source => source.Sha256)))));
+            var fingerprint = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Canonical(fingerprintInput)!.ToJsonString() + string.Join(',', sources.Select(source => source.Sha256)) + (languages.Any(value => value != "javascript") ? "/languages:" + string.Join(',', languages) : ""))));
             var existing = await store.Read(data => JsonData.Array(data, "matches").OfType<JsonObject>().SingleOrDefault(item => item.Text("owner") == owner && item.Text("requestKey") == requestKey.ToString())?.CloneObject());
             if (existing is not null)
             {
@@ -65,7 +76,7 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
             if (active) throw new ServiceFault(409, "진행 중인 게임을 먼저 종료하세요.");
             // Revalidate immutable snapshots at server admission, including history opponents.
             // Client-supplied flags, old stored statuses and a successful save are not execution permission.
-            foreach (var source in sources.Take(mode == "duel" ? 2 : 1)) await validation.RequirePassed(scope, source);
+            for (int i = 0; i < (mode == "duel" ? 2 : 1); i++) await validation.RequirePassed(scope, sources[i], languages[i]);
             var id = Guid.NewGuid();
             var slots = mode == "duel" ? new[] { slot, 3 - slot } : new[] { slot }.Concat(new[] { 0, 1, 2, 3 }.Where(value => value != slot)).ToArray();
             var request = new ExecutionRequest
@@ -75,7 +86,7 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
                 MatchId = id,
                 Scope = scope,
                 Map = new MapSnapshot { Id = map.Text("id"), Revision = map.Int("revision"), Columns = map.Int("columns"), Rows = map.Int("rows"), Tiles = map["tiles"]!.AsArray().Select(value => value!.GetValue<int>()).ToArray(), Settings = JsonSerializer.SerializeToElement(map["settings"]) },
-                Participants = sources.Select((source, index) => new ParticipantRequest { PlayerId = index, RunId = Guid.NewGuid(), Language = "javascript", Source = source, StartSlot = slots[index], CharacterId = index == 0 ? character : mode == "duel" ? character == "pengko" ? "nyangtami" : "pengko" : "kobi" }).ToArray(),
+                Participants = sources.Select((source, index) => new ParticipantRequest { PlayerId = index, RunId = Guid.NewGuid(), Language = languages[index], Source = source, StartSlot = slots[index], CharacterId = index == 0 ? character : mode == "duel" ? character == "pengko" ? "nyangtami" : "pengko" : "kobi" }).ToArray(),
                 Options = new MatchOptions { Mode = mode, BlackMatter = input.Bool("blackMatter"), DestroyWalls = input.Bool("destroyWalls") }
             };
             await store.Change(data =>
@@ -103,7 +114,7 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
     }
     private async Task EnsureStarted(ExecutionRequest request)
     {
-        var view = await execution.Call(HttpMethod.Post, "/internal/v1/matches", request);
+        var view = await execution.Call(HttpMethod.Post, "/internal/v1/matches", request, candidateValidation: request.Participants.Any(player => player.Language == "csharp"));
         for (var attempt = 0; view.Text("state") == "accepted" && attempt < 200; attempt++)
         {
             await Task.Delay(100);
@@ -183,7 +194,8 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
                 if (historySource is Guid key)
                 {
                     var player = snapshot!["game"]!["players"]![0]!;
-                    JsonData.Array(data, "history").Add(new JsonObject { ["id"] = id, ["matchId"] = id, ["ownerId"] = scope.SubjectId.ToString(), ["playedAt"] = DateTimeOffset.UtcNow.ToString("O"), ["mapId"] = item["request"]!["map"]!.Text("id"), ["mapName"] = item.Text("mapName"), ["algorithmName"] = player.Text("name"), ["characterId"] = player.Text("characterId"), ["score"] = player.Int("score"), ["reason"] = reason, ["mode"] = item["request"]!["options"]!.Text("mode"), ["sourceKey"] = key.ToString() });
+                    var primary = item["request"]!["participants"]![0]!;
+                    JsonData.Array(data, "history").Add(new JsonObject { ["id"] = id, ["matchId"] = id, ["ownerId"] = scope.SubjectId.ToString(), ["playedAt"] = DateTimeOffset.UtcNow.ToString("O"), ["mapId"] = item["request"]!["map"]!.Text("id"), ["mapName"] = item.Text("mapName"), ["algorithmName"] = player.Text("name"), ["characterId"] = player.Text("characterId"), ["score"] = player.Int("score"), ["reason"] = reason, ["mode"] = item["request"]!["options"]!.Text("mode"), ["sourceKey"] = key.ToString(), ["language"] = primary.Text("language", "javascript"), ["sourceHash"] = primary["source"]!.Text("sha256") });
                 }
                 current["resultHash"] = hash; current["completed"] = true; current["applied"] = true; current["finalSnapshot"] = snapshot?.DeepClone(); current["recording"] = result["recording"]?.DeepClone();
                 return Task.FromResult(true);
@@ -223,7 +235,7 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
                     continue;
                 }
                 var request = item["request"]!.Deserialize<ExecutionRequest>(Protocol.JsonOptions)!;
-                var view = await execution.Call(HttpMethod.Post, "/internal/v1/matches", request);
+                var view = await execution.Call(HttpMethod.Post, "/internal/v1/matches", request, candidateValidation: request.Participants.Any(player => player.Language == "csharp"));
                 if (view["result"] is JsonObject) { await Apply(item, view); continue; }
                 var ended = item.Text("stopReason");
                 if (request.Scope.Kind == "user" && await accounts.User(request.Scope.SubjectId.ToString()) is null) ended = "account-ended";

@@ -1,4 +1,5 @@
 using CoinHunter.Contracts;
+using CoinHunter.Infrastructure;
 using CoinHunter.Execution.Host.Services;
 using CoinHunter.Infrastructure.Storage;
 using Microsoft.AspNetCore.Mvc;
@@ -8,8 +9,10 @@ namespace CoinHunter.Execution.Host.Controllers;
 [ApiController]
 [Route("internal/v1")]
 [RequestSizeLimit(Protocol.MaxFrameBytes)]
-public sealed class InternalController(ExecutionManager manager, StorageSettings settings, CSharpValidationService csharp) : ControllerBase
+public sealed class InternalController(ExecutionManager manager, StorageSettings settings, CSharpValidationService csharp, AlgorithmLanguages languages) : ControllerBase
 {
+    [HttpGet("languages")]
+    public IActionResult Languages() => Ok(languages.Describe(csharp.PublicBetaEnabled));
     [HttpGet("status")]
     public IActionResult Status() => Ok(new ExecutionServiceStatus(Protocol.ExecutionService, Protocol.Version, Protocol.Stage, true, ["health", "contracts", "matches", "validations", "recordings"]));
     [HttpGet("contracts")]

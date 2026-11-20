@@ -15,6 +15,7 @@ var settings = BackendSettings.Read(builder.Configuration, builder.Environment, 
 builder.AddBackendFoundation(settings);
 builder.Services.AddSingleton<StorageSettings>();
 builder.Services.AddSingleton<GameContent>();
+builder.Services.AddSingleton<AlgorithmLanguages>();
 builder.Services.AddSingleton<ExecutionResourceSettings>();
 builder.Services.AddSingleton<ExecutionResources>();
 builder.Services.AddSingleton<CSharpHostManager>();

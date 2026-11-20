@@ -7,6 +7,7 @@ public static class ApiCatalog
 {
     public static readonly ApiRouteContract[] Public =
     [
+        new("GET", "/api/languages", "public", 5, "none", "effective language capabilities; C# beta disabled by default"),
         new("GET", "/api/session", "public", 3, "none", "{user,mock,google,identities}"),
         new("GET", "/api/auth/google/start", "public", 3, "query: next", "302 + flow cookie"),
         new("GET", "/api/auth/google/callback", "oauth-flow", 3, "query: code,state,error", "302 + session cookie"),
@@ -16,15 +17,15 @@ public static class ApiCatalog
         new("PUT", "/api/admin/users/{id}", "admin", 3, "JSON: active,role,expectedActive,expectedRole", "user"),
         new("GET", "/api/algorithm-assistant/contract", "user", 5, "none", "versioned authoring contract"),
         new("GET", "/api/algorithms", "user", 5, "none", "{algorithms}"),
-        new("POST", "/api/algorithms", "user", 5, "text/plain + query:name; legacy JSON", "201 algorithm metadata"),
-        new("POST", "/api/algorithms/validate", "user", 5, "text/plain; legacy JSON:source", "200/400 diagnostic"),
+        new("POST", "/api/algorithms", "user", 5, "text/plain + query:name,language(default javascript); legacy JSON", "201 language/hash/revision metadata"),
+        new("POST", "/api/algorithms/validate", "user", 5, "text/plain + query:language; legacy JSON:source,language", "200/400 diagnostic; current language policy required"),
         new("GET", "/api/algorithms/{id}", "owner", 5, "query:metadata=1", "metadata; legacy small JSON source"),
-        new("PUT", "/api/algorithms/{id}", "owner", 5, "text/plain + query:name,revision; legacy JSON", "metadata or 409"),
+        new("PUT", "/api/algorithms/{id}", "owner", 5, "text/plain + query:name,revision,language(original default); legacy JSON", "metadata or 409; language changes require new record"),
         new("GET", "/api/algorithms/{id}/source", "owner", 5, "none", "text/plain + X-Coinhunter-Metadata"),
         new("POST", "/api/algorithms/{id}/validate", "owner", 40, "none", "saved-source validation queue status"),
-        new("GET", "/api/history", "user", 5, "none", "{history}"),
+        new("GET", "/api/history", "user", 5, "none", "{history}; primary language/hash, old records default javascript"),
         new("GET", "/api/maps", "public", 5, "none", "{maps}"),
-        new("GET", "/api/example", "public", 5, "none", "text/plain attachment"),
+        new("GET", "/api/example", "public; csharp user-beta", 5, "query:language(default javascript)", "language-specific text/plain attachment"),
         new("GET", "/api/admin/maps/default-settings", "admin", 5, "none", "{settings,limits}"),
         new("POST", "/api/admin/maps/validate-array", "admin", 5, "JSON: source,columns,rows", "{map}"),
         new("POST", "/api/admin/maps/validate-json", "admin", 5, "map JSON", "{map}"),
@@ -39,8 +40,8 @@ public static class ApiCatalog
         new("PUT", "/api/admin/maps/{id}/visibility", "admin", 5, "JSON: enabled,expected", "{state}"),
         new("GET", "/api/admin/maps/{id}/draft", "admin", 5, "none", "{map,state}"),
         new("PUT", "/api/admin/maps/{id}/draft", "admin", 5, "draft JSON + expectedRevision", "{map,state}"),
-        new("POST", "/api/game/validate", "guest-or-user", 6, "text/plain", "200/400 diagnostic"),
-        new("POST", "/api/matches", "guest-or-user", 6, "text/plain + X-Coinhunter-Options; legacy JSON", "201 {id}"),
+        new("POST", "/api/game/validate", "guest-or-user", 6, "text/plain + query:language; C# requires user-beta", "200/400 diagnostic"),
+        new("POST", "/api/matches", "guest-or-user", 6, "text/plain + X-Coinhunter-Options:language; legacy JSON; history language resolved by server", "201 {id}"),
         new("GET", "/api/matches/{id}", "match-owner", 6, "none", "{sequence,game,logs}"),
         new("GET", "/api/matches/{id}/events", "match-owner", 6, "SSE subscription", "event:snapshot; data:{sequence,game,logs}"),
         new("DELETE", "/api/matches/{id}", "match-owner", 6, "none", "{ok}"),
@@ -49,6 +50,7 @@ public static class ApiCatalog
 
     public static readonly ApiRouteContract[] Internal =
     [
+        new("GET", "/internal/v1/languages", "service", 4, "none", "execution language capabilities"),
         new("GET", "/internal/v1/resources", "service", 4, "none", "OS adapter and reserved memory/process budget"),
         new("POST", "/internal/v1/matches", "service", 4, "ExecutionRequest + idempotent requestId", "202 ExecutionAccepted"),
         new("POST", "/internal/v1/candidates/matches", "service", 4, "development opt-in + owner scope + C# participant; no browser capability", "202 private candidate execution"),

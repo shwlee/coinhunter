@@ -25,6 +25,7 @@ public sealed class ExecutionRecord
     public IExecutionResourceGroup? ResourceGroup { get; set; }
     internal List<CSharpCandidatePlayer> CSharpPlayers { get; } = [];
     internal bool Candidate { get; init; }
+    internal ResourceProfile? Limits { get; init; }
     internal CSharpGcGameLaunch? GcLaunch { get; set; }
     internal IExecutionResourceGroup? EngineResources { get; set; }
     public ResourceObservation? ResourceUsage { get; set; }
@@ -140,7 +141,12 @@ public sealed class ExecutionManager : IHostedService, IDisposable
     public async Task<ExecutionRecord> Accept(ExecutionRequest request, CancellationToken cancellationToken, bool candidate = false)
     {
         if (candidate && (csharp?.GameCandidateEnabled != true || request.Participants?.Any(p => p?.Language == "csharp") != true)) throw new ServiceFault(503, "C# 게임 후보 실행은 비활성입니다.");
-        ContractValidation.Execution(request, candidate);
+        bool beta = !candidate && request.Participants?.Any(p => p?.Language == "csharp") == true;
+        if (beta && (csharp?.PublicBetaEnabled != true || request.Scope?.Kind != "user")) throw new ServiceFault(503, "C# 베타 지원이 활성화되지 않았습니다.");
+        ContractValidation.Execution(request, candidate || beta);
+        if (beta && request.Participants!.Count(p => p.Language == "csharp") > 2) throw new ServiceFault(400, "C# 베타는 게임당 최대 두 실행기를 지원합니다.");
+        var limits = beta ? resourceSettings.CSharpBetaGame : resourceSettings.Game;
+        candidate |= beta; // Reuse the proven private player-channel lifecycle, not the public candidate route.
         var map = JsonSerializer.SerializeToNode(request.Map, Protocol.JsonOptions)!.AsObject(); map["schemaVersion"] = 1; map["name"] = "Execution snapshot"; map["description"] = "";
         MapRules.Validate(map, content, true);
         await admission.WaitAsync(cancellationToken);
@@ -156,12 +162,12 @@ public sealed class ExecutionManager : IHostedService, IDisposable
             if (records.Values.Any(value => value.Request.RequestId == request.RequestId)) throw new ServiceFault(409, "실행 요청 ID가 이미 사용되었습니다.");
             if (records.Values.Count(value => !value.Closed.Task.IsCompleted) >= 4) throw new ServiceFault(429, "동시 경기 한도에 도달했습니다.");
             if (records.Count >= 10000) throw new ServiceFault(503, "실행 기록 보존 한도입니다. 오프라인 보관 정리가 필요합니다.");
-            record = new ExecutionRecord { Request = request, Fingerprint = Fingerprint(request), Candidate = candidate };
+            record = new ExecutionRecord { Request = request, Fingerprint = Fingerprint(request), Candidate = candidate, Limits = limits };
             if (candidate) record.Preparation.CancelAfter(TimeSpan.FromSeconds(120));
-            record.ResourceGroup = resources.Reserve(resourceSettings.Game);
+            record.ResourceGroup = resources.Reserve(limits);
             try
             {
-                if(candidate)record.GcLaunch=csharp!.PlanGcGame(request,record.ResourceGroup,resourceSettings.Game);
+                if(candidate)record.GcLaunch=csharp!.PlanGcGame(request,record.ResourceGroup,limits);
                 var directory = DirectoryFor(request.MatchId); Directory.CreateDirectory(directory);
                 await AtomicFile.Json(Path.Combine(directory, "request.json"), JsonSerializer.SerializeToNode(request, Protocol.JsonOptions)!);
             }
@@ -209,7 +215,7 @@ public sealed class ExecutionManager : IHostedService, IDisposable
                 record.EngineResources=record.GcLaunch?.Admission.CreateEngineScope();
                 int gcIndex=0;
                 foreach (var player in record.Request.Participants.Where(p => p.Language == "csharp"))
-                    record.CSharpPlayers.Add(await csharp!.PreparePlayer(record.Request, player, Path.Combine(sourceDirectory, player.Source.SourceKey + ".js"), record.ResourceGroup!, resourceSettings.Game, record.Preparation.Token,record.GcLaunch,gcIndex++));
+                    record.CSharpPlayers.Add(await csharp!.PreparePlayer(record.Request, player, Path.Combine(sourceDirectory, player.Source.SourceKey + ".js"), record.ResourceGroup!, record.Limits ?? resourceSettings.Game, record.Preparation.Token,record.GcLaunch,gcIndex++));
                 await AtomicFile.Json(Path.Combine(directory, "csharp-runners.private.json"), new JsonObject { ["gameId"] = record.Request.MatchId.ToString(), ["players"] = new JsonArray(record.CSharpPlayers.Select(p => (JsonNode)p.Descriptor.DeepClone()).ToArray()) });
             }
             record.Preparation.Token.ThrowIfCancellationRequested();
