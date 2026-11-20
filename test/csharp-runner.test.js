@@ -14,7 +14,11 @@ import {
   RunnerContractError,
 } from '../backend/node/src/runtime/contracts/validation.js';
 
-async function fixture(handler = () => undefined) {
+async function fixture(
+  handler = () => undefined,
+  experimentalGcWindow = false,
+  gcEntryCollection = false,
+) {
   const sockets = new Set();
   const endpoint =
     process.platform === 'win32'
@@ -35,7 +39,10 @@ async function fixture(handler = () => undefined) {
     playerId: context.playerId,
     runId: context.runId,
     endpoint,
+    turnEndpoint: endpoint + '-turns',
     token: 'd'.repeat(64),
+    experimentalGcWindow,
+    gcEntryCollection,
     artifact: {
       contractVersion: 1,
       artifactId,
@@ -43,10 +50,10 @@ async function fixture(handler = () => undefined) {
       source,
       content: { artifactKey: artifactId, sha256: 'b'.repeat(64), byteLength: 50 },
       format: 'dotnet-assembly',
-      profileId: 'csharp-restricted-c1-v2',
+      profileId: 'csharp-restricted-c1-v4',
       toolchain: { name: 'roslyn', version: 'c'.repeat(64) },
       runtime: { name: 'dotnet-csharp-restricted', version: 'test' },
-      adapterVersion: 'csharp-pipe-v1',
+      adapterVersion: 'csharp-direct-pipe-v2',
       target: { os: process.platform, architecture: process.arch },
       optionsHash: 'c'.repeat(64),
     },
@@ -61,10 +68,10 @@ async function fixture(handler = () => undefined) {
     language: 'csharp',
     name: 'pipe-test',
     runtime: descriptor.artifact.runtime,
-    adapterVersion: 'csharp-pipe-v1',
+    adapterVersion: 'csharp-direct-pipe-v2',
   };
   const requests = [];
-  const server = net.createServer((socket) => {
+  const serve = (channel) => (socket) => {
     sockets.add(socket);
     socket.on('close', () => sockets.delete(socket));
     socket.on('error', () => {});
@@ -75,7 +82,8 @@ async function fixture(handler = () => undefined) {
         const size = buffer.readUInt32LE(0);
         const command = JSON.parse(buffer.subarray(4, size + 4));
         buffer = buffer.subarray(size + 4);
-        requests.push(command);
+        requests.push({ ...command, channel });
+        assert.equal(command.method === 'move' ? 'turn' : 'lifecycle', channel);
         let result =
           command.method === 'initialize'
             ? info
@@ -88,6 +96,9 @@ async function fixture(handler = () => undefined) {
                   hostId: info.hostId,
                   executionMs: 1,
                   executionSettled: true,
+                  inputPreparationMs: 0.1,
+                  logs: [],
+                  droppedLogs: 0,
                 };
         const override = handler(command, result, socket);
         if (override === false) continue;
@@ -100,10 +111,16 @@ async function fixture(handler = () => undefined) {
         socket.write(Buffer.concat([header.subarray(1), bytes]));
       }
     });
-  });
+  };
+  const server = net.createServer(serve('lifecycle'));
+  const turnServer = net.createServer(serve('turn'));
   await new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(endpoint, resolve);
+  });
+  await new Promise((resolve, reject) => {
+    turnServer.once('error', reject);
+    turnServer.listen(descriptor.turnEndpoint, resolve);
   });
   const artifacts = new CandidateArtifacts();
   context.artifact = await artifacts.register({ csharp: descriptor }, source, 'csharp');
@@ -134,6 +151,7 @@ async function fixture(handler = () => undefined) {
     cleanup: async () => {
       for (const socket of sockets) socket.destroy();
       await new Promise((resolve) => server.close(resolve));
+      await new Promise((resolve) => turnServer.close(resolve));
     },
   };
 }
@@ -188,6 +206,10 @@ test('C# pipe fragments, settled timeout and next call preserve instance and tim
       f.requests.map((r) => r.method),
       ['initialize', 'move', 'move', 'close'],
     );
+    assert.deepEqual(
+      f.requests.map((r) => r.channel),
+      ['lifecycle', 'turn', 'turn', 'lifecycle'],
+    );
     assert.ok(
       f.requests.every(
         (r) =>
@@ -229,6 +251,185 @@ test('C# close interrupts a pending caller only after confirmed private close re
     assert.equal(f.runner.state, 'closed');
   } finally {
     await f.cleanup();
+  }
+});
+
+const observedMemory = {
+  status: 'completed',
+  requestedReservationBytes: 268435456,
+  workerAllocationLimitBytes: 33554432,
+  workerAllocatedBytes: 1000,
+  entryMs: 0.2,
+  exitMs: 0.1,
+  collectionDeltas: [0, 0, 0],
+  regionIntact: true,
+  processAllocationLimitBytes: 67108864,
+  processAllocatedBytes: 2000,
+  entry: {
+    policy: 'fail-fast-v1',
+    attempts: 1,
+    collectionDeltas: [0, 0, 0],
+    before: null,
+    after: null,
+  },
+};
+test('GC observations are validated without extra successful-turn IPC', async () => {
+  const f = await fixture(
+    (command, result) =>
+      command.method === 'move' ? { ...result, experimentalMemory: observedMemory } : undefined,
+    true,
+  );
+  try {
+    await f.initialize();
+    await f.move(1);
+    assert.deepEqual(f.runner.lastObservation, observedMemory);
+    assert.deepEqual(
+      f.requests.map((r) => r.method),
+      ['initialize', 'move'],
+    );
+    await f.runner.close();
+  } finally {
+    await f.cleanup();
+  }
+});
+test('GC candidate rejects lost regions, malformed counters and missing observations', async () => {
+  for (const memory of [
+    undefined,
+    { ...observedMemory, regionIntact: false },
+    { ...observedMemory, collectionDeltas: [1, 0, 0] },
+    { ...observedMemory, processAllocatedBytes: 67108865 },
+    { ...observedMemory, workerAllocatedBytes: -1 },
+    { ...observedMemory, exitMs: Infinity },
+  ]) {
+    const f = await fixture(
+      (command, result) =>
+        command.method === 'move' ? { ...result, experimentalMemory: memory } : undefined,
+      true,
+    );
+    try {
+      await f.initialize();
+      await assert.rejects(f.move(1), (e) => e.code === 'protocol-error');
+      await f.runner.close();
+    } finally {
+      await f.cleanup();
+    }
+  }
+});
+
+test('GC v2 validates entry recovery, heap snapshots and failed partial observations', async () => {
+  const heap = {
+    managedBytes: 135520000,
+    heapSizeBytes: 135530000,
+    fragmentedBytes: 10000,
+    committedBytes: 135570000,
+    availableBytes: 603979776,
+  };
+  const entry = {
+    policy: 'decommit-once-v2',
+    attempts: 2,
+    collectionDeltas: [3, 3, 3],
+    before: { ...heap, managedBytes: 304000000 },
+    after: heap,
+  };
+  const memory = { ...observedMemory, entry };
+  const f = await fixture(
+    (command, result) =>
+      command.method === 'move' ? { ...result, experimentalMemory: memory } : undefined,
+    true,
+    true,
+  );
+  try {
+    await f.initialize();
+    const result = await f.move(1);
+    assert.equal(result.status, 'ok');
+    assert.deepEqual(f.runner.lastObservation, memory);
+    assert.equal(f.runner.observationPolicy, 'csharp-gc-window-v2');
+    assert.deepEqual(
+      f.requests.map((r) => r.method),
+      ['initialize', 'move'],
+    );
+    await f.runner.close();
+  } finally {
+    await f.cleanup();
+  }
+  for (const invalid of [
+    { ...entry, attempts: 3 },
+    { ...entry, after: null },
+    { ...entry, before: { ...heap, managedBytes: -1 } },
+    { ...entry, policy: 'fail-fast-v1' },
+  ]) {
+    const bad = await fixture(
+      (command, result) =>
+        command.method === 'move'
+          ? { ...result, experimentalMemory: { ...memory, entry: invalid } }
+          : undefined,
+      true,
+      true,
+    );
+    try {
+      await bad.initialize();
+      await assert.rejects(bad.move(1), (e) => e.code === 'protocol-error');
+      await bad.runner.close();
+    } finally {
+      await bad.cleanup();
+    }
+  }
+  const failed = await fixture(
+    (command, result, socket) => {
+      if (command.method === 'move') {
+        socket.destroy();
+        return false;
+      }
+      if (command.method === 'failure')
+        return {
+          infrastructureFailure: 'gc-call-environment-failure',
+          gcEntry: { ...entry, after: null },
+        };
+    },
+    true,
+    true,
+  );
+  try {
+    await failed.initialize();
+    await assert.rejects(
+      failed.move(1),
+      (e) => e.infrastructureFailure === 'gc-call-environment-failure' && e.gcEntry.after === null,
+    );
+    await failed.runner.close();
+  } finally {
+    await failed.cleanup();
+  }
+});
+test('GC transport failure recovers only whitelisted infrastructure reasons from lifecycle owner', async () => {
+  for (const reason of [
+    'gc-reservation-unavailable',
+    'gc-host-allocation-budget',
+    'unexpected-user-text',
+  ]) {
+    const f = await fixture((command, result, socket) => {
+      if (command.method === 'move') {
+        socket.destroy();
+        return false;
+      }
+      if (command.method === 'failure')
+        return { infrastructureFailure: reason, gcEntry: observedMemory.entry };
+    }, true);
+    try {
+      await f.initialize();
+      await assert.rejects(f.move(1), (e) => {
+        assert.equal(e.code, 'host-exited');
+        assert.equal(e.userStatus, undefined);
+        assert.equal(e.infrastructureFailure, reason.startsWith('gc-') ? reason : undefined);
+        return true;
+      });
+      assert.deepEqual(
+        f.requests.map((r) => r.method),
+        ['initialize', 'move', 'failure'],
+      );
+      await f.runner.close();
+    } finally {
+      await f.cleanup();
+    }
   }
 });
 

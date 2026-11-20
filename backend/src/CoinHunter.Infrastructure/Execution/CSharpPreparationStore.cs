@@ -7,9 +7,11 @@ using CoinHunter.Infrastructure.Resources;
 
 namespace CoinHunter.Infrastructure.Execution;
 
-public sealed record CSharpPreparationLimits(ResourceProfile Resources,TimeSpan Timeout,long MaxDllBytes,long MaxManifestBytes,long MaxCacheBytes);
+public sealed record CSharpPreparationLimits(ResourceProfile Resources,TimeSpan Timeout,long MaxDllBytes,long MaxManifestBytes,long MaxCacheBytes)
+{ public long MinimumFreeDiskBytes { get; init; }=256L*1024*1024; }
 public sealed record CSharpPreparationResult(string Status,bool CacheHit,string? Key,CSharpPrepareDiagnostic[] Diagnostics);
 public sealed record CSharpWorkRecovery(int Removed,int Retained);
+public sealed record CSharpCacheMaintenance(int Examined,int Removed,int Retained,long RemovedBytes,bool DryRun);
 public sealed class CSharpArtifactLease : IDisposable
 {
     private readonly Action release;
@@ -49,6 +51,7 @@ public sealed class CSharpPreparationStore : IAsyncDisposable
     public CSharpPreparationStore(string root,string hostAssembly,ExecutionResources resources,CSharpPreparationLimits limits)
     {
         limits.Resources.Validate();
+        if(limits.MinimumFreeDiskBytes<64L*1024*1024)throw new ArgumentException("Explicit free disk reserve required.");
         if(limits.Timeout<=TimeSpan.Zero||limits.Timeout>TimeSpan.FromMinutes(5)||limits.MaxDllBytes<=0||limits.MaxDllBytes>128L*1024*1024||limits.MaxManifestBytes<=0||limits.MaxManifestBytes>8L*1024*1024||limits.MaxCacheBytes<limits.MaxDllBytes+limits.MaxManifestBytes)throw new ArgumentException("Explicit bounded preparation limits required.");
         this.root=Path.GetFullPath(root);host=Path.GetFullPath(hostAssembly);this.resources=resources;this.limits=limits;
         if(!File.Exists(host))throw new FileNotFoundException("Preparation host unavailable.");
@@ -82,13 +85,17 @@ public sealed class CSharpPreparationStore : IAsyncDisposable
             using(var reader=new StreamReader(input,Encoding.UTF8,detectEncodingFromByteOrderMarks:true))
             await using(var output=new StreamWriter(new FileStream(snapshot,FileMode.CreateNew,FileAccess.Write,FileShare.None,65536,FileOptions.Asynchronous),new UTF8Encoding(false)))
             {
-                var chars=new char[32768];int count;
-                while((count=await reader.ReadAsync(chars.AsMemory(),deadline.Token))!=0)await output.WriteAsync(chars.AsMemory(0,count),deadline.Token);
+                var chars=new char[32768];int count;long nextSpaceCheck=0,written=0;
+                while((count=await reader.ReadAsync(chars.AsMemory(),deadline.Token))!=0)
+                {
+                    if(written>=nextSpaceCheck){if(new DriveInfo(Path.GetPathRoot(root)!).AvailableFreeSpace<limits.MinimumFreeDiskBytes)throw new Storage.ServiceFault(507,"C# 준비 저장 공간이 부족합니다.");nextSpaceCheck=written+4*1024*1024;}
+                    await output.WriteAsync(chars.AsMemory(0,count),deadline.Token);written+=count;
+                }
                 await output.FlushAsync(deadline.Token);
             }
             await using(var file=File.OpenRead(snapshot))
                 if(Convert.ToHexString(await SHA256.HashDataAsync(file,deadline.Token)).ToLowerInvariant()!=expectedHash)return new("source-changed",false,null,[]);
-            if(Directory.Exists(target)){await Validate(target,owner,key,toolchain,deadline.Token);return new("prepared",true,key,[]);}
+            if(Directory.Exists(target)){await Validate(target,owner,key,toolchain,deadline.Token);Directory.SetLastWriteTimeUtc(target,DateTime.UtcNow);return new("prepared",true,key,[]);}
             var outputPath=Path.Combine(work,"output");
             CSharpPrepareResponse response;
             try{response=await RunCompiler(["compile",snapshot,outputPath,owner.ToString(),expectedHash,limits.MaxDllBytes.ToString(),limits.MaxManifestBytes.ToString()],deadline.Token);}
@@ -118,6 +125,7 @@ public sealed class CSharpPreparationStore : IAsyncDisposable
             await EnsureRecovered(token);
             toolchain??=(await RunCompiler(["describe"],token)).Toolchain;
             var path=ObjectPath(owner,key);var manifest=await Validate(path,owner,key,toolchain,token);
+            Directory.SetLastWriteTimeUtc(path,DateTime.UtcNow);
             var lease=new CSharpArtifactLease(Path.Combine(path,"manifest.json"),manifest,()=>{lock(leasesGate){if(--leases[path]==0)leases.Remove(path);}});
             lock(leasesGate)leases[path]=leases.GetValueOrDefault(path)+1;
             return lease;
@@ -132,6 +140,39 @@ public sealed class CSharpPreparationStore : IAsyncDisposable
             ObjectDisposedException.ThrowIf(disposed,this);var path=ObjectPath(owner,key);
             lock(leasesGate){if(leases.GetValueOrDefault(path)!=0)return false;}
             if(Directory.Exists(path))DeleteOwned(path,"objects");return true;
+        }
+        finally{gate.Release();}
+    }
+    // Derived artifacts only. Original code and account metadata are never in
+    // this tree. The writer gate excludes acquisition/publication during trim.
+    public async Task<CSharpCacheMaintenance> MaintainAsync(TimeSpan minimumAge,bool dryRun,CancellationToken token=default)
+    {
+        if(minimumAge<TimeSpan.FromHours(1)||minimumAge>TimeSpan.FromDays(3650))throw new ArgumentOutOfRangeException(nameof(minimumAge));
+        await gate.WaitAsync(token);
+        try
+        {
+            ObjectDisposedException.ThrowIf(disposed,this);stopping.Token.ThrowIfCancellationRequested();
+            int examined=0,removed=0,retained=0;long removedBytes=0;
+            var objects=Path.Combine(root,"objects");if(!Directory.Exists(objects))return new(0,0,0,0,dryRun);
+            if((File.GetAttributes(root)&FileAttributes.ReparsePoint)!=0||(File.GetAttributes(objects)&FileAttributes.ReparsePoint)!=0)throw new IOException("Cache maintenance refuses redirected roots.");
+            var cutoff=DateTime.UtcNow-minimumAge;
+            foreach(var owner in Directory.EnumerateDirectories(objects))
+            {
+                token.ThrowIfCancellationRequested();
+                if(!Guid.TryParseExact(Path.GetFileName(owner),"N",out _)||(File.GetAttributes(owner)&FileAttributes.ReparsePoint)!=0){retained++;continue;}
+                foreach(var path in Directory.EnumerateDirectories(owner))
+                {
+                    token.ThrowIfCancellationRequested();examined++;
+                    if(!CSharpArtifactKeys.Valid(Path.GetFileName(path))||(File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0||Directory.GetLastWriteTimeUtc(path)>cutoff){retained++;continue;}
+                    lock(leasesGate){if(leases.GetValueOrDefault(path)!=0){retained++;continue;}}
+                    var files=Directory.EnumerateFileSystemEntries(path).ToArray();
+                    if(files.Length!=2||files.Any(p=>(File.GetAttributes(p)&(FileAttributes.ReparsePoint|FileAttributes.Directory))!=0||Path.GetFileName(p) is not ("manifest.json" or "artifact.dll"))){retained++;continue;}
+                    long bytes=files.Sum(p=>new FileInfo(p).Length);
+                    try{if(!dryRun)DeleteOwned(path,"objects");removed++;removedBytes+=bytes;}
+                    catch(IOException){retained++;}catch(UnauthorizedAccessException){retained++;}
+                }
+            }
+            return new(examined,removed,retained,removedBytes,dryRun);
         }
         finally{gate.Release();}
     }

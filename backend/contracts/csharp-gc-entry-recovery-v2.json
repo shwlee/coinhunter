@@ -1,0 +1,42 @@
+{
+  "policy": "csharp-gc-window-v2",
+  "entryPolicy": "decommit-once-v2",
+  "scope": "private-candidate-game-only",
+  "defaultEnabled": false,
+  "publicCSharpEnabled": false,
+  "settings": {
+    "Backend:CSharpGameCandidate:ExperimentalGcWindow": false,
+    "Backend:CSharpGameCandidate:GcEntryCollection": false
+  },
+  "reservationBytes": 268435456,
+  "workerAllocationLimitBytes": 33554432,
+  "processAllocationLimitBytes": 67108864,
+  "entry": {
+    "first": "TryStartNoGCRegion(total, loh, disallowFullBlockingGC:true)",
+    "recoveryOnlyIfFirstReturnsFalse": "one explicit blocking compacting GC.Collect(MaxGeneration, Aggressive, true, true), then one reservation attempt",
+    "maximumReservationAttempts": 2,
+    "guestInvocationsPerRequest": "zero if both reservations fail; exactly one if reserved",
+    "existingRegion": "reject; never collect/end a region already owned by another caller",
+    "collections": "one explicit recovery request is not a promise of one actual runtime collection; record deltas",
+    "failure": "same typed gc-* infrastructure failure; no silent restart or unprotected fallback"
+  },
+  "measurement": {
+    "entryMs": "all entry work including reservation/compaction/decommit",
+    "roundTripMs": "includes entry and transport; never subtract GC cost",
+    "realGameProgress": "entry delay postpones only this player's returned action; no common barrier or compensation",
+    "algorithmBudgetMs": 500,
+    "algorithmGcDeltas": "must remain zero inside a completed protected call",
+    "heapSnapshots": "estimated current managed bytes plus latest-GC heap/fragmented/committed/available bytes; not current OS RSS"
+  },
+  "acceptance": {
+    "localRepeatedReservationIssueResolved": true,
+    "productionAdopted": false,
+    "hardRealtimeGuarantee": false,
+    "remaining": [
+      "Linux sandbox/cgroup",
+      "deployment load and capacity",
+      "native/JIT/scheduling settlement boundaries",
+      "public C# operations/history/UI"
+    ]
+  }
+}

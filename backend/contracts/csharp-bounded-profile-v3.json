@@ -1,0 +1,50 @@
+{
+  "profile": "csharp-restricted-c1-v3",
+  "analyzerVersion": "c1-4",
+  "guardVersion": "c2-poll-bounded-v3",
+  "adapterVersion": "csharp-direct-pipe-v2",
+  "status": "candidate-not-activated",
+  "userCallBudgetMs": 500,
+  "maxCollectionCount": 65536,
+  "maxRequestedCollectionCapacity": 65536,
+  "maxArrayElements": 1048576,
+  "maxStringCharacters": 65536,
+  "debug": {
+    "api": "Debug.Print(scalar)",
+    "maxLinesPerCall": 30,
+    "maxLineUtf16Units": 1024,
+    "droppedCount": true
+  },
+  "transport": {
+    "turnHops": 1,
+    "requestMaxBytes": 1048576,
+    "responseMaxBytes": 262144,
+    "observerChannel": "parent stdout plus independent control pipe"
+  },
+  "runtimeLimitStatus": "operation-limit",
+  "runtimeLimitCodes": [
+    "array-elements",
+    "collection-capacity",
+    "collection-count",
+    "string-characters"
+  ],
+  "rejected": [
+    "string += (use assignment with +)",
+    "string concatenation with non-scalar operands",
+    "dictionary indexer writes",
+    "user comparers",
+    "Sort",
+    "LINQ",
+    "Dispose",
+    "unapproved callbacks"
+  ],
+  "timeoutState": "settled before reuse; same process, object and existing field mutations",
+  "infrastructureFailure": "watchdog or unsettled host ends the affected game; no silent restart",
+  "hardRealtimeGuarantee": false,
+  "residuals": [
+    "GC and allocation cannot be forcibly preempted",
+    "OS memory/CPU ceilings are not dedicated execution capacity",
+    "Linux cgroup and filesystem/network sandbox not validated",
+    "public operations/history/UI disabled pending acceptance"
+  ]
+}

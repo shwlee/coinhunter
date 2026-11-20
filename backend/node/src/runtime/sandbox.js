@@ -29,6 +29,9 @@ export class AlgorithmSandbox {
     this.runtime.setMemoryLimit(ALGORITHM_MEMORY_LIMIT_BYTES);
     this.runtime.setMaxStackSize(512 * 1024);
     this.context = this.runtime.newContext();
+    const json = this.context.getProp(this.context.global, 'JSON');
+    this.decodeInput = this.context.getProp(json, 'parse');
+    json.dispose();
     this.deadline = Infinity;
     this.interrupted = false;
     this.logs = [];
@@ -182,7 +185,6 @@ export class AlgorithmSandbox {
       delete globalThis.__load;
       const emit = globalThis.__emit;
       delete globalThis.__emit;
-      const parse = JSON.parse;
       const apply = Reflect.apply;
       const stringifyPrimitive = String;
       const slice = String.prototype.slice;
@@ -214,7 +216,7 @@ export class AlgorithmSandbox {
       if (typeof getName !== 'function') throw new Error('Required player method is missing: getName');
       if (typeof moveNext !== 'function') throw new Error('Required player method is missing: moveNext');
       return (operation, payload) => {
-        const args = parse(payload);
+        const args = payload;
         if (operation === 'initialize') { apply(initialize, player, args); return 0; }
         if (operation === 'getName') {
           const name = apply(getName, player, []);
@@ -233,13 +235,28 @@ export class AlgorithmSandbox {
 
   invoke(operation, payload) {
     if (!this.dispatch) throw new Error('알고리즘이 준비되지 않았습니다.');
+    const preparing = performance.now();
     const command = this.context.newString(operation);
     const input = this.context.newString(JSON.stringify(payload));
+    let prepared;
     try {
-      const result = this.run(() =>
-        this.context.callFunction(this.dispatch, this.context.undefined, command, input),
+      prepared = this.run(() =>
+        this.context.callFunction(this.decodeInput, this.context.undefined, input),
       );
-      if (result.status !== 'ok') return result;
+      const inputPreparationMs = performance.now() - preparing;
+      if (prepared.status !== 'ok')
+        return {
+          ...prepared,
+          status: 'exception',
+          value: -1,
+          elapsedMs: 0,
+          inputPreparationMs,
+          exceptionMessage: '알고리즘 입력 준비에 실패했습니다.',
+        };
+      const result = this.run(() =>
+        this.context.callFunction(this.dispatch, this.context.undefined, command, prepared.handle),
+      );
+      if (result.status !== 'ok') return { ...result, inputPreparationMs };
       const handle = result.handle;
       try {
         const value =
@@ -249,6 +266,7 @@ export class AlgorithmSandbox {
           ...metadata,
           status: value === -99 ? 'invalid-result' : 'ok',
           value: value === -99 ? -1 : value,
+          inputPreparationMs,
         };
       } finally {
         handle.dispose();
@@ -256,12 +274,15 @@ export class AlgorithmSandbox {
     } finally {
       command.dispose();
       input.dispose();
+      prepared?.handle?.dispose();
     }
   }
 
   dispose() {
     this.dispatch?.dispose();
     this.dispatch = null;
+    this.decodeInput?.dispose();
+    this.decodeInput = null;
     this.errorFormatter?.dispose();
     this.errorFormatter = null;
     this.context.dispose();

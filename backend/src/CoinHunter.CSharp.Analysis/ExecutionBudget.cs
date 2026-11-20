@@ -30,12 +30,27 @@ public static class BudgetGuard
     public static void Poll(int line, int column)
     {
         var scope = current ?? throw new InvalidOperationException("No host budget.");
+        scope.Line=line;scope.Column=column;
         if (scope.DeadlineReached())
         {
             scope.Line = line; scope.Column = column;
             throw new BudgetExpiredException();
         }
         if (scope.StopRequested) throw new BudgetStoppedException();
+        scope.CheckAllocationBudget();
+    }
+    public static void BeforeAllocation(long upperBytes,int line,int column)
+    {
+        if(upperBytes<0)throw new ArgumentOutOfRangeException(nameof(upperBytes));
+        Poll(line,column);current!.CheckAllocationBudget(upperBytes);
+    }
+    internal static void Print<T>(T value)
+    {
+        var scope=current??throw new InvalidOperationException("No host budget.");
+        if(scope.Logs.Count>=30){scope.DroppedLogs++;return;}
+        var text=value is IFormattable formatted?formatted.ToString(null,System.Globalization.CultureInfo.InvariantCulture):value?.ToString()??"null";
+        if(text.Length>1024){int size=char.IsHighSurrogate(text[1023])&&char.IsLowSurrogate(text[1024])?1023:1024;text=text[..size];}
+        scope.Logs.Add(text);
     }
 }
 
@@ -55,6 +70,32 @@ internal sealed class BudgetScope(TimeSpan budget)
     public void RequestStop() => Interlocked.Exchange(ref stopRequested, 1);
     public int? Line { get; set; }
     public int? Column { get; set; }
+    public List<string> Logs { get; } = [];
+    public int DroppedLogs { get; set; }
+    private long? allocationLimit;
+    private long allocationStart;
+    private long? processAllocationLimit;
+    private long processAllocationStart;
+    internal long AllocatedBytes=>allocationLimit is null?0:Math.Max(0,GC.GetAllocatedBytesForCurrentThread()-allocationStart);
+    internal void SetExperimentalAllocationBudget(long bytes)
+    {
+        if(bytes<=0||allocationLimit is not null)throw new ArgumentOutOfRangeException(nameof(bytes));
+        allocationStart=GC.GetAllocatedBytesForCurrentThread();allocationLimit=bytes;
+    }
+    internal void SetExperimentalProcessAllocationBudget(long bytes)
+    {
+        if(bytes<=0||processAllocationLimit is not null)throw new ArgumentOutOfRangeException(nameof(bytes));
+        processAllocationStart=GC.GetTotalAllocatedBytes(precise:true);processAllocationLimit=bytes;
+    }
+    internal void CheckAllocationBudget(long upperBytes=0)
+    {
+        if(processAllocationLimit is { } total)
+        {
+            long used=Math.Max(0,GC.GetTotalAllocatedBytes(precise:false)-processAllocationStart);
+            if(used>=total||upperBytes>total-used)throw new CSharpGcWindowFailure("gc-host-allocation-budget");
+        }
+        if(allocationLimit is { } maximum&&(AllocatedBytes>=maximum||upperBytes>maximum-AllocatedBytes))throw new OperationLimitException("call-allocation-bytes");
+    }
     private double? completedMs;
     public double ElapsedMs { get { lock (gate) return completedMs ?? Stopwatch.GetElapsedTime(StartedTicks).TotalMilliseconds; } }
     public bool DeadlineReached()

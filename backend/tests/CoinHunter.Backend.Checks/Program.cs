@@ -9,6 +9,23 @@ using Microsoft.Extensions.Hosting;
 
 if (args.Length < 1) throw new ArgumentException("Repository root is required.");
 var root = Path.GetFullPath(args[0]);
+if(args.Length==2&&args[1]=="csharp-gc-recovered-games"){try{await CSharpGcActualGameChecks.Run(root,180,10000,true);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if(args.Length==2&&args[1]=="csharp-gc-recovery"){try{await CSharpGcRecoveryChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if(args.Length==2&&args[1]=="csharp-gc-game-smoke"){try{await CSharpGcActualGameChecks.Run(root,1);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if(args.Length==2&&args[1]=="csharp-gc-games-capped"){try{await CSharpGcActualGameChecks.Run(root,60,2500);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if(args.Length==2&&args[1]=="csharp-settlement-policy"){try{await CSharpSettlementPolicyChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if(args.Length==2&&args[1]=="csharp-gc-games"){try{await CSharpGcActualGameChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if(args.Length==2&&args[1]=="csharp-gc-admission"){try{await CSharpGcGameAdmissionChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if(args.Length==2&&args[1]=="csharp-gc"){try{await CSharpGcWindowChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if(args.Length==2&&args[1]=="csharp-gc-child"){if(await Console.In.ReadLineAsync()!="go")throw new InvalidOperationException("Resource gate closed.");CSharpGcWindowChecks.Child(root);return;}
+if(args.Length==2&&args[1]=="csharp-invocation"){try{await CSharpInvocationChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if(args.Length==2&&args[1]=="csharp-direct"){try{await CSharpDirectChannelChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
+if(args.Length==2&&args[1]=="csharp-linux")
+{
+    if(!OperatingSystem.IsLinux())throw new PlatformNotSupportedException("Linux cgroup acceptance must run on Linux.");
+    try{Console.WriteLine($"Linux resource checks: {await ResourceChecks.Run(root)} passed.");await CSharpDirectChannelChecks.Run(root);await CSharpGameChecks.Run(root);}
+    catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;
+}
 if(args.Length==2&&args[1]=="c4-review-fixes"){try{await C4ReviewFixChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
 if(args.Length==2&&args[1]=="csharp-games"){try{await CSharpGameChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
 if(args.Length==2&&args[1]=="csharp-account-validation"){try{await CSharpAccountValidationChecks.Run(root);}catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}return;}
@@ -179,6 +196,8 @@ await CheckAsync("terminal execution wakes an unchanged-snapshot subscriber", as
 Console.WriteLine($"Backend contract checks passed: {checks}");
 await BusinessChecks.Run(root);
 Console.WriteLine($"C# analysis checks: {CSharpAnalysisChecks.Run(root)} passed.");
+CSharpRuntimePolicyChecks.Run();
+await CSharpSettlementPolicyChecks.Run(root);
 await CSharpBudgetChecks.Run(root);
 await CSharpHostChecks.Run(root);
 await CSharpManagerChecks.Run(root);
@@ -186,6 +205,7 @@ await CSharpPreparationChecks.Run(root);
 await CSharpPreflightChecks.Run(root);
 await CSharpAccountValidationChecks.Run(root);
 await CSharpGameChecks.Run(root);
+await CSharpDirectChannelChecks.Run(root);
 await C4ReviewFixChecks.Run(root);
 Console.WriteLine($"OS resource checks: {await ResourceChecks.Run(root)} passed.");
 

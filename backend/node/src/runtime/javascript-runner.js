@@ -115,7 +115,7 @@ export class JavaScriptRunner {
           executionMs: result.elapsedMs,
           executionBoundary: TIMING_BOUNDARIES.quickJsCall,
           roundTripMs: result.roundTripMs,
-          inputPreparationMs: null,
+          inputPreparationMs: result.inputPreparationMs ?? null,
           responseProcessingMs: null,
           engineApplyDelayMs: null,
         },

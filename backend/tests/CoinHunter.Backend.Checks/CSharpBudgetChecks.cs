@@ -94,6 +94,15 @@ internal static class CSharpBudgetChecks
             Assert(candidate.Construct().Status == "ok" && candidate.Initialize(0,3,3).Status == "ok", "Setup failed.");
             Timeout(candidate.GetName(),500);
         }
+        // Fatal errors at deadline remain terminal rather than claiming reuse.
+        foreach(bool operation in new[]{false,true})
+        {
+            using var candidate=Ready(Source("return 0;"));
+            candidate.CallStarted=(_,scope)=>{while(scope.ElapsedMs<501)Thread.SpinWait(20);if(operation)throw new OperationLimitException("call-allocation-bytes");throw new IndexOutOfRangeException();};
+            var fatal=candidate.MoveNext([0],0,[-1,-1,-1,-1]);
+            Assert(fatal.DeadlineReached&&fatal.Status==(operation?"operation-limit":"exception"),"Late fatal error advertised reusable timeout.");
+            try{candidate.MoveNext([0],0,[-1,-1,-1,-1]);throw new Exception("Late fatal instance reused.");}catch(InvalidOperationException){checks++;}
+        }
         // Trusted host fault injection. User catch/Dispose/comparer paths remain
         // rejected by C1; these prove classification does not depend on exception type.
         var late = BudgetInvocation.Run(() => { Thread.Sleep(30); return 2; }, TimeSpan.FromMilliseconds(10));
@@ -129,6 +138,27 @@ internal static class CSharpBudgetChecks
         foreach (var rejected in new[] { Source("try{return 0;}catch{return -1;}"), Source("return 0;", "int P{get{return P;}}"), Source("return A();", "int A()=>A();"), Source("using(var s=new System.IO.MemoryStream()){}return 0;"), Source("return CoinHunter.CSharp.Analysis.BudgetGuard.GetHashCode();"), Source("var q=new System.Collections.Generic.List<int>();q.Sort();return 0;") })
         { try { using var candidate=CSharpCandidate.Prepare(rejected); throw new Exception("Unsafe source compiled."); } catch(ArgumentException) { checks++; } }
         checks+=CSharpBuiltinPolicyChecks.Run();
+        checks+=CSharpAllocationCoverageChecks.Run();
+        using(var candidate=Ready(Source("for(int i=0;i<35;i++)Debug.Print(i);return 0;")))
+        {
+            var printed=candidate.MoveNext([0],0,[-1,-1,-1,-1]);
+            Assert(printed.Status=="ok"&&printed.Logs.Length==30&&printed.DroppedLogs==5&&printed.Logs[0]=="0"&&printed.Logs[29]=="29","Debug sink bounds/format failed.");
+            var next=candidate.MoveNext([0],0,[-1,-1,-1,-1]);Assert(next.Logs.Length==30&&next.DroppedLogs==5,"Debug sink leaked across turns.");
+        }
+        using(var candidate=Ready(Source("Debug.Print(\"before\");if(position==1){while(true){}}return 0;")))
+        {
+            var printed=candidate.MoveNext([0,0],1,[-1,-1,-1,-1]);
+            Assert(printed.Status=="timeout"&&printed.Logs.SequenceEqual(new[]{"before"}),"Timeout discarded debug output.");
+            var next=candidate.MoveNext([0,0],0,[-1,-1,-1,-1]);Assert(next.Status=="ok"&&next.InstanceId==printed.InstanceId&&next.Logs.Length==1,"Debug timeout did not retain reusable object.");
+        }
+        using(var candidate=Ready(Source("string s=\"x\";for(int i=0;i<16;i++)s=s+s;Debug.Print(s);return s.Length==65536?0:-1;")))
+        {
+            var text=candidate.MoveNext([0],0,[-1,-1,-1,-1]);Assert(text.Status=="ok"&&text.Logs.Single().Length==1024,"Bounded strings/log truncation failed.");
+        }
+        using(var candidate=Ready(Source("string s=\"x\";for(int i=0;i<17;i++)s=s+s;return 0;")))
+        {
+            var text=candidate.MoveNext([0],0,[-1,-1,-1,-1]);Assert(text.Status=="operation-limit"&&text.LimitCode=="string-characters"&&text.Line>0,"Unbounded string growth escaped before-allocation check.");
+        }
         foreach(var (expression,expected) in new[]{("null",(string?)null),("\"\"",""),("\"   \"","   "),("\"코인 사냥꾼\"","코인 사냥꾼"),("\""+new string('가',41)+"\"",new string('가',40)),("\""+new string('가',39)+"😀끝\"",new string('가',39))})
         {
             using var named=CSharpCandidate.Prepare(Source("return 0;").Replace("return \"probe\";","return "+expression+";"));

@@ -16,7 +16,7 @@ public static class CandidateCompiler
         var entry=Assembly.GetEntryAssembly()!.Location;
         var paths=PlayerAnalyzer.References.Value.Select(r=>r.Display!).Concat(new[]{typeof(CSharpCandidate).Assembly.Location,typeof(CSharpArtifactKeys).Assembly.Location,typeof(Compilation).Assembly.Location,typeof(CSharpCompilation).Assembly.Location,entry,Path.ChangeExtension(entry,"deps.json"),Path.ChangeExtension(entry,"runtimeconfig.json")}).Where(File.Exists);
         foreach(var path in paths.Distinct()) {using var file=File.OpenRead(path);references[Path.GetFileName(path)]=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(file)).ToLowerInvariant();}
-        var descriptor=new CSharpToolchain("","authoring-policy-v1",PlayerAnalyzer.Profile,"c1-3",CSharpCandidate.GuardVersion,typeof(CSharpCompilation).Assembly.GetName().Version!.ToString(),Environment.Version.ToString(),RuntimeInformation.OSDescription,RuntimeInformation.ProcessArchitecture.ToString(),references);
+        var descriptor=new CSharpToolchain("","authoring-policy-v1",PlayerAnalyzer.Profile,"c1-5",CSharpCandidate.GuardVersion,typeof(CSharpCompilation).Assembly.GetName().Version!.ToString(),Environment.Version.ToString(),RuntimeInformation.OSDescription,RuntimeInformation.ProcessArchitecture.ToString(),references);
         return descriptor with{Key=CSharpArtifactKeys.Toolchain(descriptor)};
     }
     public static CandidateImage Compile(string source,CancellationToken token=default)
@@ -25,7 +25,7 @@ public static class CandidateCompiler
         if(!analysis.StaticPassed)throw new ArgumentException("Source did not pass the candidate policy.");
         var toolchain=Describe();var key=CSharpArtifactKeys.Build(analysis.SourceHash,toolchain.Key);
         var tree=CSharpSyntaxTree.ParseText(source,new CSharpParseOptions(LanguageVersion.CSharp12),cancellationToken:token);
-        var original=CSharpCompilation.Create("Original",[tree],PlayerAnalyzer.References.Value,new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        var original=CSharpCompilation.Create("Original",[tree,PlayerDebugSdk.Tree],PlayerAnalyzer.References.Value,new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         var rewriter=new BudgetRewriter(original.GetSemanticModel(tree));var rewritten=rewriter.Visit(tree.GetRoot(token))!;
         var output=CSharpSyntaxTree.Create((Microsoft.CodeAnalysis.CSharp.Syntax.CompilationUnitSyntax)rewritten,(CSharpParseOptions)tree.Options);
         var references=PlayerAnalyzer.References.Value.Append(MetadataReference.CreateFromFile(typeof(BudgetGuard).Assembly.Location));

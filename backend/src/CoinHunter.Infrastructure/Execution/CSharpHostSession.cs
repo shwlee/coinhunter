@@ -35,8 +35,8 @@ public sealed class CSharpHostSession : IAsyncDisposable
     private Pending? pending;
     private sealed class Pending
     {
-        public Pending(){ObserveFault(Started.Task);ObserveFault(Settled.Task);}
-        public string Id { get; }=Guid.NewGuid().ToString("N");
+        public Pending(string? id=null){Id=id??Guid.NewGuid().ToString("N");ObserveFault(Started.Task);ObserveFault(Settled.Task);}
+        public string Id { get; }
         public TaskCompletionSource Started { get; }=new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource<CSharpParentCall> Settled { get; }=new(TaskCreationOptions.RunContinuationsAsynchronously);
         public long? Call;
@@ -45,6 +45,10 @@ public sealed class CSharpHostSession : IAsyncDisposable
     }
     public string State { get { lock(gate)return state; } }
     public CSharpHostReady? Identity { get; private set; }
+    public CSharpHostClosure? Closure { get; private set; }
+    public CoinHunter.Contracts.CSharpGcEntryObservation? FailedGcEntry { get; private set; }
+    private readonly TaskCompletionSource<string> termination=new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public Task<string> Termination=>termination.Task;
     public int ProcessId=>processId;
     private static void ObserveFault(Task task)=>_ = task.ContinueWith(t=>{_ = t.Exception;},CancellationToken.None,TaskContinuationOptions.OnlyOnFaulted|TaskContinuationOptions.ExecuteSynchronously,TaskScheduler.Default);
     internal CSharpHostSession(CSharpHostLaunch launch,ExecutionResources ledger,Action<CSharpHostSession> released)
@@ -54,12 +58,23 @@ public sealed class CSharpHostSession : IAsyncDisposable
             launch.SourceHash.Length!=64||!launch.SourceHash.All(Uri.IsHexDigit)||launch.PlayerNumber is <0 or >3||launch.Columns<=0||launch.Rows<=0)
             throw new ArgumentException("Trusted host/source paths, SHA-256 and initialization values required.");
         this.launch=launch;this.released=released;
+        if(launch.ExperimentalGcEntryCollection&&!launch.ExperimentalGcWindow)throw new ArgumentException("Entry collection requires the experimental GC policy.");
+        if(launch.ExperimentalGcWindow)
+        {
+            CSharpGcGameAdmission.ValidateMember(launch.Resources);
+            if(launch.ParentResources is not null)(launch.ExperimentalGcAdmission??throw new ArgumentException("Whole-game GC admission is required.")).Claim(launch.ParentResources,launch.Resources);
+            else if(launch.ExperimentalGcAdmission is not null)throw new ArgumentException("GC admission requires its parent scope.");
+        }
+        else if(launch.ExperimentalGcAdmission is not null)throw new ArgumentException("GC admission supplied without the experimental GC policy.");
         ObserveFault(ready.Task);
         var pipe="coinhunter-managed-"+Guid.NewGuid().ToString("N");
         control=new NamedPipeClientStream(".",pipe,PipeDirection.InOut,PipeOptions.Asynchronous);
         var info=new ProcessStartInfo("dotnet"){UseShellExecute=false,CreateNoWindow=true,RedirectStandardInput=true,RedirectStandardOutput=true,RedirectStandardError=true};
         RestrictEnvironment(info);
         info.ArgumentList.Add(launch.HostAssembly);
+        if(launch.ExperimentalGcWindow)info.ArgumentList.Add("--gc-window-probe");
+        if(launch.ExperimentalGcEntryCollection)info.ArgumentList.Add("--gc-entry-collection");
+        if(launch.GameChannel is not null)info.ArgumentList.Add("--game-channel");
         if(launch.PreparedArtifact)info.ArgumentList.Add("--artifact");
         foreach(var arg in new[]{launch.SourcePath,pipe,launch.ProbeStall.ToString(System.Globalization.CultureInfo.InvariantCulture),launch.PlayerNumber.ToString(),launch.Columns.ToString(),launch.Rows.ToString()})info.ArgumentList.Add(arg);
         resources=launch.ParentResources?.CreateChild(launch.Resources)??ledger.Reserve(launch.Resources);process=new Process{StartInfo=info};
@@ -84,6 +99,7 @@ public sealed class CSharpHostSession : IAsyncDisposable
         {
             using var timeout=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token,token);timeout.CancelAfter(launch.Watchdogs.Preparation);
             await process.StandardInput.WriteLineAsync("authorize".AsMemory(),timeout.Token);
+            if(launch.GameChannel is not null)await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(launch.GameChannel).AsMemory(),timeout.Token);
             await control.ConnectAsync(timeout.Token);
             controlReader=new StreamReader(control,leaveOpen:true);controlWriter=new StreamWriter(control,leaveOpen:true){AutoFlush=true};
             Identity=await ready.Task.WaitAsync(timeout.Token);
@@ -102,6 +118,7 @@ public sealed class CSharpHostSession : IAsyncDisposable
     }
     public async Task<CSharpParentCall> MoveNextAsync(int[] map,int position,int[] items,CancellationToken token=default)
     {
+        if(launch.GameChannel is not null)throw new InvalidOperationException("Game calls use the direct host channel.");
         token.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(map);ArgumentNullException.ThrowIfNull(items);
         if(map.Length==0||position<0||position>=map.Length||items.Length!=4)throw new ArgumentException("Invalid judgement snapshot.");
@@ -149,7 +166,7 @@ public sealed class CSharpHostSession : IAsyncDisposable
     {
         try
         {
-            await foreach(var text in ReadFrames(process.StandardOutput,65536,lifetime.Token))
+            await foreach(var text in ReadFrames(process.StandardOutput,262144,lifetime.Token))
             {
                 var value=JsonNode.Parse(text,documentOptions:new JsonDocumentOptions{MaxDepth=16})!.AsObject();
                 Accept(value);
@@ -172,16 +189,35 @@ public sealed class CSharpHostSession : IAsyncDisposable
             var request=(string?)message["request"];
             var kind=message["kind"]!.GetValue<string>();
             var ticks=message["ticks"]!.GetValue<long>();if(ticks<=0)throw new IOException("Invalid clock.");
+            if(kind=="execution-queued")
+            {
+                if(launch.GameChannel is null||!ready.Task.IsCompletedSuccessfully||state!="ready"||pending is not null||request is null||request.Length!=32||!Guid.TryParseExact(request,"N",out _))throw new IOException("Invalid direct dispatch.");
+                var queued=new Pending(request);pending=queued;state="computing";
+                _=SuperviseDirect(queued);
+                return;
+            }
             if(kind=="ready")
             {
                 if(ready.Task.IsCompleted||request is not null)throw new IOException("Duplicate readiness.");
                 var identity=Guid.Parse(data!["InstanceId"]!.GetValue<string>());
                 if(instance!=identity||preparationCall is not null||lastCall!=3||!nameVerified||data["pid"]!.GetValue<int>()!=process.Id||data["frequency"]!.GetValue<long>()<=0||
+                    ((bool?)data["experimentalGc"]??false)!=launch.ExperimentalGcWindow||
+                    ((bool?)data["experimentalGcEntryCollection"]??false)!=launch.ExperimentalGcEntryCollection||
                     !string.Equals((string?)data["SourceHash"],launch.SourceHash,StringComparison.OrdinalIgnoreCase)||
-                    (string?)data["Profile"]!="csharp-restricted-c1-v2"||(string?)data["guardVersion"]!="c2-poll-bounded-v2")throw new IOException("Readiness identity/profile mismatch.");
+                    (string?)data["Profile"]!="csharp-restricted-c1-v4"||(string?)data["guardVersion"]!="c2-poll-bounded-v4")throw new IOException("Readiness identity/profile mismatch.");
                 ready.TrySetResult(new(gen,identity,process.Id,data["frequency"]!.GetValue<long>(),(string)data["SourceHash"]!, (string)data["Profile"]!, (string)data["guardVersion"]!));return;
             }
-            if(kind is "host-failed" or "rejected"){_=CloseAsync(kind,true);return;}
+            if(kind is "host-failed" or "rejected")
+            {
+                string? memoryFailure=(string?)data?["memoryFailure"];
+                var reason=launch.ExperimentalGcWindow&&memoryFailure is ("gc-reservation-unavailable" or "gc-state-conflict" or "gc-window-lost" or "gc-call-environment-failure" or "gc-host-allocation-budget")?memoryFailure:kind;
+                if(reason==memoryFailure)
+                {
+                    FailedGcEntry=data?["entry"]?.Deserialize<CoinHunter.Contracts.CSharpGcEntryObservation>();
+                    if(FailedGcEntry?.Valid(launch.ExperimentalGcEntryCollection,true)!=true)throw new IOException("Invalid GC entry failure observation.");
+                }
+                _=CloseAsync(reason,true);return;
+            }
             if(kind=="closed"){if(closing is null)_=CloseAsync("unexpected-host-close",true);return;}
             if(kind is not ("execution-started" or "deadline-reached" or "execution-settled"))throw new IOException("Unknown host event.");
             if(request is null)
@@ -233,14 +269,34 @@ public sealed class CSharpHostSession : IAsyncDisposable
             var elapsed=data["ElapsedMs"]!.GetValue<double>();var expired=data["DeadlineReached"]!.GetValue<bool>();var status=data["Status"]!.GetValue<string>();
             if(pending.Call!=call||identityId!=instance||data["ProcessId"]!.GetValue<int>()!=process.Id||!data["ExecutionSettled"]!.GetValue<bool>()||
                 data["BudgetMs"]!.GetValue<double>()!=500||!double.IsFinite(elapsed)||elapsed<0||ticks<pending.StartedTicks||expired!=(elapsed>=500)||
-                status is not ("ok" or "timeout" or "cancelled" or "exception" or "invalid-result" or "operation-limit")||expired!=(status=="timeout"))throw new IOException("Invalid settlement.");
+                status is not ("ok" or "timeout" or "cancelled" or "exception" or "invalid-result" or "operation-limit")||status=="timeout"&&!expired||status=="ok"&&expired)throw new IOException("Invalid settlement.");
             var direction=(int?)data["Value"];
             if(status=="ok"&&(direction is null or <-1 or >3)||status!="ok"&&direction is not null)throw new IOException("Invalid direction.");
-            var result=new CSharpParentCall(gen,identityId,call,process.Id,status,direction,expired,true,500,elapsed,(string?)data["LimitCode"],(int?)data["Line"],(int?)data["Column"]);
-            var completed=pending;pending=null;lastCall=call;if(closing is null)state="ready";
+            var memory=data["ExperimentalMemory"]?.Deserialize<CoinHunter.Contracts.CSharpCallMemoryObservation>();
+            if(launch.ExperimentalGcWindow)
+            {
+                if(memory?.Entry?.Valid(launch.ExperimentalGcEntryCollection)!=true)throw new IOException("Invalid GC entry observation.");
+                if(memory is null||memory.Status!="completed"||!memory.RegionIntact||memory.RequestedReservationBytes!=256L*1024*1024||memory.WorkerAllocationLimitBytes!=32L*1024*1024||memory.WorkerAllocatedBytes<0||memory.ProcessAllocationLimitBytes!=64L*1024*1024||memory.ProcessAllocatedBytes<0||!double.IsFinite(memory.EntryMs)||memory.EntryMs<0||!double.IsFinite(memory.ExitMs)||memory.ExitMs<0||memory.CollectionDeltas is not [0,0,0])throw new IOException("Invalid experimental memory window.");
+            }
+            else if(memory is not null)throw new IOException("Unexpected memory policy.");
+            var result=new CSharpParentCall(gen,identityId,call,process.Id,status,direction,expired,true,500,elapsed,(string?)data["LimitCode"],(int?)data["Line"],(int?)data["Column"]){ExperimentalMemory=memory};
+            var completed=pending;pending=null;lastCall=call;if(closing is null)state=status is "exception" or "operation-limit"?"failed":"ready";
             completed.Settled.TrySetResult(result);
-            if(status is "exception" or "operation-limit")_=CloseAsync("candidate-failed",false);
+            // In direct mode the host first writes the typed failure to Node,
+            // then stops. Killing it on this one-way observer event could race
+            // that response and erase the actual user diagnostic.
+            if(launch.GameChannel is null && status is ("exception" or "operation-limit"))_=CloseAsync("candidate-failed",false);
         }
+    }
+    private async Task SuperviseDirect(Pending call)
+    {
+        try
+        {
+            await call.Started.Task.WaitAsync(launch.Watchdogs.StartNotification,lifetime.Token);
+            await call.Settled.Task.WaitAsync(launch.Watchdogs.UnsettledExecution,lifetime.Token);
+        }
+        catch(OperationCanceledException)when(lifetime.IsCancellationRequested){}
+        catch{await CloseAsync(call.Started.Task.IsCompletedSuccessfully?"execution-unsettled":"start-notification-missing",true);}
     }
     private async Task Heartbeat()
     {
@@ -273,6 +329,11 @@ public sealed class CSharpHostSession : IAsyncDisposable
     {
         await process.WaitForExitAsync();
         lock(gate){if(closing is not null)return;}
+        // A process can exit after flushing a typed host-failed frame but before
+        // the reader has dispatched it. Give the bounded reader a chance to
+        // preserve that authoritative reason instead of racing it with exit.
+        try{await dataTask.WaitAsync(launch.Watchdogs.StartNotification);}catch(TimeoutException){}
+        lock(gate){if(closing is not null)return;}
         _=CloseAsync("process-exited",true);
     }
     private async Task DiscardErrors()
@@ -283,7 +344,7 @@ public sealed class CSharpHostSession : IAsyncDisposable
         lock(gate)
         {
             if(closing is not null)return closing;
-            state="closing";closing=Task.Run(()=>CloseCore(reason,force));return closing;
+            state="closing";termination.TrySetResult(reason);closing=Task.Run(()=>CloseCore(reason,force));return closing;
         }
     }
     private async Task<CSharpHostClosure> CloseCore(string reason,bool forced)
@@ -316,8 +377,9 @@ public sealed class CSharpHostSession : IAsyncDisposable
             state=confirmed?"closed":"cleanup-unconfirmed";
             ready.TrySetException(failure);pending?.Started.TrySetException(failure);pending?.Settled.TrySetException(failure);pending=null;
         }
+        var closure=new CSharpHostClosure(reason,forced,confirmed);Closure=closure;
         if(confirmed){process.Dispose();released(this);}
-        return new(reason,forced,confirmed);
+        return closure;
     }
     public async ValueTask DisposeAsync()
     {var closed=await StopAsync();if(!closed.CleanupConfirmed)throw new CSharpHostFailure(closed.Reason,false);}

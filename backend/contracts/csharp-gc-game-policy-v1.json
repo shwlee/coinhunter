@@ -1,0 +1,42 @@
+{
+  "policy": "csharp-gc-window-v1",
+  "scope": "private-candidate-game-only",
+  "defaultEnabled": false,
+  "publicCSharpEnabled": false,
+  "settingsPrefix": "Backend:CSharpGameCandidate:",
+  "settings": { "ExperimentalGcWindow": false, "GcMemberMemoryMiB": 768, "GcEngineMemoryMiB": 512 },
+  "admission": {
+    "snapshotAt": "before source copy, compilation or engine/player start",
+    "windowsEngineProcesses": "1 + JavaScript participant count",
+    "linuxEngineTasks": "128 * (1 + JavaScript participant count); not measured on Linux",
+    "memberProcessesOrTasks": "1 on Windows; 128 on Linux",
+    "memory": "sum engine and C# member hard caps within actual reserved game scope",
+    "launches": "one per participant; no automatic restart"
+  },
+  "calls": {
+    "turnBudgetMs": 500,
+    "ok": "apply returned direction; same instance",
+    "timeout": "stay action in this turn; same instance after actual settlement",
+    "invalid-result": "stay action in this turn; same instance",
+    "exception": "terminal user-code fault, including fatal exception settled after deadline",
+    "operation-limit": "terminal user-code fault, including allocation limit settled after deadline",
+    "gcFailure": "terminal infrastructure failure; never a timeout or player penalty",
+    "scheduling": "completion immediately starts action; action completion starts next calculation; no common barrier"
+  },
+  "recording": {
+    "successfulObservationEvent": "runtime-observation, bound to player/turn/callId/instanceId",
+    "failureEvent": "runtime-failure with infrastructureFailure; no user status",
+    "finalReason": "same whitelisted gc-* reason",
+    "transportFailureRecovery": "query lifecycle owner only on failed direct transport; no extra IPC for successful turns"
+  },
+  "acceptance": {
+    "hardRealtimeGuarantee": false,
+    "longRunningGcAccepted": false,
+    "remaining": [
+      "NoGC reservation exhaustion during repeated calls",
+      "strict interruption boundary",
+      "Linux sandbox",
+      "deployment resource and load acceptance"
+    ]
+  }
+}

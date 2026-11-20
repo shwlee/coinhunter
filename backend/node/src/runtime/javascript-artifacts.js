@@ -12,9 +12,11 @@ export const JAVASCRIPT_RUNTIME = Object.freeze({
   name: 'quickjs-emscripten',
   version: createRequire(import.meta.url)('quickjs-emscripten/package.json').version,
 });
-export const JAVASCRIPT_ADAPTER_VERSION = '1';
+export const JAVASCRIPT_ADAPTER_VERSION = '2';
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
-const optionsHash = sha256('coinhunter-js-source-v1:500ms:32MiB:stack512KiB');
+const optionsHash = sha256(
+  'coinhunter-js-source-v2:user-call500ms:separate-input:32MiB:stack512KiB',
+);
 
 // Session-local bindings, not the stage-5 disk/compiler cache.
 export class JavaScriptArtifacts {

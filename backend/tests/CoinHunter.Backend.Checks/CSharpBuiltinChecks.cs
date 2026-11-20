@@ -70,6 +70,10 @@ internal static class CSharpBuiltinChecks
         Measure("checked-dictionary-grow",32768,()=>{var d=new Dictionary<int,int>(32768);int capacity=d.EnsureCapacity(0);for(int i=0;i<capacity;i++)d.Add(i,i);return()=>CheckedOperations.DictionaryAdd(d,-1,0,1,1);});
         Measure("checked-array-allocate-touch",1048576,()=>()=>{var a=new int[CheckedOperations.ArrayLength(1048576,1,1)];for(int i=0;i<a.Length;i+=1024)a[i]=1;GC.KeepAlive(a);});
         Measure("checked-array-allocation-gc-churn",1048576,()=>()=>{for(int i=0;i<64;i++){var a=new int[CheckedOperations.ArrayLength(1048576,1,1)];a[0]=i;GC.KeepAlive(a);}});
+        Measure("checked-string-concat",65536,()=>{var a=new string('a',32768);var b=new string('b',32768);return()=>GC.KeepAlive(CheckedOperations.StringConcat(a,b,1,1));});
+        Measure("bounded-string-equality",65536,()=>{var a=new string('a',65536);var b=new string('a',65535)+"b";return()=>GC.KeepAlive(a==b);});
+        Measure("checked-string-concat-retained-pressure",65536,()=>{var pressure=new byte[128*1024*1024];for(int i=0;i<pressure.Length;i+=4096)pressure[i]=1;var a=new string('a',32768);return()=>{GC.KeepAlive(CheckedOperations.StringConcat(a,a,1,1));GC.KeepAlive(pressure);};});
+        Measure("checked-allocation-retained-pressure",1048576,()=>{var pressure=new byte[128*1024*1024];for(int i=0;i<pressure.Length;i+=4096)pressure[i]=1;return()=>{for(int i=0;i<64;i++){var a=new int[CheckedOperations.ArrayLength(1048576,1,1)];a[0]=i;GC.KeepAlive(a);}GC.KeepAlive(pressure);};});
         Console.Write(JsonSerializer.Serialize(samples));
     }
 }

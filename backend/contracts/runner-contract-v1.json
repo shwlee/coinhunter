@@ -27,7 +27,7 @@
       "engineApplyDelayMs"
     ],
     "unmeasured": null,
-    "existingJavascriptBoundary": "quickjs-call-v1"
+    "existingJavascriptBoundary": "quickjs-call-v2"
   },
   "infrastructureFaultCodes": [
     "unavailable",

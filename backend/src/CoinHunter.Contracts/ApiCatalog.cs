@@ -52,6 +52,8 @@ public static class ApiCatalog
         new("GET", "/internal/v1/resources", "service", 4, "none", "OS adapter and reserved memory/process budget"),
         new("POST", "/internal/v1/matches", "service", 4, "ExecutionRequest + idempotent requestId", "202 ExecutionAccepted"),
         new("POST", "/internal/v1/candidates/matches", "service", 4, "development opt-in + owner scope + C# participant; no browser capability", "202 private candidate execution"),
+        new("GET", "/internal/v1/candidates/csharp/readiness", "service", 4, "none", "candidate policy and explicit pending public acceptance gates"),
+        new("POST", "/internal/v1/candidates/csharp/cache/maintenance", "service", 4, "explicit dryRun boolean; server retention policy", "derived artifact cache trim report; active leases retained"),
         new("GET", "/internal/v1/matches/{id}", "service", 4, "optional afterSequence; update wait <= 1s", "execution state + latest snapshot"),
         new("POST", "/internal/v1/matches/{id}/start", "service", 4, "requestId", "ack; requires prepared"),
         new("POST", "/internal/v1/matches/{id}/stop", "service", 4, "ExecutionStop", "ack; idempotent"),

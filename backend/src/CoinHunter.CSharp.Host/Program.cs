@@ -9,6 +9,12 @@ using CoinHunter.CSharp.Analysis;
 using CoinHunter.Contracts;
 
 if(args.Length>0&&args[0]=="--prepare"){await PreparationMode.Run(args.Skip(1).ToArray());return;}
+bool experimentalGc=args.Length>0&&args[0]=="--gc-window-probe";
+if(experimentalGc)args=args.Skip(1).ToArray();
+bool experimentalGcEntryCollection=experimentalGc&&args.Length>0&&args[0]=="--gc-entry-collection";
+if(experimentalGcEntryCollection)args=args.Skip(1).ToArray();
+bool direct=args.Length>0&&args[0]=="--game-channel";
+if(direct)args=args.Skip(1).ToArray();
 bool prepared=args.Length>0&&args[0]=="--artifact";
 if(prepared)args=args.Skip(1).ToArray();
 
@@ -16,10 +22,11 @@ if(prepared)args=args.Skip(1).ToArray();
 if (args.Length is not (2 or 3 or 6)) throw new ArgumentException("source path and private control pipe required");
 using var commandReader=new StreamReader(Console.OpenStandardInput(),Encoding.UTF8);
 if (await commandReader.ReadLineAsync() != "authorize") throw new InvalidOperationException("Resource authorization required.");
+var directBinding=direct?JsonSerializer.Deserialize<CSharpGameChannel>(await commandReader.ReadLineAsync()??throw new IOException("Missing direct binding.")):null;
 var sourcePath = Path.GetFullPath(args[0]); var generation = Guid.NewGuid();
 var jsonOptions = new JsonSerializerOptions { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
 var probeStall = args.Length >= 3 ? int.Parse(args[2]) : 0;
-if (probeStall is < -6 or > 2000) throw new ArgumentOutOfRangeException(nameof(probeStall));
+if (probeStall is < -9 or > 2000) throw new ArgumentOutOfRangeException(nameof(probeStall));
 int playerNumber=args.Length==6?int.Parse(args[3]):0, columns=args.Length==6?int.Parse(args[4]):3, rows=args.Length==6?int.Parse(args[5]):3;
 if(playerNumber is <0 or >3||columns<=0||rows<=0)throw new ArgumentException("Invalid initialization.");
 using var control = new NamedPipeServerStream(args[1], PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
@@ -37,6 +44,7 @@ void Stop()
     lock (stateGate) { stopping = true; active?.RequestStop(); commands.CompleteAdding(); }
 }
 var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+using var directChannel=directBinding is null?null:new DirectGameChannel(directBinding,generation);
 var worker = new Thread(() =>
 {
     try
@@ -50,16 +58,25 @@ var worker = new Thread(() =>
             lock (stateGate) { active = scope; activeCall = call; if (stopping) scope.RequestStop(); }
             Send(Event("execution-started", activeRequest, new { call, candidate.InstanceId, scope.StartedTicks, budgetMs = scope.Budget.TotalMilliseconds }));
             // Used to prove that control/deadline supervision does not depend on worker progress.
-            if (activeRequest is not null && probeStall is not (0 or -2 or -3 or -4 or -5 or -6)) Thread.Sleep(probeStall == -1 ? Timeout.Infinite : probeStall);
+            if (activeRequest is not null && probeStall is not (0 or -2 or -3 or -4 or -5 or -6 or -7 or -8 or -9)) Thread.Sleep(probeStall == -1 ? Timeout.Infinite : probeStall);
+            if(activeRequest is not null&&probeStall==-7)while(scope.ElapsedMs<499)Thread.SpinWait(20);
+            if(activeRequest is not null&&probeStall is -8 or -9)
+            {
+                while(scope.ElapsedMs<501)Thread.SpinWait(20);
+                if(probeStall==-8)throw new OperationLimitException("call-allocation-bytes");
+                throw new IndexOutOfRangeException();
+            }
         };
         void Publish(CandidateCall result, bool release = false)
         {
+            string? request;
             lock (stateGate)
             {
-                var request = activeRequest; active = null;
+                request = activeRequest; active = null;
                 if (release) { busy = false; activeRequest = null; }
                 Send(Event("execution-settled", request, result));
             }
+            directChannel?.Complete(request,result);
         }
         var constructed = candidate.Construct(); Publish(constructed);
         if (constructed.Status != "ok") throw new InvalidOperationException("Construction failed.");
@@ -70,19 +87,36 @@ var worker = new Thread(() =>
         Publish(name);
         if (name.Status != "ok") throw new InvalidOperationException("Name failed.");
         lock (stateGate) { ready = true; busy = false; }
-        Send(Event("ready", data: new { candidate.InstanceId, pid = Environment.ProcessId, frequency = Stopwatch.Frequency, candidate.Analysis.SourceHash, candidate.Analysis.Profile, guardVersion=CSharpCandidate.GuardVersion }));
+        Send(Event("ready", data: new { candidate.InstanceId, pid = Environment.ProcessId, frequency = Stopwatch.Frequency, candidate.Analysis.SourceHash, candidate.Analysis.Profile, guardVersion=CSharpCandidate.GuardVersion,experimentalGc,experimentalGcEntryCollection }));
         foreach (var command in commands.GetConsumingEnumerable())
         {
             lock (stateGate) { if (stopping) { busy = false; break; } activeRequest = command.Id; }
             if (probeStall == -2) Thread.Sleep(Timeout.Infinite); // Missing start notification probe.
-            var result = candidate.MoveNext(command.Map!, command.Position, command.Items!);
+            CandidateCall result;
+            if(experimentalGc)
+            {
+                var policy=CSharpGcWindowPolicy.Probe with{AllowEntryCollection=experimentalGcEntryCollection};
+                var window=CSharpGcWindowCandidate.Run(candidate,()=>candidate.MoveNext(command.Map!,command.Position,command.Items!),policy);
+                if(window.Status!="completed")throw new CSharpGcWindowFailure(window.Status){Entry=window.Entry};
+                result=window.Call! with{ExperimentalMemory=new(window.Status,policy.TotalBytes,policy.WorkerAllocationBytes,window.WorkerAllocatedBytes,window.EntryMs,window.ExitMs,window.CollectionDeltas,window.RegionIntact){ProcessAllocationLimitBytes=policy.ProcessAllocationBytes,ProcessAllocatedBytes=window.ProcessAllocatedBytes,Entry=window.Entry}};
+            }
+            else result=candidate.MoveNext(command.Map!, command.Position, command.Items!);
             Publish(result, release: true);
         }
     }
-    catch (Exception error) { Send(Event("host-failed", activeRequest, new { error = error.GetType().Name })); }
+    catch (Exception error) { Send(Event("host-failed", activeRequest, new { error = error.GetType().Name,memoryFailure=(error as CSharpGcWindowFailure)?.Status,entry=(error as CSharpGcWindowFailure)?.Entry })); }
     finally { Stop(); Send(Event("closed", data: new { executionSettled = true })); finished.TrySetResult(); }
 }) { IsBackground = true, Name = "CSharp player worker" };
 worker.Start();
+void DispatchDirect(HostCommand command)
+{
+    lock(stateGate)
+    {
+        if(!ready||busy||stopping)throw new IOException("Host not ready for direct call.");
+        Send(Event("execution-queued",command.Id));busy=true;commands.Add(command);
+    }
+}
+var directServing=directChannel?.Serve(columns,rows,DispatchDirect,Stop);
 var deadlineMonitor = Task.Run(async () =>
 {
     long notified = -1;
@@ -130,6 +164,7 @@ var input = Task.Run(async () =>
     {
         await foreach (var line in Frames.Read(commandReader, 1048576))
         {
+            if(direct)throw new InvalidDataException("Game host stdin is lifecycle-only.");
             if (finished.Task.IsCompleted) break;
             var command = JsonSerializer.Deserialize<HostCommand>(line, jsonOptions) ?? throw new InvalidOperationException("Missing command.");
             lock (stateGate)
@@ -146,6 +181,8 @@ var input = Task.Run(async () =>
     catch (Exception) { Stop(); }
 });
 await finished.Task;
+directChannel?.Dispose();
+if(directServing is not null)try{await directServing;}catch(ObjectDisposedException){}
 if (Volatile.Read(ref controlStop) != 0) await stopAcknowledged.Task.WaitAsync(TimeSpan.FromSeconds(3));
 await deadlineMonitor;
 output.Writer.TryComplete(); await writer;

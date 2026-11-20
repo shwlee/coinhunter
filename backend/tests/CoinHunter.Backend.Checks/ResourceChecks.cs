@@ -160,7 +160,7 @@ internal static class ResourceChecks
     }
     private static async Task<int> RunLinux(string root)
     {
-        var settings = new ExecutionResourceSettings(new ConfigurationBuilder().AddEnvironmentVariables().Build());
+        var settings = new ExecutionResourceSettings(new ConfigurationBuilder().AddEnvironmentVariables().AddInMemoryCollection(new Dictionary<string,string?>{["Backend:RepositoryRoot"]=root,["Backend:ExecutionRoot"]=Path.Combine(root,"artifacts","linux-resource-"+Guid.NewGuid().ToString("N"))}).Build());
         var manager = new ExecutionResources(settings);
         async Task<(string? Line, ResourceObservation Observation)> Probe(string mode, ResourceProfile profile)
         {
@@ -189,13 +189,30 @@ internal static class ResourceChecks
         Console.WriteLine("PASS delegated cgroup denies memory expansion or records verified OOM kill");
         await Probe("tree", profile);
         Console.WriteLine("PASS delegated cgroup contains and drains descendants");
-        var rate = Math.Max(100, 2500 / Math.Max(1, Environment.ProcessorCount));
+        var rate = Math.Max(1, 2500 / Math.Max(1, Environment.ProcessorCount));
         var cpu = await Probe("cpu", profile with { CpuRate = rate });
         if (cpu.Line?.StartsWith("cpu:") != true || double.Parse(cpu.Line[4..], System.Globalization.CultureInfo.InvariantCulture) >= 1700) throw new Exception("Linux CPU cap did not throttle the probe.");
         Console.WriteLine("PASS delegated cgroup CPU cap throttles trusted spin probe");
+        foreach(var mode in new[]{"memory","cpu"})
+        {
+            using var game=manager.Reserve(profile with{Name="linux-nested-"+mode,CpuRate=mode=="cpu"?rate:10000});
+            using var member=game.CreateChild(profile with{Name="linux-player-member",CpuRate=10000});
+            using var resident=mode=="memory"?new Process{StartInfo=StartInfo(root,"resident-memory")}:null;
+            using var actor=new Process{StartInfo=StartInfo(root,mode)};
+            try
+            {
+                if(resident is not null){resident.Start();game.Assign(resident);await resident.StandardInput.WriteLineAsync("go");resident.StandardInput.Close();if(await resident.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10))!="resident")throw new Exception("Nested resident fixture not ready.");}
+                actor.Start();member.Assign(actor);await actor.StandardInput.WriteLineAsync("go");actor.StandardInput.Close();
+                var line=await actor.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(15));await actor.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                if(mode=="memory"&&!(line?.StartsWith("denied:")==true||game.Observe().OomKills>0||member.Observe().OomKills>0))throw new Exception("Nested aggregate memory ceiling failed.");
+                if(mode=="cpu"&&(line?.StartsWith("cpu:")!=true||double.Parse(line[4..],System.Globalization.CultureInfo.InvariantCulture)>=1700))throw new Exception("Child bypassed parent CPU ceiling.");
+            }
+            finally{await member.TerminateAndDrain().WaitAsync(TimeSpan.FromSeconds(5));member.Dispose();await game.TerminateAndDrain().WaitAsync(TimeSpan.FromSeconds(5));}
+        }
+        Console.WriteLine("PASS nested cgroups inherit aggregate memory/CPU ceilings and drain before parent reservation release");
         if (JsonSerializer.SerializeToNode(manager.Status)!["reservedProcesses"]!.GetValue<int>() != 0) throw new Exception("Linux resource reservations leaked.");
         Console.WriteLine("PASS delegated cgroup releases reservations after cleanup");
-        return 4;
+        return 6;
     }
     [DllImport("kernel32.dll")] private static extern uint GetActiveProcessorCount(ushort group);
 }

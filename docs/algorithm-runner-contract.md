@@ -95,7 +95,7 @@ debug는 호출별 30줄·줄당 1024 UTF-16 code unit 이내와 droppedLogs(생
 | 값                   | 경계/처리                                                                 |
 | -------------------- | ------------------------------------------------------------------------- |
 | executionMs          | 현재 500ms 판정에 사용하는 실행 구간. 경계 ID로 의미를 명시               |
-| executionBoundary    | 현재 JS는 `quickjs-call-v1`                                               |
+| executionBoundary    | 현재 JS는 `quickjs-call-v2` — 입력 해석을 분리한 Player 호출 구간         |
 | roundTripMs          | 어댑터 호출 시작→응답 수신/완료의 caller 구간. 직접 경로에는 없을 수 있음 |
 | inputPreparationMs   | 엔진의 해당 입력 snapshot 준비. 미측정은 null                             |
 | responseProcessingMs | 어댑터 응답 처리의 독립 구간. 미측정은 null                               |

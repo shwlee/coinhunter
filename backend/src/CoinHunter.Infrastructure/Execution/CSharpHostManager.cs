@@ -1,8 +1,10 @@
 using CoinHunter.Infrastructure.Resources;
+using CoinHunter.Contracts;
 using Microsoft.Extensions.Hosting;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("CoinHunter.Backend.Checks")]
+[assembly: InternalsVisibleTo("CoinHunter.Execution.Host")]
 
 namespace CoinHunter.Infrastructure.Execution;
 
@@ -23,13 +25,18 @@ public sealed record CSharpHostLaunch(string HostAssembly, string SourcePath, st
 {
     internal int ProbeStall { get; init; }
     internal bool PreparedArtifact { get; init; }
+    internal bool ExperimentalGcWindow { get; init; }
+    internal bool ExperimentalGcEntryCollection { get; init; }
+    internal CSharpGcPlayerAdmission? ExperimentalGcAdmission { get; init; }
     public IExecutionResourceGroup? ParentResources { get; init; }
+    public CSharpGameChannel? GameChannel { get; init; }
 }
 public sealed record CSharpPreparedLaunch(string HostAssembly, Guid Owner, string Key, int PlayerNumber, int Columns, int Rows, ResourceProfile Resources, CSharpWatchdogs Watchdogs)
-{ public IExecutionResourceGroup? ParentResources { get; init; } }
+{ public IExecutionResourceGroup? ParentResources { get; init; } public CSharpGameChannel? GameChannel { get; init; } internal bool ExperimentalGcWindow { get; init; } internal bool ExperimentalGcEntryCollection { get; init; } internal CSharpGcPlayerAdmission? ExperimentalGcAdmission { get; init; } }
 public sealed record CSharpHostReady(Guid Generation, Guid InstanceId, int ProcessId, long Frequency, string SourceHash, string Profile, string GuardVersion);
 public sealed record CSharpParentCall(Guid Generation, Guid InstanceId, long CallId, int ProcessId, string Status,
-    int? Direction, bool DeadlineReached, bool ExecutionSettled, double BudgetMs, double ElapsedMs, string? LimitCode, int? Line = null, int? Column = null);
+    int? Direction, bool DeadlineReached, bool ExecutionSettled, double BudgetMs, double ElapsedMs, string? LimitCode, int? Line = null, int? Column = null)
+{ public CSharpCallMemoryObservation? ExperimentalMemory { get; init; } }
 public sealed record CSharpHostClosure(string Reason, bool Forced, bool CleanupConfirmed);
 public sealed record CSharpPreparationFault(string Phase, string Status, double ElapsedMs, double BudgetMs, string? Code, int? Line, int? Column);
 public sealed class CSharpHostFailure(string reason, bool cleanupConfirmed, CSharpPreparationFault? fault = null) : IOException(reason)
@@ -39,21 +46,39 @@ public sealed class CSharpHostFailure(string reason, bool cleanupConfirmed, CSha
     public CSharpPreparationFault? Fault { get; } = fault;
 }
 
-// Registered with the execution service, but no public/native runner capability
-// calls it until artifact/ownership and game integration are implemented.
+// Registered with the execution service and used by the private opt-in game
+// candidate. Public language capability remains disabled pending acceptance.
 public sealed class CSharpHostManager(ExecutionResources resources) : IHostedService
 {
     private readonly object gate = new();
     private readonly HashSet<CSharpHostSession> sessions = [];
+    private readonly Queue<object> recentClosures=[];
+    private long closedCount,forcedCount;
     private bool stopping;
     public int ManagedCount { get { lock (gate) return sessions.Count; } }
+    public object Status
+    {
+        get{lock(gate)return new{active=sessions.Count,cleanupUnconfirmed=sessions.Count(s=>s.State=="cleanup-unconfirmed"),closed=closedCount,forced=forcedCount,recentClosures=recentClosures.ToArray()};}
+    }
+    private void Released(CSharpHostSession session,CSharpArtifactLease? lease)
+    {
+        lock(gate)
+        {
+            sessions.Remove(session);closedCount++;
+            var closure=session.Closure!;if(closure.Forced)forcedCount++;
+            var reason=closure.Reason.Length<=64&&closure.Reason.All(c=>c is >= 'a' and <= 'z' or '-')?closure.Reason:"other";
+            recentClosures.Enqueue(new{hostId=session.Identity?.Generation,reason,closure.Forced,closure.CleanupConfirmed});
+            if(recentClosures.Count>32)recentClosures.Dequeue();
+        }
+        lease?.Dispose();
+    }
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public async Task<CSharpHostSession> CreateAsync(CSharpHostLaunch launch, CancellationToken token = default)
         => await CreateOwnedAsync(launch, null, token);
     public async Task<CSharpHostSession> CreatePreparedAsync(CSharpPreparationStore store, CSharpPreparedLaunch launch, CancellationToken token = default)
     {
         var lease = await store.AcquireAsync(launch.Owner, launch.Key, token);
-        return await CreateOwnedAsync(new CSharpHostLaunch(launch.HostAssembly, lease.ManifestPath, lease.Manifest.SourceHash, launch.PlayerNumber, launch.Columns, launch.Rows, launch.Resources, launch.Watchdogs) { PreparedArtifact = true, ParentResources = launch.ParentResources }, lease, token);
+        return await CreateOwnedAsync(new CSharpHostLaunch(launch.HostAssembly, lease.ManifestPath, lease.Manifest.SourceHash, launch.PlayerNumber, launch.Columns, launch.Rows, launch.Resources, launch.Watchdogs) { PreparedArtifact = true, ParentResources = launch.ParentResources, GameChannel = launch.GameChannel, ExperimentalGcWindow = launch.ExperimentalGcWindow, ExperimentalGcEntryCollection=launch.ExperimentalGcEntryCollection, ExperimentalGcAdmission = launch.ExperimentalGcAdmission }, lease, token);
     }
     private async Task<CSharpHostSession> CreateOwnedAsync(CSharpHostLaunch launch, CSharpArtifactLease? lease, CancellationToken token)
     {
@@ -64,7 +89,8 @@ public sealed class CSharpHostManager(ExecutionResources resources) : IHostedSer
             lock (gate)
             {
                 if (stopping) throw new InvalidOperationException("C# host manager is stopping.");
-                session = new CSharpHostSession(launch, resources, closed => { lock (gate) sessions.Remove(closed); lease?.Dispose(); });
+                if(sessions.Any(s=>s.State=="cleanup-unconfirmed"))throw new CSharpHostFailure("operator-recovery-required",false);
+                session = new CSharpHostSession(launch, resources, closed => Released(closed,lease));
                 sessions.Add(session);
             }
         }

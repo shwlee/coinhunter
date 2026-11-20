@@ -8,6 +8,16 @@ const wrap = (body) => `module.exports = class {
   moveNext(map, position, items) { ${body} }
 }`;
 
+test('input decoding uses captured intrinsics and is measured separately from the Player call', async (t) => {
+  const p = await player(t, `JSON.parse=()=>{while(true){}}; return map[position]===10?2:-1;`);
+  const first = await p.move([10], 0);
+  const next = await p.move([10], 0);
+  assert.equal(first.value, 2);
+  assert.equal(next.value, 2);
+  assert.ok(first.inputPreparationMs >= 0 && next.inputPreparationMs >= 0);
+  assert.ok(first.elapsedMs < 500 && next.elapsedMs < 500);
+});
+
 async function player(t, body) {
   const process = new PlayerProcess();
   t.after(() => process.close());

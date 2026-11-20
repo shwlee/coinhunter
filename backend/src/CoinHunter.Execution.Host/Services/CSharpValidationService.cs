@@ -18,8 +18,12 @@ public sealed class CSharpValidationService(StorageSettings settings, GameConten
     private string? host;
     private ResourceProfile? profile;
     private bool closed;
+    private CSharpRuntimePolicy runtime=CSharpRuntimePolicy.Read(configuration);
+    public object Readiness=>runtime.Readiness(GameCandidateEnabled,manager.Status,configuration.GetValue("Backend:CSharpGameCandidate:ExperimentalGcWindow",false),configuration.GetValue("Backend:CSharpGameCandidate:GcEntryCollection",false));
+    public Task<CSharpCacheMaintenance> MaintainCache(bool dryRun,CancellationToken token)=>preparations is null?throw new ServiceFault(503,"C# 후보 캐시는 비활성입니다."):preparations.MaintainAsync(runtime.ArtifactRetention,dryRun,token);
     internal bool GameCandidateEnabled => configuration.GetValue("Backend:CSharpGameCandidate:Enabled", false) && preparations is not null && !closed;
-    internal async Task<CSharpCandidatePlayer> PreparePlayer(ExecutionRequest game, ParticipantRequest player, string snapshot, IExecutionResourceGroup gameScope, ResourceProfile gameLimits, CancellationToken token)
+    internal CSharpGcGameLaunch? PlanGcGame(ExecutionRequest game,IExecutionResourceGroup scope,ResourceProfile limits)=>CSharpGcGameLaunch.Create(configuration,game,scope,limits);
+    internal async Task<CSharpCandidatePlayer> PreparePlayer(ExecutionRequest game, ParticipantRequest player, string snapshot, IExecutionResourceGroup gameScope, ResourceProfile gameLimits, CancellationToken token,CSharpGcGameLaunch? gc=null,int gcIndex=0)
     {
         if (!GameCandidateEnabled || game.Scope.Kind != "user") throw new ServiceFault(503, "C# 게임 후보 실행은 비활성입니다.");
         var result = await Validate(game.Scope, player.Source, snapshot, token);
@@ -28,21 +32,22 @@ public sealed class CSharpValidationService(StorageSettings settings, GameConten
         var lease = await preparations!.AcquireAsync(game.Scope.SubjectId, report.Key, token);
         try
         {
-            var watchdogs = new CSharpWatchdogs(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5));
+            var watchdogs = runtime.Watchdogs;
             // A child may use its share of the parent CPU cap, never a fraction
             // of that cap again. Windows interprets child CPU rates relatively.
-            var member = new ResourceProfile("csharp-game-member-v1", Math.Min(gameLimits.MemoryBytes, 768L * 1024 * 1024), Math.Min(gameLimits.ProcessCount, OperatingSystem.IsWindows() ? 1 : 128), 10000);
-            return new CSharpCandidatePlayer(game, player, lease, preparations, manager, new CSharpPreparedLaunch(host!, game.Scope.SubjectId, report.Key, player.PlayerId, game.Map.Columns, game.Map.Rows, member, watchdogs) { ParentResources = gameScope });
+            var member = gc?.Member??new ResourceProfile("csharp-game-member-v1", Math.Min(gameLimits.MemoryBytes, 768L * 1024 * 1024), Math.Min(gameLimits.ProcessCount, OperatingSystem.IsWindows() ? 1 : 128), 10000);
+            return new CSharpCandidatePlayer(game, player, lease, preparations, manager, new CSharpPreparedLaunch(host!, game.Scope.SubjectId, report.Key, player.PlayerId, game.Map.Columns, game.Map.Rows, member, watchdogs) { ParentResources = gameScope,ExperimentalGcWindow=gc is not null,ExperimentalGcEntryCollection=gc?.EntryCollection??false,ExperimentalGcAdmission=gc?.Admission.Player(gcIndex) });
         }
         catch { lease.Dispose(); throw; }
     }
     public Task StartAsync(CancellationToken token)
     {
         if (!configuration.GetValue("Backend:CSharpValidation:Enabled", false)) return Task.CompletedTask;
+        runtime=CSharpRuntimePolicy.Read(configuration);runtime.EnsureDiskSpace(settings.ExecutionRoot);
         host = configuration["Backend:CSharpValidation:HostAssembly"];
         if (string.IsNullOrWhiteSpace(host) || !Path.IsPathFullyQualified(host) || !File.Exists(host)) throw new InvalidOperationException("C# candidate validation requires an explicit trusted HostAssembly.");
         profile = new ResourceProfile("csharp-candidate-validation-v1", 768L * 1024 * 1024, OperatingSystem.IsWindows() ? 2 : 128, 10000);
-        preparations = new CSharpPreparationStore(Path.Combine(settings.ExecutionRoot, "csharp", "artifacts"), host, resources, new(profile, TimeSpan.FromSeconds(30), 16L * 1024 * 1024, 1024 * 1024, 256L * 1024 * 1024));
+        preparations = new CSharpPreparationStore(Path.Combine(settings.ExecutionRoot, "csharp", "artifacts"), host, resources, new(profile, TimeSpan.FromSeconds(30), 16L * 1024 * 1024, 1024 * 1024, 256L * 1024 * 1024){MinimumFreeDiskBytes=runtime.MinimumFreeDiskBytes});
         reports = new FileCSharpPreflightReportStore(Path.Combine(settings.ExecutionRoot, "csharp", "reports"));
         return Recover(token);
     }
@@ -57,6 +62,7 @@ public sealed class CSharpValidationService(StorageSettings settings, GameConten
         try
         {
             ObjectDisposedException.ThrowIf(closed, this);
+            runtime.EnsureDiskSpace(settings.ExecutionRoot);
             var prepared = await preparations.PrepareAsync(scope.SubjectId, snapshot, source.Sha256, deadline.Token);
             if (prepared.Status != "prepared")
             {
@@ -74,7 +80,7 @@ public sealed class CSharpValidationService(StorageSettings settings, GameConten
                     ["diagnostic"] = new JsonObject { ["stage"] = codeFailure ? "compile" : "environment", ["code"] = prepared.Status, ["details"] = JsonSerializer.SerializeToNode(prepared.Diagnostics, Protocol.JsonOptions) }
                 };
             }
-            var watchdogs = new CSharpWatchdogs(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5));
+            var watchdogs = runtime.Watchdogs;
             var launch = new CSharpPreparedLaunch(host!, scope.SubjectId, prepared.Key!, 0, 1, 1, profile!, watchdogs);
             var result = await new CSharpArtifactPreflight(preparations, manager).CheckAsync(launch, Path.Combine(settings.RepositoryRoot, "backend/contracts/generated/algorithm-preflight.json"), deadline.Token);
             if (result.FixtureHash != content.PreflightHash) throw new InvalidDataException("Preflight fixture changed during service lifetime.");

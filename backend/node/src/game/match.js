@@ -308,9 +308,20 @@ export class Match extends EventEmitter {
         ...(['exception', 'operation-limit', 'cancelled'].includes(error?.userStatus)
           ? { status: error.userStatus }
           : {}),
+        ...(error instanceof RunnerFault && error.diagnostic
+          ? { diagnostic: error.diagnostic }
+          : {}),
+        ...(error instanceof RunnerFault && error.infrastructureFailure
+          ? { infrastructureFailure: error.infrastructureFailure, gcEntry: error.gcEntry }
+          : {}),
       });
       // Never await stop from a job that stop itself must drain.
-      if (!this.stopping) this.stopDetached('runtime-failure');
+      if (!this.stopping)
+        this.stopDetached(
+          error instanceof RunnerFault && error.infrastructureFailure
+            ? error.infrastructureFailure
+            : 'runtime-failure',
+        );
       return;
     }
     if (this.stopping || !this.state.isRunning()) {
@@ -318,6 +329,15 @@ export class Match extends EventEmitter {
       return;
     }
     this.record('algorithm-result', { player: id, turn, result });
+    if (this.runners[id].lastObservation)
+      this.record('runtime-observation', {
+        player: id,
+        turn,
+        callId,
+        instanceId: result.instanceId,
+        policy: this.runners[id].observationPolicy,
+        memory: this.runners[id].lastObservation,
+      });
     if (this.stopping) return;
     const actionResult = {
       status: result.status,

@@ -25,7 +25,7 @@ export const RUNNER_FAULT_CODES = Object.freeze([
 export const RUNNER_FAULT_STAGES = Object.freeze(['prepare', 'initialize', 'move', 'close']);
 export const LOG_LIMITS = Object.freeze({ lines: 30, lineCharacters: 1024 });
 export const TIMING_BOUNDARIES = Object.freeze({
-  quickJsCall: 'quickjs-call-v1',
+  quickJsCall: 'quickjs-call-v2',
   dotNetCall: 'dotnet-guarded-call-v1',
 });
 
@@ -381,6 +381,8 @@ export function assertLegacyMoveResult(value) {
     fail('legacy.logs');
   integer(value.droppedLogs, 'legacy.droppedLogs');
   if (Object.hasOwn(value, 'roundTripMs')) duration(value.roundTripMs, 'legacy.roundTripMs');
+  if (Object.hasOwn(value, 'inputPreparationMs'))
+    duration(value.inputPreparationMs, 'legacy.inputPreparationMs');
   if (Object.hasOwn(value, 'pid')) integer(value.pid, 'legacy.pid', 1);
   return value;
 }

@@ -197,7 +197,15 @@ internal static class CSharpAccountValidationChecks
             }
             var owner = Guid.NewGuid(); var request = new ValidationRequest(Guid.NewGuid(), new ExecutionScope { Kind = "user", SubjectId = owner }, source, "csharp");
             using (var denied = await client.PostAsJsonAsync("/internal/v1/validations", request, Protocol.JsonOptions)) Assert(denied.StatusCode == HttpStatusCode.Unauthorized, "C# internal HTTP route accepted missing bearer.");
+            using(var denied=await client.GetAsync("/internal/v1/candidates/csharp/readiness"))Assert(denied.StatusCode==HttpStatusCode.Unauthorized,"Readiness exposed private policy without service auth.");
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test-" + new string('h', 40));
+            using(var ready=await client.GetAsync("/internal/v1/candidates/csharp/readiness"))
+            {
+                var value=JsonNode.Parse(await ready.Content.ReadAsStringAsync())!;
+                Assert(ready.IsSuccessStatusCode&&!value.Bool("publicEnabled")&&value.Int("algorithmBudgetMs")==500&&value["pendingAcceptance"]!.AsArray().Count>0,"Readiness incorrectly activated public C# or hid pending gates.");
+            }
+            using(var missing=await client.PostAsJsonAsync("/internal/v1/candidates/csharp/cache/maintenance",new{}))Assert(missing.StatusCode==HttpStatusCode.BadRequest,"Cache trim allowed omitted dryRun.");
+            using(var preview=await client.PostAsJsonAsync("/internal/v1/candidates/csharp/cache/maintenance",new{dryRun=true}))Assert(preview.IsSuccessStatusCode,"Cache maintenance dry-run failed.");
             using (var response = await client.PostAsJsonAsync("/internal/v1/validations", request, Protocol.JsonOptions))
             {
                 var result = JsonNode.Parse(await response.Content.ReadAsStringAsync())!;

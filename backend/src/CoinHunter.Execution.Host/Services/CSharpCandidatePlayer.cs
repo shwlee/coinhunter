@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Diagnostics;
 using System.IO.Pipes;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -10,7 +9,7 @@ using CoinHunter.Infrastructure.Execution;
 
 namespace CoinHunter.Execution.Host.Services;
 
-// One game/player/run-bound private channel. Never exposed through an HTTP move API.
+// One game/player/run-bound lifecycle channel. Turns go directly to the host.
 internal sealed class CSharpCandidatePlayer
 {
     private sealed record Command(int Version, Guid Id, string Method, Guid GameId, int PlayerId, Guid RunId, Guid ArtifactId, string Token, JsonElement Input);
@@ -28,15 +27,16 @@ internal sealed class CSharpCandidatePlayer
     private readonly Task serving;
     private CSharpHostSession? session;
     private int busy;
-    private long lastCall;
     private bool released;
     private bool cleanupUnknown;
     private readonly JsonObject artifact;
     public JsonObject Descriptor { get; }
     public CSharpCandidatePlayer(ExecutionRequest game, ParticipantRequest player, CSharpArtifactLease lease, CSharpPreparationStore store, CSharpHostManager manager, CSharpPreparedLaunch launch)
     {
-        this.game = game; this.player = player; this.lease = lease; this.store = store; this.manager = manager; this.launch = launch;
+        this.game = game; this.player = player; this.lease = lease; this.store = store; this.manager = manager;
         var name = "coinhunter-csharp-" + Guid.NewGuid().ToString("N");
+        var turns=name+"-turns";
+        this.launch=launch with{GameChannel=new(turns,secret,game.MatchId,player.PlayerId,player.RunId,artifactId)};
         pipe = new(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
         var manifest = lease.Manifest;
         artifact = new JsonObject
@@ -50,7 +50,7 @@ internal sealed class CSharpCandidatePlayer
             ["profileId"] = manifest.Toolchain.Profile,
             ["toolchain"] = new JsonObject { ["name"] = "roslyn", ["version"] = manifest.Toolchain.Key },
             ["runtime"] = new JsonObject { ["name"] = "dotnet-csharp-restricted", ["version"] = manifest.Toolchain.Runtime },
-            ["adapterVersion"] = "csharp-pipe-v1",
+            ["adapterVersion"] = "csharp-direct-pipe-v2",
             ["target"] = new JsonObject { ["os"] = OperatingSystem.IsWindows() ? "win32" : "linux", ["architecture"] = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant() },
             ["optionsHash"] = manifest.Toolchain.Key
         };
@@ -64,6 +64,9 @@ internal sealed class CSharpCandidatePlayer
             ["endpoint"] = OperatingSystem.IsWindows() ? @"\\.\pipe\" + name : Path.Combine(Path.GetTempPath(), "CoreFxPipe_" + name),
             ["token"] = secret
         };
+        Descriptor["turnEndpoint"]=OperatingSystem.IsWindows()?@"\\.\pipe\"+turns:Path.Combine(Path.GetTempPath(),"CoreFxPipe_"+turns);
+        Descriptor["experimentalGcWindow"]=launch.ExperimentalGcWindow;
+        Descriptor["gcEntryCollection"]=launch.ExperimentalGcEntryCollection;
         serving = Serve();
     }
     private async Task Serve()
@@ -83,22 +86,14 @@ internal sealed class CSharpCandidatePlayer
                         {
                             if (session is not null || command.Input.GetProperty("playerNumber").GetInt32() != player.PlayerId || command.Input.GetProperty("columns").GetInt32() != game.Map.Columns || command.Input.GetProperty("rows").GetInt32() != game.Map.Rows) throw new InvalidDataException("Invalid initialization binding.");
                             session = await manager.CreatePreparedAsync(store, launch, stopping.Token); var identity = session.Identity!;
-                            result = new { contractVersion = 1, gameId = game.MatchId, playerId = player.PlayerId, runId = player.RunId, instanceId = identity.InstanceId, hostId = identity.Generation, language = "csharp", name = session.Name, runtime = artifact["runtime"]!.DeepClone(), adapterVersion = "csharp-pipe-v1" };
+                            result = new { contractVersion = 1, gameId = game.MatchId, playerId = player.PlayerId, runId = player.RunId, instanceId = identity.InstanceId, hostId = identity.Generation, language = "csharp", name = session.Name, runtime = artifact["runtime"]!.DeepClone(), adapterVersion = "csharp-direct-pipe-v2" };
                         }
-                        else if (command.Method == "move")
+                        else if(command.Method=="failure"&&session is not null)
                         {
-                            if (session is null) throw new InvalidDataException("Not initialized.");
-                            var input = command.Input; var call = input.GetProperty("callId").GetInt64();
-                            if (call != lastCall + 1 || input.GetProperty("gameId").GetGuid() != game.MatchId || input.GetProperty("playerId").GetInt32() != player.PlayerId || input.GetProperty("runId").GetGuid() != player.RunId || input.GetProperty("contractVersion").GetInt32() != 1) throw new InvalidDataException("Invalid call binding.");
-                            var map = input.GetProperty("map").Deserialize<int[]>(Protocol.JsonOptions)!; var items = input.GetProperty("items").Deserialize<int[]>(Protocol.JsonOptions)!;
-                            if (map.Length != game.Map.Columns * game.Map.Rows) throw new InvalidDataException("Invalid map dimensions.");
-                            var judgement = await session.MoveNextAsync(map, input.GetProperty("myPosition").GetInt32(), items, stopping.Token); lastCall = call;
-                            if (judgement.Status is "operation-limit" or "exception" or "cancelled")
-                            {
-                                await Send(new { version = 1, id = command.Id, ok = false, error = new { status = judgement.Status } });
-                                throw new IOException("Candidate host cannot be reused.");
-                            }
-                            result = new { status = judgement.Status, direction = judgement.Direction ?? -1, instanceId = judgement.InstanceId, hostId = judgement.Generation, executionMs = judgement.ElapsedMs, executionSettled = judgement.ExecutionSettled };
+                            string? reason=null;
+                            try{reason=await session.Termination.WaitAsync(TimeSpan.FromSeconds(2),stopping.Token);}catch(TimeoutException){}
+                            bool gcFailure=launch.ExperimentalGcWindow&&reason is ("gc-reservation-unavailable" or "gc-state-conflict" or "gc-window-lost" or "gc-call-environment-failure" or "gc-host-allocation-budget");
+                            result=new{infrastructureFailure=gcFailure?reason:null,gcEntry=gcFailure?session.FailedGcEntry:null};
                         }
                         else throw new InvalidDataException("Unknown command.");
                         Interlocked.Exchange(ref busy, 0); await Send(new { version = 1, id = command.Id, ok = true, result });
@@ -114,7 +109,7 @@ internal sealed class CSharpCandidatePlayer
                 var command = JsonSerializer.Deserialize<Command>(bytes, Protocol.JsonOptions) ?? throw new InvalidDataException("Missing bridge command.");
                 if (command.Version != 1 || command.Id == Guid.Empty || ids.Count >= 10000 || !ids.Add(command.Id) || command.GameId != game.MatchId || command.PlayerId != player.PlayerId || command.RunId != player.RunId || command.ArtifactId != artifactId || command.Token is null || command.Token.Length != secret.Length || !CryptographicOperations.FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(command.Token), System.Text.Encoding.UTF8.GetBytes(secret))) throw new InvalidDataException("Invalid private channel binding.");
                 if (command.Method == "close") { close = command; break; }
-                if (command.Method is not ("initialize" or "move") || Interlocked.CompareExchange(ref busy, 1, 0) != 0 || !queue.Writer.TryWrite(command)) throw new InvalidDataException("Overlapping command.");
+                if (command.Method is not ("initialize" or "failure") || Interlocked.CompareExchange(ref busy, 1, 0) != 0 || !queue.Writer.TryWrite(command)) throw new InvalidDataException("Overlapping or non-lifecycle command.");
             }
         }
         catch (OperationCanceledException) when (stopping.IsCancellationRequested) { }

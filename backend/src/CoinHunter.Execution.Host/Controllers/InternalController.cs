@@ -8,7 +8,7 @@ namespace CoinHunter.Execution.Host.Controllers;
 [ApiController]
 [Route("internal/v1")]
 [RequestSizeLimit(Protocol.MaxFrameBytes)]
-public sealed class InternalController(ExecutionManager manager, StorageSettings settings) : ControllerBase
+public sealed class InternalController(ExecutionManager manager, StorageSettings settings, CSharpValidationService csharp) : ControllerBase
 {
     [HttpGet("status")]
     public IActionResult Status() => Ok(new ExecutionServiceStatus(Protocol.ExecutionService, Protocol.Version, Protocol.Stage, true, ["health", "contracts", "matches", "validations", "recordings"]));
@@ -16,6 +16,15 @@ public sealed class InternalController(ExecutionManager manager, StorageSettings
     public IActionResult Contracts() => Ok(new { contractVersion = Protocol.Version, routes = ApiCatalog.Internal });
     [HttpGet("resources")]
     public IActionResult Resources() => Ok(manager.ResourceStatus);
+    [HttpGet("candidates/csharp/readiness")]
+    public IActionResult CSharpReadiness()=>Ok(csharp.Readiness);
+    public sealed record CacheMaintenanceRequest(bool? DryRun);
+    [HttpPost("candidates/csharp/cache/maintenance")]
+    public async Task<IActionResult> MaintainCSharpCache([FromBody] CacheMaintenanceRequest request)
+    {
+        if(request.DryRun is null)throw new ServiceFault(400,"dryRun을 명시하세요.");
+        return Ok(await csharp.MaintainCache(request.DryRun.Value,HttpContext.RequestAborted));
+    }
     [HttpPost("matches")]
     public async Task<IActionResult> Accept([FromBody] ExecutionRequest request) => StatusCode(202, manager.View(await manager.Accept(request, HttpContext.RequestAborted)));
     [HttpPost("candidates/matches")]

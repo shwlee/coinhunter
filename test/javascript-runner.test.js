@@ -131,7 +131,7 @@ test('adapter copies map/items into isolated guest and exposes bounded debug, no
   assert.equal(request.map[0], 0);
   assert.equal(result.logs.length, 30);
   assert.equal(result.droppedLogs, 10);
-  assert.equal(result.timings.inputPreparationMs, null);
+  assert.ok(result.timings.inputPreparationMs >= 0);
   assert.equal(JSON.stringify(result).includes('source'), false);
   assert.equal(Object.hasOwn(result, 'exceptionMessage'), false);
 });

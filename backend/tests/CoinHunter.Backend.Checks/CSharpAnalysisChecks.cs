@@ -16,6 +16,10 @@ internal static class CSharpAnalysisChecks
             count++;
         }
         Check(Source("return -1;"), null);
+        Check(Source("Debug.Print(1);Debug.Print(\"코인\");return -1;"),null);
+        Check(Source("Print(1);return -1;",imports:"using static Debug;"),null);
+        Check(Source("string s=\"a\";s+=\"b\";return -1;"),"AP001");
+        Check(Source("string s=\"a\"+map;return -1;"),"AP001");
         Check(File.ReadAllText(Path.Combine(root, "backend/examples/csharp/nearest-coin.cs")), null);
         Check(Source("return Abs(-1);", imports: "using static System.Math;"), null);
         Check(Source("return F();", "int F()=>F();"), "AR009");

@@ -25,6 +25,8 @@ public sealed class ExecutionRecord
     public IExecutionResourceGroup? ResourceGroup { get; set; }
     internal List<CSharpCandidatePlayer> CSharpPlayers { get; } = [];
     internal bool Candidate { get; init; }
+    internal CSharpGcGameLaunch? GcLaunch { get; set; }
+    internal IExecutionResourceGroup? EngineResources { get; set; }
     public ResourceObservation? ResourceUsage { get; set; }
     public SemaphoreSlim Input { get; } = new(1);
     public SemaphoreSlim Persistence { get; } = new(1);
@@ -159,10 +161,11 @@ public sealed class ExecutionManager : IHostedService, IDisposable
             record.ResourceGroup = resources.Reserve(resourceSettings.Game);
             try
             {
+                if(candidate)record.GcLaunch=csharp!.PlanGcGame(request,record.ResourceGroup,resourceSettings.Game);
                 var directory = DirectoryFor(request.MatchId); Directory.CreateDirectory(directory);
                 await AtomicFile.Json(Path.Combine(directory, "request.json"), JsonSerializer.SerializeToNode(request, Protocol.JsonOptions)!);
             }
-            catch { record.ResourceGroup.Dispose(); throw; }
+            catch { record.Preparation.Dispose(); record.ResourceGroup.Dispose(); throw; }
             records[request.MatchId] = record;
         }
         finally { admission.Release(); }
@@ -203,8 +206,10 @@ public sealed class ExecutionManager : IHostedService, IDisposable
             foreach (var participant in record.Request.Participants) await CopySource(participant.Source, sourceDirectory, record.Preparation.Token);
             if (record.Candidate)
             {
+                record.EngineResources=record.GcLaunch?.Admission.CreateEngineScope();
+                int gcIndex=0;
                 foreach (var player in record.Request.Participants.Where(p => p.Language == "csharp"))
-                    record.CSharpPlayers.Add(await csharp!.PreparePlayer(record.Request, player, Path.Combine(sourceDirectory, player.Source.SourceKey + ".js"), record.ResourceGroup!, resourceSettings.Game, record.Preparation.Token));
+                    record.CSharpPlayers.Add(await csharp!.PreparePlayer(record.Request, player, Path.Combine(sourceDirectory, player.Source.SourceKey + ".js"), record.ResourceGroup!, resourceSettings.Game, record.Preparation.Token,record.GcLaunch,gcIndex++));
                 await AtomicFile.Json(Path.Combine(directory, "csharp-runners.private.json"), new JsonObject { ["gameId"] = record.Request.MatchId.ToString(), ["players"] = new JsonArray(record.CSharpPlayers.Select(p => (JsonNode)p.Descriptor.DeepClone()).ToArray()) });
             }
             record.Preparation.Token.ThrowIfCancellationRequested();
@@ -212,7 +217,7 @@ public sealed class ExecutionManager : IHostedService, IDisposable
             if (record.Candidate) info.Environment["COINHUNTER_CSHARP_CANDIDATE_SNAPSHOT"] = Path.Combine(directory, "csharp-runners.private.json");
             process = new Process { StartInfo = info }; record.Process = process;
             if (!process.Start()) throw new IOException("Engine start failed.");
-            record.ResourceGroup!.Assign(process); // Before initialize can load user code or spawn players.
+            (record.EngineResources??record.ResourceGroup!).Assign(process); // Before initialize can load user code or spawn players.
             record.EnginePid = process.Id;
             _ = DiscardDiagnostics(process.StandardError);
             await Send(record, "initialize", JsonSerializer.SerializeToElement(record.Request, Protocol.JsonOptions));
@@ -274,6 +279,7 @@ public sealed class ExecutionManager : IHostedService, IDisposable
                     // Manager-owned children share this game's OS scope. Drain
                     // their sessions/leases before releasing the parent budget.
                     try { await Task.WhenAll(record.CSharpPlayers.Select(player => player.Close())); } catch (Exception error) { cleanupFailure ??= error; }
+                    try { record.EngineResources?.Dispose(); } catch (Exception error) { cleanupFailure ??= error; }
                     try { record.ResourceGroup?.Dispose(); } catch (Exception error) { cleanupFailure ??= error; }
                     if (cleanupFailure is not null) throw new IOException("Game resource cleanup unconfirmed.", cleanupFailure);
                     resourcesReleased = true;

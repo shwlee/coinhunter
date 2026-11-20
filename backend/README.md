@@ -1,5 +1,15 @@
 # Coin Hunter 분리 백엔드
 
+최신 GC 진입 후보: [압축·메모리 반환 1회 복구 v2](../docs/csharp-gc-entry-recovery-2026-11-20.md). 내부 `Backend:CSharpGameCandidate:GcEntryCollection=true`를 기존 GC 후보와 함께 켜는 시험 경로다. 기본값은 false이며 C# 공개 지원은 활성화하지 않는다. 같은 자원 한도의 반복 10,000회·실제 두 게임 180초 목표를 통과했고 진입 비용을 진행/왕복 시간에 그대로 기록한다.
+
+최신 실제 게임 검증: [GC 연결·실행 정책·동시 부하](../docs/csharp-gc-actual-games-2026-11-20.md). 실제 Node 게임/JSONL/최종 결과 연결은 구현했지만 반복 실행에서 GC 예약 실패가 재현돼 기본 채택은 거절한다. 내부 `Backend:CSharpGameCandidate:ExperimentalGcWindow`는 기본 false이며 사용자 옵션이 아니다. 엔진/C# 한도 합산이 게임 예산을 넘으면 시작 전에 거절한다.
+
+최신 GC 후보: [프로필 v4 사전 할당·게임 단위 admission](../docs/csharp-allocation-admission-2026-11-20.md). 일반 게임의 GC/메모리 기본 설정과 공개 C# 비활성을 유지한다.
+
+GC 시험 후속: [누적 할당·GC 보호 구간 후보](../docs/csharp-gc-window-candidate-2026-11-20.md). 내부 전용 시험이며 일반 게임·코드 검사·사용자 메모리 규칙을 바꾸지 않았다. 정식 채택은 보류다.
+
+최신 C# 후보: [직접 턴 IPC·프로필 v3·검증/운영 설정](../docs/csharp-readiness-2026-11-19.md). C#은 내부 opt-in 후보이며 공개 지원은 JavaScript 하나다. Linux/OS 격리·최종 부하 채택과 공개 제품 연결은 미완료다.
+
 현재 폴더 배치: `src/`는 C# 서비스, `node/`는 Node 게임/실행기·샘플 알고리즘·기본 맵이다. 화면/에셋·정적 웹 중계는 루트 `frontend/`로, 공용 순수 JavaScript는 `shared/`로 이동했다. [전체 폴더 구조](../docs/project-layout.md). 기존 데이터/로컬 설정 경로는 유지한다.
 
 BE 분리 1~9단계와 폴더 정리는 `1183977`로 커밋/푸시했다. 이후 실행기 1~3단계의 공통 계약·JS 어댑터/registry·엔진 수명/독립 진행을 구현했다. [최신 실행기 결과/검증](../docs/runner-stage3-results.md)은 리뷰 대기다. [BE 분리 결과·제한](../docs/backend-split-completion.md), [전환·복귀 절차](../docs/backend-cutover-runbook.md). 실제 데이터 전환·외부 배포는 별도다.

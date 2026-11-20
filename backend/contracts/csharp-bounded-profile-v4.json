@@ -1,0 +1,49 @@
+{
+  "profile": "csharp-restricted-c1-v4",
+  "analyzerVersion": "c1-5",
+  "guardVersion": "c2-poll-bounded-v4",
+  "adapterVersion": "csharp-direct-pipe-v2",
+  "status": "candidate-not-activated",
+  "userCallBudgetMs": 500,
+  "maxCollectionCount": 65536,
+  "maxRequestedCollectionCapacity": 65536,
+  "maxArrayElements": 1048576,
+  "maxStringCharacters": 65536,
+  "arrayAllocationEstimate": {
+    "headerAndAlignmentBytes": 64,
+    "elementBytes": {
+      "bool": 1,
+      "char": 2,
+      "int": 4,
+      "long": 8,
+      "double": 8,
+      "stringReferenceUpperBound": 8
+    }
+  },
+  "preAllocationCoverage": [
+    "sized arrays",
+    "explicit array initializers",
+    "implicit array initializers",
+    "declaration initializers",
+    "collection construction and growth",
+    "primitive formatting and string concatenation",
+    "debug formatting and buffering"
+  ],
+  "genericHostBridges": ["DebugPrint<T>", "StringConcat<TLeft,TRight>"],
+  "experimentalOnly": {
+    "defaultEnabled": false,
+    "workerAllocationLimitBytes": 33554432,
+    "processAllocationLimitBytes": 67108864,
+    "requestedNoGcReservationBytes": 268435456,
+    "processLimitFailure": "gc-host-allocation-budget",
+    "wholeGameAdmission": "engine and member OS hard limits sum within actual parent; one launch per participant"
+  },
+  "hardRealtimeGuarantee": false,
+  "residuals": [
+    "estimates are conservative and runtime-version-dependent, not a replacement allocator",
+    "process allocation sampling can lag and host threads can allocate between guards",
+    "native/JIT/scheduling and GC-region availability still require acceptance",
+    "Linux filesystem/network sandbox and production load not verified",
+    "public C# operations/history/UI disabled"
+  ]
+}

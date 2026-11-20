@@ -102,6 +102,17 @@ internal static class CSharpPreparationChecks
             var fullCode=code.Replace("cached","full-cache");var fullPath=Path.Combine(directory,"full.cs");await File.WriteAllTextAsync(fullPath,fullCode);
             try{Assert((await store.PrepareAsync(owner,fullPath,Hash(fullCode))).Status=="cache-full"&&File.Exists(fullPath),"Cache admission exceeded configured budget.");}
             finally{File.Delete(filler);}
+            using(var pinned=await store.AcquireAsync(owner,key))
+            {
+                Directory.SetLastWriteTimeUtc(Path.GetDirectoryName(pinned.ManifestPath)!,DateTime.UtcNow-TimeSpan.FromDays(10));
+                var retained=await store.MaintainAsync(TimeSpan.FromDays(7),false);
+                Assert(retained.Removed==0&&retained.Retained>=1&&File.Exists(pinned.ManifestPath),"Maintenance deleted a running artifact.");
+            }
+            var proposal=await store.MaintainAsync(TimeSpan.FromDays(7),true);
+            Assert(proposal.Removed==1&&proposal.DryRun&&File.Exists(manifestPath),"Cache dry-run mutated files or missed stale artifact.");
+            var trimmed=await store.MaintainAsync(TimeSpan.FromDays(7),false);
+            Assert(trimmed.Removed==1&&!trimmed.DryRun&&trimmed.RemovedBytes>0&&!File.Exists(manifestPath)&&File.Exists(source),"Cache retention removed original code or failed to remove only stale derived bytes.");
+            Assert((await store.PrepareAsync(owner,source,Hash(code))).Status=="prepared","Evicted artifact could not be rebuilt from original code.");
             Assert(!Directory.EnumerateDirectories(Path.Combine(cache,"work")).Any(),"Temporary preparation directories leaked.");
             var status=System.Text.Json.JsonSerializer.SerializeToNode(resources.Status)!;
             Assert(status["reservedProcesses"]!.GetValue<int>()==0&&status["reservedMemoryBytes"]!.GetValue<long>()==0,"Preparation/runtime reservations leaked.");

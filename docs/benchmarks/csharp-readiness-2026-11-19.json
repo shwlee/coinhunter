@@ -1,0 +1,1156 @@
+{
+  "date": "2026-11-19",
+  "status": "windows-implementation-verified-public-acceptance-incomplete",
+  "publicCSharpEnabled": false,
+  "backend": {
+    "exitCode": 0,
+    "warnings": 0,
+    "errors": 0,
+    "summaries": [
+      "Backend contract checks passed: 35",
+      "Backend business checks: 19 passed.",
+      "C# analysis checks: 66 passed.",
+      "C# runtime policy checks: 7 passed.",
+      "C# budget checks: 233 passed in OS-limited PID 24232; max deadline overshoot 0.31ms; retained delta 9576 bytes.",
+      "C# host IPC checks: 30 passed; timeout reuse, independent control/host, late results, stop, forced drain and fresh generation.",
+      "C# parent manager checks: 42 passed; actual settlement, independent watchdogs, cancellation and confirmed resource cleanup.",
+      "C# C4 preparation checks: 37 passed; isolated deterministic compilation, private cache, leases, source-free load and timeout reuse.",
+      "C# C4-B recovery/preflight checks: 53 passed; shared 36 calls, user/infrastructure diagnostics and owner/version metadata.",
+      "C# C4-C account validation checks: 44 passed; real preparation/preflight, language/hash/revision CAS, report binding and disabled gameplay.",
+      "C# C4-D Node game checks: 39 passed; mixed independent turns, timeout instance reuse, pinned DLLs, active stop, Node crash and hosted shutdown.",
+      "C# direct channel checks: 10022 passed; Unicode bounds, auth, timeout reuse and independent start/settlement watchdogs.",
+      "C4 review-fix checks: 20 passed; nested quota/membership, attempt ordering/cancellation, private file lock/admission/restart recovery.",
+      "OS resource checks: 7 passed.",
+      "Split backend: 13 integration groups passed.",
+      "Protocol integration: 5 checks passed."
+    ]
+  },
+  "node": {
+    "exitCode": 0,
+    "total": 297,
+    "passed": 297,
+    "failed": 0,
+    "knownLegacyIntermittentLockIssue": "not reproduced in these runs; no root-cause fix claimed"
+  },
+  "longGame": {
+    "calls": 10005,
+    "sameInstance": true,
+    "replayedCallRejected": true
+  },
+  "actualGames": {
+    "checks": 39,
+    "resources": {
+      "adapter": "windows-job-v1",
+      "processLimitUnit": "processes",
+      "reservedMemoryBytes": 0,
+      "reservedProcesses": 0,
+      "totalMemoryBytes": 6442450944,
+      "totalProcesses": 32
+    },
+    "positionSwaps": [
+      {
+        "kind": "equivalent-strategy-start-slot-swap",
+        "roles": ["csharp", "javascript", "javascript", "csharp"],
+        "result": {
+          "contractVersion": 1,
+          "matchId": "1bcc1dfd-99e3-4b23-8b05-cb98896659b4",
+          "resultVersion": 1,
+          "outcome": "finished",
+          "reason": "coins-collected",
+          "scores": [
+            {
+              "playerId": 0,
+              "score": 500
+            },
+            {
+              "playerId": 1,
+              "score": 500
+            },
+            {
+              "playerId": 2,
+              "score": 500
+            },
+            {
+              "playerId": 3,
+              "score": 500
+            }
+          ],
+          "snapshot": {
+            "sequence": 27,
+            "game": {
+              "mapId": "candidate-test",
+              "mapRevision": 1,
+              "columns": 6,
+              "rows": 6,
+              "tiles": [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0
+              ],
+              "items": [-1, -1, -1, -1],
+              "coinAppearances": {},
+              "players": [
+                {
+                  "id": 0,
+                  "name": "same-bfs",
+                  "role": "current",
+                  "characterId": "pengko",
+                  "startSlot": 0,
+                  "position": 14,
+                  "facing": 3,
+                  "score": 500,
+                  "turn": 4,
+                  "effect": null,
+                  "action": null,
+                  "thinking": false,
+                  "lastStatus": "ok",
+                  "stats": {
+                    "coins": {
+                      "10": 0,
+                      "30": 0,
+                      "100": 0,
+                      "200": 0,
+                      "500": 1
+                    },
+                    "bonusScore": 0,
+                    "completedTurns": 4,
+                    "moves": 4,
+                    "wallCollisions": 0,
+                    "penalties": 0,
+                    "wallsBroken": 0,
+                    "jumps": 0,
+                    "jumpFailures": 0,
+                    "itemsAcquired": [0, 0, 0, 0],
+                    "itemsUsed": [0, 0, 0, 0],
+                    "algorithmCalls": 4,
+                    "algorithmTotalMs": 0.8019,
+                    "algorithmMaxMs": 0.7616,
+                    "timeouts": 0,
+                    "exceptions": 0,
+                    "invalidResults": 0
+                  },
+                  "coinBurstAt": 685.1598000526428,
+                  "coinBurstValue": 500,
+                  "coinBurstPosition": 14,
+                  "coinBurstBoosted": false
+                },
+                {
+                  "id": 1,
+                  "name": "same-bfs",
+                  "role": "dummy",
+                  "characterId": "kobi",
+                  "startSlot": 1,
+                  "position": 15,
+                  "facing": 3,
+                  "score": 500,
+                  "turn": 4,
+                  "effect": null,
+                  "action": null,
+                  "thinking": false,
+                  "lastStatus": "ok",
+                  "stats": {
+                    "coins": {
+                      "10": 0,
+                      "30": 0,
+                      "100": 0,
+                      "200": 0,
+                      "500": 1
+                    },
+                    "bonusScore": 0,
+                    "completedTurns": 4,
+                    "moves": 4,
+                    "wallCollisions": 0,
+                    "penalties": 0,
+                    "wallsBroken": 0,
+                    "jumps": 0,
+                    "jumpFailures": 0,
+                    "itemsAcquired": [0, 0, 0, 0],
+                    "itemsUsed": [0, 0, 0, 0],
+                    "algorithmCalls": 4,
+                    "algorithmTotalMs": 0.25299978256225586,
+                    "algorithmMaxMs": 0.12080001831054688,
+                    "timeouts": 0,
+                    "exceptions": 0,
+                    "invalidResults": 0
+                  },
+                  "coinBurstAt": 685.1598000526428,
+                  "coinBurstValue": 500,
+                  "coinBurstPosition": 15,
+                  "coinBurstBoosted": false
+                },
+                {
+                  "id": 2,
+                  "name": "same-bfs",
+                  "role": "dummy",
+                  "characterId": "kobi",
+                  "startSlot": 2,
+                  "position": 20,
+                  "facing": 2,
+                  "score": 500,
+                  "turn": 4,
+                  "effect": null,
+                  "action": null,
+                  "thinking": false,
+                  "lastStatus": "ok",
+                  "stats": {
+                    "coins": {
+                      "10": 0,
+                      "30": 0,
+                      "100": 0,
+                      "200": 0,
+                      "500": 1
+                    },
+                    "bonusScore": 0,
+                    "completedTurns": 4,
+                    "moves": 4,
+                    "wallCollisions": 0,
+                    "penalties": 0,
+                    "wallsBroken": 0,
+                    "jumps": 0,
+                    "jumpFailures": 0,
+                    "itemsAcquired": [0, 0, 0, 0],
+                    "itemsUsed": [0, 0, 0, 0],
+                    "algorithmCalls": 4,
+                    "algorithmTotalMs": 0.30140018463134766,
+                    "algorithmMaxMs": 0.1733999252319336,
+                    "timeouts": 0,
+                    "exceptions": 0,
+                    "invalidResults": 0
+                  },
+                  "coinBurstAt": 685.1598000526428,
+                  "coinBurstValue": 500,
+                  "coinBurstPosition": 20,
+                  "coinBurstBoosted": false
+                },
+                {
+                  "id": 3,
+                  "name": "same-bfs",
+                  "role": "dummy",
+                  "characterId": "kobi",
+                  "startSlot": 3,
+                  "position": 21,
+                  "facing": 1,
+                  "score": 500,
+                  "turn": 4,
+                  "effect": null,
+                  "action": null,
+                  "thinking": false,
+                  "lastStatus": "ok",
+                  "stats": {
+                    "coins": {
+                      "10": 0,
+                      "30": 0,
+                      "100": 0,
+                      "200": 0,
+                      "500": 1
+                    },
+                    "bonusScore": 0,
+                    "completedTurns": 4,
+                    "moves": 4,
+                    "wallCollisions": 0,
+                    "penalties": 0,
+                    "wallsBroken": 0,
+                    "jumps": 0,
+                    "jumpFailures": 0,
+                    "itemsAcquired": [0, 0, 0, 0],
+                    "itemsUsed": [0, 0, 0, 0],
+                    "algorithmCalls": 4,
+                    "algorithmTotalMs": 0.8069000000000002,
+                    "algorithmMaxMs": 0.7737,
+                    "timeouts": 0,
+                    "exceptions": 0,
+                    "invalidResults": 0
+                  },
+                  "coinBurstAt": 685.1598000526428,
+                  "coinBurstValue": 500,
+                  "coinBurstPosition": 21,
+                  "coinBurstBoosted": false
+                }
+              ],
+              "status": "finished",
+              "reason": "coins-collected",
+              "serverTime": 686.3827996253967,
+              "remainingMs": 59724.11280012131
+            },
+            "logs": []
+          },
+          "recording": {
+            "status": "complete",
+            "durableThroughSeq": 84,
+            "key": "1bcc1dfd-99e3-4b23-8b05-cb98896659b4"
+          }
+        },
+        "calls": [
+          {
+            "player": 1,
+            "callId": 1,
+            "timings": {
+              "executionMs": 0.04239988327026367,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 1.063000202178955,
+              "inputPreparationMs": 0.11660003662109375,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 2,
+            "callId": 1,
+            "timings": {
+              "executionMs": 0.04310035705566406,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 2.249300003051758,
+              "inputPreparationMs": 0.10870027542114258,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 3,
+            "callId": 1,
+            "timings": {
+              "executionMs": 0.7737,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 13.223299980163574,
+              "inputPreparationMs": 5.676899968719482,
+              "responseProcessingMs": 0.06850004196166992,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 0,
+            "callId": 1,
+            "timings": {
+              "executionMs": 0.7616,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 14.69729995727539,
+              "inputPreparationMs": 5.8058998420715335,
+              "responseProcessingMs": 0.030900001525878906,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 1,
+            "callId": 2,
+            "timings": {
+              "executionMs": 0.04349994659423828,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 0.8298001289367676,
+              "inputPreparationMs": 0.11539983749389648,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 2,
+            "callId": 2,
+            "timings": {
+              "executionMs": 0.043399810791015625,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 1.1658000946044922,
+              "inputPreparationMs": 0.10739994049072266,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 3,
+            "callId": 2,
+            "timings": {
+              "executionMs": 0.0148,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 1.7375998497009277,
+              "inputPreparationMs": 0.1443000862121582,
+              "responseProcessingMs": 0.025100231170654297,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 0,
+            "callId": 2,
+            "timings": {
+              "executionMs": 0.0156,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 2.828500270843506,
+              "inputPreparationMs": 0.1527003730773926,
+              "responseProcessingMs": 0.025599956512451172,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 1,
+            "callId": 3,
+            "timings": {
+              "executionMs": 0.04629993438720703,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 0.861600399017334,
+              "inputPreparationMs": 0.08470010757446289,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 2,
+            "callId": 3,
+            "timings": {
+              "executionMs": 0.041500091552734375,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 1.1568999290466309,
+              "inputPreparationMs": 0.08559989929199219,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 0,
+            "callId": 3,
+            "timings": {
+              "executionMs": 0.0115,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 1.9980998039245605,
+              "inputPreparationMs": 0.12580030670166015,
+              "responseProcessingMs": 0.022400379180908203,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 3,
+            "callId": 3,
+            "timings": {
+              "executionMs": 0.0088,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 1.967900276184082,
+              "inputPreparationMs": 0.12999989929199218,
+              "responseProcessingMs": 0.020100116729736328,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 1,
+            "callId": 4,
+            "timings": {
+              "executionMs": 0.12080001831054688,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 1.0931000709533691,
+              "inputPreparationMs": 0.07740020751953125,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 2,
+            "callId": 4,
+            "timings": {
+              "executionMs": 0.1733999252319336,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 1.357100009918213,
+              "inputPreparationMs": 0.11229991912841797,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 0,
+            "callId": 4,
+            "timings": {
+              "executionMs": 0.0132,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 2.1819000244140625,
+              "inputPreparationMs": 0.22890009307861328,
+              "responseProcessingMs": 0.02160024642944336,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 3,
+            "callId": 4,
+            "timings": {
+              "executionMs": 0.0096,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 1.9686999320983887,
+              "inputPreparationMs": 0.11879982986450195,
+              "responseProcessingMs": 0.018500328063964844,
+              "engineApplyDelayMs": null
+            }
+          }
+        ]
+      },
+      {
+        "kind": "equivalent-strategy-start-slot-swap",
+        "roles": ["javascript", "csharp", "csharp", "javascript"],
+        "result": {
+          "contractVersion": 1,
+          "matchId": "997754a1-f4f2-4f53-bbc1-759ad14a41d1",
+          "resultVersion": 1,
+          "outcome": "finished",
+          "reason": "coins-collected",
+          "scores": [
+            {
+              "playerId": 0,
+              "score": 500
+            },
+            {
+              "playerId": 1,
+              "score": 500
+            },
+            {
+              "playerId": 2,
+              "score": 500
+            },
+            {
+              "playerId": 3,
+              "score": 500
+            }
+          ],
+          "snapshot": {
+            "sequence": 29,
+            "game": {
+              "mapId": "candidate-test",
+              "mapRevision": 1,
+              "columns": 6,
+              "rows": 6,
+              "tiles": [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0
+              ],
+              "items": [-1, -1, -1, -1],
+              "coinAppearances": {},
+              "players": [
+                {
+                  "id": 0,
+                  "name": "same-bfs",
+                  "role": "current",
+                  "characterId": "pengko",
+                  "startSlot": 0,
+                  "position": 14,
+                  "facing": 2,
+                  "score": 500,
+                  "turn": 5,
+                  "effect": null,
+                  "action": null,
+                  "thinking": false,
+                  "lastStatus": "ok",
+                  "stats": {
+                    "coins": {
+                      "10": 0,
+                      "30": 0,
+                      "100": 0,
+                      "200": 0,
+                      "500": 1
+                    },
+                    "bonusScore": 0,
+                    "completedTurns": 4,
+                    "moves": 4,
+                    "wallCollisions": 0,
+                    "penalties": 0,
+                    "wallsBroken": 0,
+                    "jumps": 0,
+                    "jumpFailures": 0,
+                    "itemsAcquired": [0, 0, 0, 0],
+                    "itemsUsed": [0, 0, 0, 0],
+                    "algorithmCalls": 5,
+                    "algorithmTotalMs": 0.28299903869628906,
+                    "algorithmMaxMs": 0.12019968032836914,
+                    "timeouts": 0,
+                    "exceptions": 0,
+                    "invalidResults": 0
+                  },
+                  "coinBurstAt": 665.9052000045776,
+                  "coinBurstValue": 500,
+                  "coinBurstPosition": 14,
+                  "coinBurstBoosted": false
+                },
+                {
+                  "id": 1,
+                  "name": "same-bfs",
+                  "role": "dummy",
+                  "characterId": "kobi",
+                  "startSlot": 1,
+                  "position": 15,
+                  "facing": 3,
+                  "score": 500,
+                  "turn": 4,
+                  "effect": null,
+                  "action": null,
+                  "thinking": false,
+                  "lastStatus": "ok",
+                  "stats": {
+                    "coins": {
+                      "10": 0,
+                      "30": 0,
+                      "100": 0,
+                      "200": 0,
+                      "500": 1
+                    },
+                    "bonusScore": 0,
+                    "completedTurns": 4,
+                    "moves": 4,
+                    "wallCollisions": 0,
+                    "penalties": 0,
+                    "wallsBroken": 0,
+                    "jumps": 0,
+                    "jumpFailures": 0,
+                    "itemsAcquired": [0, 0, 0, 0],
+                    "itemsUsed": [0, 0, 0, 0],
+                    "algorithmCalls": 4,
+                    "algorithmTotalMs": 0.8098000000000001,
+                    "algorithmMaxMs": 0.7819,
+                    "timeouts": 0,
+                    "exceptions": 0,
+                    "invalidResults": 0
+                  },
+                  "coinBurstAt": 697.4477000236511,
+                  "coinBurstValue": 500,
+                  "coinBurstPosition": 15,
+                  "coinBurstBoosted": false
+                },
+                {
+                  "id": 2,
+                  "name": "same-bfs",
+                  "role": "dummy",
+                  "characterId": "kobi",
+                  "startSlot": 2,
+                  "position": 20,
+                  "facing": 2,
+                  "score": 500,
+                  "turn": 4,
+                  "effect": null,
+                  "action": null,
+                  "thinking": false,
+                  "lastStatus": "ok",
+                  "stats": {
+                    "coins": {
+                      "10": 0,
+                      "30": 0,
+                      "100": 0,
+                      "200": 0,
+                      "500": 1
+                    },
+                    "bonusScore": 0,
+                    "completedTurns": 4,
+                    "moves": 4,
+                    "wallCollisions": 0,
+                    "penalties": 0,
+                    "wallsBroken": 0,
+                    "jumps": 0,
+                    "jumpFailures": 0,
+                    "itemsAcquired": [0, 0, 0, 0],
+                    "itemsUsed": [0, 0, 0, 0],
+                    "algorithmCalls": 4,
+                    "algorithmTotalMs": 0.7898000000000001,
+                    "algorithmMaxMs": 0.7587,
+                    "timeouts": 0,
+                    "exceptions": 0,
+                    "invalidResults": 0
+                  },
+                  "coinBurstAt": 697.4477000236511,
+                  "coinBurstValue": 500,
+                  "coinBurstPosition": 20,
+                  "coinBurstBoosted": false
+                },
+                {
+                  "id": 3,
+                  "name": "same-bfs",
+                  "role": "dummy",
+                  "characterId": "kobi",
+                  "startSlot": 3,
+                  "position": 21,
+                  "facing": 0,
+                  "score": 500,
+                  "turn": 5,
+                  "effect": null,
+                  "action": null,
+                  "thinking": false,
+                  "lastStatus": "ok",
+                  "stats": {
+                    "coins": {
+                      "10": 0,
+                      "30": 0,
+                      "100": 0,
+                      "200": 0,
+                      "500": 1
+                    },
+                    "bonusScore": 0,
+                    "completedTurns": 4,
+                    "moves": 4,
+                    "wallCollisions": 0,
+                    "penalties": 0,
+                    "wallsBroken": 0,
+                    "jumps": 0,
+                    "jumpFailures": 0,
+                    "itemsAcquired": [0, 0, 0, 0],
+                    "itemsUsed": [0, 0, 0, 0],
+                    "algorithmCalls": 5,
+                    "algorithmTotalMs": 0.27070045471191406,
+                    "algorithmMaxMs": 0.11809968948364258,
+                    "timeouts": 0,
+                    "exceptions": 0,
+                    "invalidResults": 0
+                  },
+                  "coinBurstAt": 665.9052000045776,
+                  "coinBurstValue": 500,
+                  "coinBurstPosition": 21,
+                  "coinBurstBoosted": false
+                }
+              ],
+              "status": "finished",
+              "reason": "coins-collected",
+              "serverTime": 698.3386001586914,
+              "remainingMs": 59718.2936000824
+            },
+            "logs": []
+          },
+          "recording": {
+            "status": "complete",
+            "durableThroughSeq": 92,
+            "key": "997754a1-f4f2-4f53-bbc1-759ad14a41d1"
+          }
+        },
+        "calls": [
+          {
+            "player": 0,
+            "callId": 1,
+            "timings": {
+              "executionMs": 0.04139995574951172,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 1.3069000244140625,
+              "inputPreparationMs": 0.0998997688293457,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 3,
+            "callId": 1,
+            "timings": {
+              "executionMs": 0.041699886322021484,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 1.7028999328613281,
+              "inputPreparationMs": 0.09750032424926758,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 2,
+            "callId": 1,
+            "timings": {
+              "executionMs": 0.7587,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 13.10129976272583,
+              "inputPreparationMs": 5.557500164794922,
+              "responseProcessingMs": 0.06509971618652344,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 1,
+            "callId": 1,
+            "timings": {
+              "executionMs": 0.7819,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 13.975599765777588,
+              "inputPreparationMs": 5.548900047302246,
+              "responseProcessingMs": 0.03459978103637695,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 0,
+            "callId": 2,
+            "timings": {
+              "executionMs": 0.04609966278076172,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 0.6515998840332031,
+              "inputPreparationMs": 0.1052999496459961,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 3,
+            "callId": 2,
+            "timings": {
+              "executionMs": 0.04440021514892578,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 0.9222002029418945,
+              "inputPreparationMs": 0.10870027542114258,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 2,
+            "callId": 2,
+            "timings": {
+              "executionMs": 0.0093,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 1.1062002182006836,
+              "inputPreparationMs": 0.16029991455078124,
+              "responseProcessingMs": 0.03579998016357422,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 1,
+            "callId": 2,
+            "timings": {
+              "executionMs": 0.0133,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 2.120699882507324,
+              "inputPreparationMs": 0.18479975128173828,
+              "responseProcessingMs": 0.03229999542236328,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 0,
+            "callId": 3,
+            "timings": {
+              "executionMs": 0.04689979553222656,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 0.6027998924255371,
+              "inputPreparationMs": 0.08370018005371094,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 3,
+            "callId": 3,
+            "timings": {
+              "executionMs": 0.04170036315917969,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 0.8976998329162598,
+              "inputPreparationMs": 0.08629989624023438,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 1,
+            "callId": 3,
+            "timings": {
+              "executionMs": 0.0079,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 1.1241998672485352,
+              "inputPreparationMs": 0.13380009841918944,
+              "responseProcessingMs": 0.04349994659423828,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 2,
+            "callId": 3,
+            "timings": {
+              "executionMs": 0.0092,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 1.5444002151489258,
+              "inputPreparationMs": 0.11500018920898437,
+              "responseProcessingMs": 0.022799968719482422,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 0,
+            "callId": 4,
+            "timings": {
+              "executionMs": 0.12019968032836914,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 0.6498003005981445,
+              "inputPreparationMs": 0.0766000747680664,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 3,
+            "callId": 4,
+            "timings": {
+              "executionMs": 0.11809968948364258,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 0.8157000541687012,
+              "inputPreparationMs": 0.07430028915405273,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 1,
+            "callId": 4,
+            "timings": {
+              "executionMs": 0.0067,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 1.0132999420166016,
+              "inputPreparationMs": 0.16869987182617188,
+              "responseProcessingMs": 0.028299808502197266,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 2,
+            "callId": 4,
+            "timings": {
+              "executionMs": 0.0126,
+              "executionBoundary": "dotnet-guarded-call-v1",
+              "roundTripMs": 1.4202003479003906,
+              "inputPreparationMs": 0.12049989013671875,
+              "responseProcessingMs": 0.023200035095214844,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 0,
+            "callId": 5,
+            "timings": {
+              "executionMs": 0.028399944305419922,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 0.5980000495910645,
+              "inputPreparationMs": 0.08540010452270508,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          },
+          {
+            "player": 3,
+            "callId": 5,
+            "timings": {
+              "executionMs": 0.02480030059814453,
+              "executionBoundary": "quickjs-call-v2",
+              "roundTripMs": 0.7964997291564941,
+              "inputPreparationMs": 0.08260011672973633,
+              "responseProcessingMs": null,
+              "engineApplyDelayMs": null
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "nativeMeasurements": {
+    "profileMemoryMiB": 768,
+    "sampleCount": 30,
+    "standalonePerOperation": 5,
+    "boundaryStartTargetMs": 499,
+    "retainedPressureMiB": 128,
+    "parallelBackendRegressionLoad": true,
+    "samples": [
+      {
+        "Operation": "array-allocate-touch",
+        "Size": 65536,
+        "Milliseconds": [0.3255, 0.0294, 0.0247, 0.0249, 0.0241],
+        "NearDeadlineElapsedMs": 499.3864,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "list-contains",
+        "Size": 65536,
+        "Milliseconds": [0.5449, 0.0132, 0.0101, 0.0103, 0.0103],
+        "NearDeadlineElapsedMs": 499.0255,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "list-remove-first",
+        "Size": 65536,
+        "Milliseconds": [0.0644, 0.0048, 0.0045, 0.0045, 0.0045],
+        "NearDeadlineElapsedMs": 499.0213,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "list-grow",
+        "Size": 65536,
+        "Milliseconds": [0.0947, 0.0257, 0.0265, 0.0189, 0.0422],
+        "NearDeadlineElapsedMs": 499.0834,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "queue-grow",
+        "Size": 65536,
+        "Milliseconds": [0.0866, 0.0252, 0.0248, 0.0538, 0.0625],
+        "NearDeadlineElapsedMs": 499.0481,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "array-allocate-touch",
+        "Size": 1048576,
+        "Milliseconds": [0.3957, 0.5266, 0.1864, 0.2692, 0.4082],
+        "NearDeadlineElapsedMs": 499.1424,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "list-contains",
+        "Size": 1048576,
+        "Milliseconds": [0.262, 0.2573, 0.26, 0.2649, 0.3096],
+        "NearDeadlineElapsedMs": 499.2671,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "list-remove-first",
+        "Size": 1048576,
+        "Milliseconds": [0.2951, 0.3101, 0.2844, 0.2953, 0.2942],
+        "NearDeadlineElapsedMs": 499.3538,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "list-grow",
+        "Size": 1048576,
+        "Milliseconds": [0.6583, 0.6546, 1.8977, 1.2941, 0.7654],
+        "NearDeadlineElapsedMs": 499.8498,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "queue-grow",
+        "Size": 1048576,
+        "Milliseconds": [0.7803, 0.687, 0.6742, 0.8208, 0.7299],
+        "NearDeadlineElapsedMs": 499.9716,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "array-allocate-touch",
+        "Size": 8388608,
+        "Milliseconds": [3.2449, 3.1583, 3.485, 3.1829, 1.3872],
+        "NearDeadlineElapsedMs": 500.108,
+        "Verdict": "timeout"
+      },
+      {
+        "Operation": "list-contains",
+        "Size": 8388608,
+        "Milliseconds": [2.2017, 2.192, 2.1533, 2.2023, 2.1553],
+        "NearDeadlineElapsedMs": 501.9598,
+        "Verdict": "timeout"
+      },
+      {
+        "Operation": "list-remove-first",
+        "Size": 8388608,
+        "Milliseconds": [2.6495, 2.6778, 2.7694, 3.2277, 2.7872],
+        "NearDeadlineElapsedMs": 501.7714,
+        "Verdict": "timeout"
+      },
+      {
+        "Operation": "list-grow",
+        "Size": 8388608,
+        "Milliseconds": [5.3316, 6.3101, 16.6352, 14.5499, 14.6051],
+        "NearDeadlineElapsedMs": 533.9686,
+        "Verdict": "timeout"
+      },
+      {
+        "Operation": "queue-grow",
+        "Size": 8388608,
+        "Milliseconds": [4.0258, 6.1783, 20.993, 9.3834, 5.9696],
+        "NearDeadlineElapsedMs": 513.8503,
+        "Verdict": "timeout"
+      },
+      {
+        "Operation": "dictionary-rehash",
+        "Size": 65536,
+        "Milliseconds": [0.4481, 0.3612, 0.3538, 0.3562, 0.3703],
+        "NearDeadlineElapsedMs": 499.5924,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "hashset-rehash",
+        "Size": 65536,
+        "Milliseconds": [0.3224, 0.3997, 0.4298, 0.5131, 0.2969],
+        "NearDeadlineElapsedMs": 499.4578,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "dictionary-rehash",
+        "Size": 1048576,
+        "Milliseconds": [7.1759, 5.2384, 7.0353, 7.1281, 9.6277],
+        "NearDeadlineElapsedMs": 507.1456,
+        "Verdict": "timeout"
+      },
+      {
+        "Operation": "hashset-rehash",
+        "Size": 1048576,
+        "Milliseconds": [4.9658, 5.1634, 4.9991, 4.9983, 5.0207],
+        "NearDeadlineElapsedMs": 503.919,
+        "Verdict": "timeout"
+      },
+      {
+        "Operation": "array-allocation-gc-churn",
+        "Size": 1048576,
+        "Milliseconds": [8.376, 37.848, 11.6733, 8.5083, 31.0795],
+        "NearDeadlineElapsedMs": 514.3063,
+        "Verdict": "timeout"
+      },
+      {
+        "Operation": "checked-list-search",
+        "Size": 65536,
+        "Milliseconds": [0.9166, 0.1958, 0.1961, 0.2019, 0.1961],
+        "NearDeadlineElapsedMs": 499.5142,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "checked-list-grow",
+        "Size": 32768,
+        "Milliseconds": [0.1756, 0.0114, 0.0116, 0.013, 0.0332],
+        "NearDeadlineElapsedMs": 499.0617,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "checked-queue-grow",
+        "Size": 32768,
+        "Milliseconds": [0.188, 0.0157, 0.016, 0.0167, 0.0164],
+        "NearDeadlineElapsedMs": 499.0286,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "checked-dictionary-grow",
+        "Size": 32768,
+        "Milliseconds": [0.3095, 0.4372, 0.1871, 0.5494, 0.175],
+        "NearDeadlineElapsedMs": 509.3165,
+        "Verdict": "timeout"
+      },
+      {
+        "Operation": "checked-array-allocate-touch",
+        "Size": 1048576,
+        "Milliseconds": [0.5524, 0.395, 0.3948, 0.5466, 0.1323],
+        "NearDeadlineElapsedMs": 499.4388,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "checked-array-allocation-gc-churn",
+        "Size": 1048576,
+        "Milliseconds": [7.9209, 9.5846, 5.3414, 8.5471, 11.3659],
+        "NearDeadlineElapsedMs": 501.3304,
+        "Verdict": "timeout"
+      },
+      {
+        "Operation": "checked-string-concat",
+        "Size": 65536,
+        "Milliseconds": [0.2845, 0.0304, 0.0287, 0.0278, 0.0334],
+        "NearDeadlineElapsedMs": 499.0557,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "bounded-string-equality",
+        "Size": 65536,
+        "Milliseconds": [0.0688, 0.0068, 0.0089, 0.0104, 0.0121],
+        "NearDeadlineElapsedMs": 499.0192,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "checked-string-concat-retained-pressure",
+        "Size": 65536,
+        "Milliseconds": [0.1816, 0.0104, 0.0371, 0.0463, 0.0419],
+        "NearDeadlineElapsedMs": 499.0595,
+        "Verdict": "ok"
+      },
+      {
+        "Operation": "checked-allocation-retained-pressure",
+        "Size": 1048576,
+        "Milliseconds": [25.1279, 32.0527, 37.4345, 27.4361, 29.4561],
+        "NearDeadlineElapsedMs": 507.2022,
+        "Verdict": "timeout"
+      }
+    ],
+    "conclusion": "Indivisible allocation/GC still exceeds 500ms; bounded profile is not a strict real-time guarantee."
+  },
+  "pending": [
+    "Linux delegated cgroup actual execution and parent failure recovery",
+    "OS filesystem/network isolation and non-admin external supervision",
+    "native/GC and production load acceptance",
+    "public account C# save/match/history/UI integration"
+  ]
+}

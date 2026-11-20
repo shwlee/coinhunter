@@ -1,0 +1,2045 @@
+{
+  "schema": 1,
+  "measurementDate": "2026-11-19",
+  "baselineCommit": "8b626ba",
+  "current": "working tree after f28097e",
+  "harness": "scripts/measure-csharp-invocation.js + CSharpInvocationChecks",
+  "totalCallsPerVersion": 3600,
+  "firstCallsIncluded": true,
+  "retries": 0,
+  "boundaries": {
+    "baselineJavascript": "quickjs-call-v1 includes guest JSON parse",
+    "currentJavascript": "quickjs-call-v2 excludes input decode",
+    "csharp": "dotnet-guarded-call-v1; includes trusted entry dispatch/guard notification, excludes map clone"
+  },
+  "limitations": [
+    "one Windows machine; not capacity or latency guarantees",
+    "runtime/compiler and guard changes are included, so differences cannot be attributed solely to removing one IPC hop",
+    "end-to-end round-trip is comparable; execution/overhead decomposition changes with the JS timing boundary",
+    "residual overhead includes preparation, protocol checks, serialization, scheduling and transport",
+    "synthetic identical BFS and independent streams; real start-slot swaps verified separately in CSharpGameChecks",
+    "full per-call reports are generated under artifacts by the harness; summaries and first/slowest samples retained here"
+  ],
+  "before": {
+    "date": "2026-11-19T10:21:21.1893869+00:00",
+    "os": "Microsoft Windows 10.0.26200",
+    "cpuCount": 16,
+    "transportHops": {
+      "javascript": 1,
+      "csharp": 2
+    },
+    "publicCSharpEnabled": false,
+    "resources": {
+      "adapter": "windows-job-v1",
+      "processLimitUnit": "processes",
+      "reservedMemoryBytes": 0,
+      "reservedProcesses": 0,
+      "totalMemoryBytes": 6442450944,
+      "totalProcesses": 32
+    },
+    "observations": [
+      {
+        "columns": 6,
+        "rows": 6,
+        "roles": ["csharp", "javascript", "javascript", "csharp"],
+        "calls": 1200,
+        "summaries": [
+          {
+            "language": "javascript",
+            "mode": "serial",
+            "count": 200,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.06599998474121094,
+                "p95": 0.11280012130737305,
+                "max": 0.23330020904541016
+              },
+              "roundTripMs": {
+                "p50": 0.2516002655029297,
+                "p95": 0.45669984817504883,
+                "max": 0.6252999305725098
+              },
+              "transportAndHostMs": {
+                "p50": 0.18689966201782227,
+                "p95": 0.3218998908996582,
+                "max": 0.5123996734619141
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.05709981918334961,
+                "p95": 0.08500003814697266,
+                "max": 0.38300037384033203
+              }
+            }
+          },
+          {
+            "language": "javascript",
+            "mode": "concurrent",
+            "count": 400,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.07060003280639648,
+                "p95": 0.11919975280761719,
+                "max": 0.15689992904663086
+              },
+              "roundTripMs": {
+                "p50": 0.3486003875732422,
+                "p95": 0.5890998840332031,
+                "max": 0.8282999992370605
+              },
+              "transportAndHostMs": {
+                "p50": 0.27500009536743164,
+                "p95": 0.5018997192382812,
+                "max": 0.757199764251709
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.04609966278076172,
+                "p95": 0.08099985122680664,
+                "max": 0.11500072479248047
+              }
+            }
+          },
+          {
+            "language": "csharp",
+            "mode": "serial",
+            "count": 200,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.012,
+                "p95": 0.0174,
+                "max": 0.8857
+              },
+              "roundTripMs": {
+                "p50": 0.4253997802734375,
+                "p95": 0.6054997444152832,
+                "max": 11.336400032043457
+              },
+              "transportAndHostMs": {
+                "p50": 0.41459991302490234,
+                "p95": 0.5925997444152832,
+                "max": 10.490700032043456
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.04500007629394531,
+                "p95": 0.07210016250610352,
+                "max": 0.5985002517700195
+              }
+            }
+          },
+          {
+            "language": "csharp",
+            "mode": "concurrent",
+            "count": 400,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.0142,
+                "p95": 0.0214,
+                "max": 0.0313
+              },
+              "roundTripMs": {
+                "p50": 0.6434001922607422,
+                "p95": 1.1523003578186035,
+                "max": 3.7308998107910156
+              },
+              "transportAndHostMs": {
+                "p50": 0.6244002136230469,
+                "p95": 1.1390003578186034,
+                "max": 3.700699810791016
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.03650045394897461,
+                "p95": 0.05240011215209961,
+                "max": 0.09750032424926758
+              }
+            }
+          }
+        ],
+        "firstCalls": [
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.8457,
+            "roundTripMs": 11.336400032043457,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.5985002517700195,
+            "transportAndHostMs": 10.490700032043456
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.2546,
+            "roundTripMs": 1.160099983215332,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.2042999267578125,
+            "transportAndHostMs": 0.9054999832153321
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.0152,
+            "roundTripMs": 0.7807998657226562,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.07210016250610352,
+            "transportAndHostMs": 0.7655998657226563
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.11499977111816406,
+            "roundTripMs": 0.5958995819091797,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.38300037384033203,
+            "transportAndHostMs": 0.4808998107910156
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.15960025787353516,
+            "roundTripMs": 0.5887002944946289,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.0709996223449707,
+            "transportAndHostMs": 0.42910003662109375
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.20580005645751953,
+            "roundTripMs": 0.4567999839782715,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.06830024719238281,
+            "transportAndHostMs": 0.25099992752075195
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.1109004020690918,
+            "roundTripMs": 0.45669984817504883,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.0661001205444336,
+            "transportAndHostMs": 0.34579944610595703
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.10540008544921875,
+            "roundTripMs": 0.46089982986450195,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.055500030517578125,
+            "transportAndHostMs": 0.3554997444152832
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.23330020904541016,
+            "roundTripMs": 0.5059003829956055,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.05389976501464844,
+            "transportAndHostMs": 0.2726001739501953
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.8857,
+            "roundTripMs": 8.663300037384033,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.08350038528442383,
+            "transportAndHostMs": 7.777600037384033
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.3124,
+            "roundTripMs": 1.0067996978759766,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.05089998245239258,
+            "transportAndHostMs": 0.6943996978759766
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.0136,
+            "roundTripMs": 0.49179983139038086,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.042600154876708984,
+            "transportAndHostMs": 0.47819983139038086
+          }
+        ],
+        "slowestCalls": [
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.8457,
+            "roundTripMs": 11.336400032043457,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.5985002517700195,
+            "transportAndHostMs": 10.490700032043456
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.8857,
+            "roundTripMs": 8.663300037384033,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.08350038528442383,
+            "transportAndHostMs": 7.777600037384033
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 133,
+            "mode": "concurrent",
+            "executionMs": 0.0302,
+            "roundTripMs": 3.7308998107910156,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.05560016632080078,
+            "transportAndHostMs": 3.700699810791016
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 132,
+            "mode": "concurrent",
+            "executionMs": 0.0164,
+            "roundTripMs": 3.2934999465942383,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.050099849700927734,
+            "transportAndHostMs": 3.2770999465942383
+          }
+        ]
+      },
+      {
+        "columns": 20,
+        "rows": 16,
+        "roles": ["csharp", "javascript", "javascript", "csharp"],
+        "calls": 1200,
+        "summaries": [
+          {
+            "language": "javascript",
+            "mode": "serial",
+            "count": 200,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.3873000144958496,
+                "p95": 0.5406999588012695,
+                "max": 1.019200325012207
+              },
+              "roundTripMs": {
+                "p50": 0.5875997543334961,
+                "p95": 0.8933000564575195,
+                "max": 1.3094000816345215
+              },
+              "transportAndHostMs": {
+                "p50": 0.19640016555786133,
+                "p95": 0.38539981842041016,
+                "max": 0.8120002746582031
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.09270048141479492,
+                "p95": 0.1222996711730957,
+                "max": 0.48870038986206055
+              }
+            }
+          },
+          {
+            "language": "javascript",
+            "mode": "concurrent",
+            "count": 400,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.3913998603820801,
+                "p95": 0.504000186920166,
+                "max": 0.9105000495910645
+              },
+              "roundTripMs": {
+                "p50": 0.6908998489379883,
+                "p95": 0.9695000648498535,
+                "max": 1.367300033569336
+              },
+              "transportAndHostMs": {
+                "p50": 0.2772998809814453,
+                "p95": 0.5103001594543457,
+                "max": 0.9500999450683594
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.08820009231567383,
+                "p95": 0.13870000839233398,
+                "max": 0.30450010299682617
+              }
+            }
+          },
+          {
+            "language": "csharp",
+            "mode": "serial",
+            "count": 200,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.0706,
+                "p95": 0.0824,
+                "max": 0.9664
+              },
+              "roundTripMs": {
+                "p50": 0.5485000610351562,
+                "p95": 0.7480998039245605,
+                "max": 10.096199989318848
+              },
+              "transportAndHostMs": {
+                "p50": 0.477499991607666,
+                "p95": 0.6631997467041015,
+                "max": 9.218899989318848
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.08249950408935547,
+                "p95": 0.1456003189086914,
+                "max": 0.7459001541137695
+              }
+            }
+          },
+          {
+            "language": "csharp",
+            "mode": "concurrent",
+            "count": 400,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.0706,
+                "p95": 0.0986,
+                "max": 0.1094
+              },
+              "roundTripMs": {
+                "p50": 0.717400074005127,
+                "p95": 1.1075997352600098,
+                "max": 2.143199920654297
+              },
+              "transportAndHostMs": {
+                "p50": 0.6426999496459961,
+                "p95": 1.0355997352600097,
+                "max": 2.0357999206542967
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.07599973678588867,
+                "p95": 0.13269996643066406,
+                "max": 0.3332996368408203
+              }
+            }
+          }
+        ],
+        "firstCalls": [
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.9664,
+            "roundTripMs": 8.914000034332275,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.7459001541137695,
+            "transportAndHostMs": 7.947600034332275
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.3485,
+            "roundTripMs": 1.3027000427246094,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.13700008392333984,
+            "transportAndHostMs": 0.9542000427246093
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.0744,
+            "roundTripMs": 0.8668003082275391,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.12539958953857422,
+            "transportAndHostMs": 0.792400308227539
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.5648002624511719,
+            "roundTripMs": 1.0354995727539062,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.48870038986206055,
+            "transportAndHostMs": 0.4706993103027344
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.5406999588012695,
+            "roundTripMs": 1.0004997253417969,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.12030029296875,
+            "transportAndHostMs": 0.45979976654052734
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.5453000068664551,
+            "roundTripMs": 0.992499828338623,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.11920022964477539,
+            "transportAndHostMs": 0.44719982147216797
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.573699951171875,
+            "roundTripMs": 1.0104999542236328,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.10950040817260742,
+            "transportAndHostMs": 0.4368000030517578
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.49739980697631836,
+            "roundTripMs": 1.3094000816345215,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.30569982528686523,
+            "transportAndHostMs": 0.8120002746582031
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.5527000427246094,
+            "roundTripMs": 0.9815001487731934,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.0980997085571289,
+            "transportAndHostMs": 0.428800106048584
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.8773,
+            "roundTripMs": 10.096199989318848,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.10020017623901367,
+            "transportAndHostMs": 9.218899989318848
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.3014,
+            "roundTripMs": 1.0794000625610352,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.09310007095336914,
+            "transportAndHostMs": 0.7780000625610352
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.0704,
+            "roundTripMs": 0.6293997764587402,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.08330059051513672,
+            "transportAndHostMs": 0.5589997764587402
+          }
+        ],
+        "slowestCalls": [
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.8773,
+            "roundTripMs": 10.096199989318848,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.10020017623901367,
+            "transportAndHostMs": 9.218899989318848
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.9664,
+            "roundTripMs": 8.914000034332275,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.7459001541137695,
+            "transportAndHostMs": 7.947600034332275
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 297,
+            "mode": "concurrent",
+            "executionMs": 0.1074,
+            "roundTripMs": 2.143199920654297,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.12549972534179688,
+            "transportAndHostMs": 2.0357999206542967
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 15,
+            "mode": "serial",
+            "executionMs": 0.0771,
+            "roundTripMs": 1.808800220489502,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.11769962310791016,
+            "transportAndHostMs": 1.731700220489502
+          }
+        ]
+      },
+      {
+        "columns": 40,
+        "rows": 30,
+        "roles": ["csharp", "javascript", "javascript", "csharp"],
+        "calls": 1200,
+        "summaries": [
+          {
+            "language": "javascript",
+            "mode": "serial",
+            "count": 200,
+            "metrics": {
+              "executionMs": {
+                "p50": 1.3894996643066406,
+                "p95": 1.6529998779296875,
+                "max": 2.7821998596191406
+              },
+              "roundTripMs": {
+                "p50": 1.6796002388000488,
+                "p95": 2.381700038909912,
+                "max": 3.3173999786376953
+              },
+              "transportAndHostMs": {
+                "p50": 0.29089975357055664,
+                "p95": 0.5416994094848633,
+                "max": 0.9173998832702637
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.23360013961791992,
+                "p95": 0.382199764251709,
+                "max": 0.7715001106262207
+              }
+            }
+          },
+          {
+            "language": "javascript",
+            "mode": "concurrent",
+            "count": 400,
+            "metrics": {
+              "executionMs": {
+                "p50": 1.3853001594543457,
+                "p95": 1.4825997352600098,
+                "max": 2.5422000885009766
+              },
+              "roundTripMs": {
+                "p50": 1.6820001602172852,
+                "p95": 2.0408997535705566,
+                "max": 2.9460997581481934
+              },
+              "transportAndHostMs": {
+                "p50": 0.2880997657775879,
+                "p95": 0.5563998222351074,
+                "max": 0.8250999450683594
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.22009992599487305,
+                "p95": 0.29580020904541016,
+                "max": 0.4506998062133789
+              }
+            }
+          },
+          {
+            "language": "csharp",
+            "mode": "serial",
+            "count": 200,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.2557,
+                "p95": 0.3016,
+                "max": 1.0589
+              },
+              "roundTripMs": {
+                "p50": 0.9345998764038086,
+                "p95": 1.3891997337341309,
+                "max": 8.909499645233154
+              },
+              "transportAndHostMs": {
+                "p50": 0.6711000579833984,
+                "p95": 1.0302997337341309,
+                "max": 7.868099645233154
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.21360015869140625,
+                "p95": 0.3595004081726074,
+                "max": 0.9568004608154297
+              }
+            }
+          },
+          {
+            "language": "csharp",
+            "mode": "concurrent",
+            "count": 400,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.2467,
+                "p95": 0.2826,
+                "max": 0.4967
+              },
+              "roundTripMs": {
+                "p50": 1.063000202178955,
+                "p95": 1.597599983215332,
+                "max": 3.36799955368042
+              },
+              "transportAndHostMs": {
+                "p50": 0.8119998954772949,
+                "p95": 1.3379003318786622,
+                "max": 3.0132995536804197
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.2088003158569336,
+                "p95": 0.2569003105163574,
+                "max": 0.4404001235961914
+              }
+            }
+          }
+        ],
+        "firstCalls": [
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 1.0414,
+            "roundTripMs": 8.909499645233154,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.9568004608154297,
+            "transportAndHostMs": 7.868099645233154
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.4936,
+            "roundTripMs": 1.8481998443603516,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.8120999336242676,
+            "transportAndHostMs": 1.3545998443603515
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.3589,
+            "roundTripMs": 1.3891997337341309,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.32610034942626953,
+            "transportAndHostMs": 1.0302997337341309
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 2.149199962615967,
+            "roundTripMs": 2.9562997817993164,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.7715001106262207,
+            "transportAndHostMs": 0.8070998191833496
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 1.8400001525878906,
+            "roundTripMs": 2.7574000358581543,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.31040000915527344,
+            "transportAndHostMs": 0.9173998832702637
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 1.5871000289916992,
+            "roundTripMs": 2.35830020904541,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.3076000213623047,
+            "transportAndHostMs": 0.7712001800537109
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 2.3513998985290527,
+            "roundTripMs": 3.050100326538086,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.26179981231689453,
+            "transportAndHostMs": 0.6987004280090332
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 1.6349000930786133,
+            "roundTripMs": 2.438499927520752,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.2536001205444336,
+            "transportAndHostMs": 0.8035998344421387
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 1.5873003005981445,
+            "roundTripMs": 2.399199962615967,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.24520015716552734,
+            "transportAndHostMs": 0.8118996620178223
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 1.0589,
+            "roundTripMs": 8.867499828338623,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.22100019454956055,
+            "transportAndHostMs": 7.8085998283386235
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.467,
+            "roundTripMs": 1.4006996154785156,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.21770048141479492,
+            "transportAndHostMs": 0.9336996154785155
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.2534,
+            "roundTripMs": 1.0281996726989746,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.2137002944946289,
+            "transportAndHostMs": 0.7747996726989745
+          }
+        ],
+        "slowestCalls": [
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 1.0414,
+            "roundTripMs": 8.909499645233154,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.9568004608154297,
+            "transportAndHostMs": 7.868099645233154
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 1.0589,
+            "roundTripMs": 8.867499828338623,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.22100019454956055,
+            "transportAndHostMs": 7.8085998283386235
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 10,
+            "mode": "serial",
+            "executionMs": 0.3244,
+            "roundTripMs": 3.666800022125244,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.2897000312805176,
+            "transportAndHostMs": 3.3424000221252443
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 145,
+            "mode": "concurrent",
+            "executionMs": 0.3547,
+            "roundTripMs": 3.36799955368042,
+            "inputPreparationMs": null,
+            "adapterAndValidationMs": 0.21020030975341797,
+            "transportAndHostMs": 3.0132995536804197
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "date": "2026-11-19T10:42:54.0677250+00:00",
+    "os": "Microsoft Windows 10.0.26200",
+    "cpuCount": 16,
+    "transportHops": {
+      "javascript": 1,
+      "csharp": 1
+    },
+    "publicCSharpEnabled": false,
+    "resources": {
+      "adapter": "windows-job-v1",
+      "processLimitUnit": "processes",
+      "reservedMemoryBytes": 0,
+      "reservedProcesses": 0,
+      "totalMemoryBytes": 6442450944,
+      "totalProcesses": 32
+    },
+    "observations": [
+      {
+        "columns": 6,
+        "rows": 6,
+        "roles": ["csharp", "javascript", "javascript", "csharp"],
+        "calls": 1200,
+        "summaries": [
+          {
+            "language": "javascript",
+            "mode": "serial",
+            "count": 200,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.04460000991821289,
+                "p95": 0.06319999694824219,
+                "max": 0.252500057220459
+              },
+              "roundTripMs": {
+                "p50": 0.23269987106323242,
+                "p95": 0.41390037536621094,
+                "max": 0.5275001525878906
+              },
+              "transportAndHostMs": {
+                "p50": 0.1876997947692871,
+                "p95": 0.3343997001647949,
+                "max": 0.46400022506713867
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.05060005187988281,
+                "p95": 0.0708003044128418,
+                "max": 0.3452000617980957
+              }
+            }
+          },
+          {
+            "language": "javascript",
+            "mode": "concurrent",
+            "count": 400,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.04519987106323242,
+                "p95": 0.07960033416748047,
+                "max": 0.10109996795654297
+              },
+              "roundTripMs": {
+                "p50": 0.30450010299682617,
+                "p95": 0.4702000617980957,
+                "max": 0.7785000801086426
+              },
+              "transportAndHostMs": {
+                "p50": 0.2588996887207031,
+                "p95": 0.4154996871948242,
+                "max": 0.7035002708435059
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.038500308990478516,
+                "p95": 0.048000335693359375,
+                "max": 0.1100001335144043
+              }
+            }
+          },
+          {
+            "language": "csharp",
+            "mode": "serial",
+            "count": 200,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.0114,
+                "p95": 0.0153,
+                "max": 0.9107
+              },
+              "roundTripMs": {
+                "p50": 0.30389976501464844,
+                "p95": 0.42190027236938477,
+                "max": 13.264500141143799
+              },
+              "transportAndHostMs": {
+                "p50": 0.2924997650146484,
+                "p95": 0.4101002723693848,
+                "max": 12.4401999168396
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.0410003662109375,
+                "p95": 0.06830024719238281,
+                "max": 0.5766000747680664
+              }
+            }
+          },
+          {
+            "language": "csharp",
+            "mode": "concurrent",
+            "count": 400,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.0117,
+                "p95": 0.0157,
+                "max": 0.1016
+              },
+              "roundTripMs": {
+                "p50": 0.5440998077392578,
+                "p95": 0.7862000465393066,
+                "max": 1.1080999374389648
+              },
+              "transportAndHostMs": {
+                "p50": 0.5308999526977539,
+                "p95": 0.7744000465393066,
+                "max": 1.0902999374389648
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.031099796295166016,
+                "p95": 0.05229997634887695,
+                "max": 0.08130025863647461
+              }
+            }
+          }
+        ],
+        "firstCalls": [
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.782,
+            "roundTripMs": 13.2221999168396,
+            "inputPreparationMs": 5.9398999015808105,
+            "responseProcessingMs": 0.07439994812011719,
+            "adapterAndValidationMs": 0.5766000747680664,
+            "transportAndHostMs": 12.4401999168396
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.0205,
+            "roundTripMs": 0.6395998001098633,
+            "inputPreparationMs": 0.1247997299194336,
+            "responseProcessingMs": 0.030100345611572266,
+            "adapterAndValidationMs": 0.19390010833740234,
+            "transportAndHostMs": 0.6190998001098633
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.0186,
+            "roundTripMs": 0.6335997581481934,
+            "inputPreparationMs": 0.0878001739501953,
+            "responseProcessingMs": 0.03880023956298828,
+            "adapterAndValidationMs": 0.1360006332397461,
+            "transportAndHostMs": 0.6149997581481934
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.06689977645874023,
+            "roundTripMs": 0.5009002685546875,
+            "inputPreparationMs": 0.10030031204223633,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.3452000617980957,
+            "transportAndHostMs": 0.43400049209594727
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.06349992752075195,
+            "roundTripMs": 0.5275001525878906,
+            "inputPreparationMs": 0.07990026473999023,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.06909990310668945,
+            "transportAndHostMs": 0.46400022506713867
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.09509992599487305,
+            "roundTripMs": 0.4918999671936035,
+            "inputPreparationMs": 0.06479978561401367,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.05890035629272461,
+            "transportAndHostMs": 0.39680004119873047
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.06569957733154297,
+            "roundTripMs": 0.4103999137878418,
+            "inputPreparationMs": 0.09539985656738281,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.05460023880004883,
+            "transportAndHostMs": 0.34470033645629883
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.06309986114501953,
+            "roundTripMs": 0.4211001396179199,
+            "inputPreparationMs": 0.07399988174438477,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.04680013656616211,
+            "transportAndHostMs": 0.3580002784729004
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.09180021286010742,
+            "roundTripMs": 0.43779993057250977,
+            "inputPreparationMs": 0.054399967193603516,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.05189990997314453,
+            "transportAndHostMs": 0.34599971771240234
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.9107,
+            "roundTripMs": 13.264500141143799,
+            "inputPreparationMs": 6.018299724578858,
+            "responseProcessingMs": 0.04999971389770508,
+            "adapterAndValidationMs": 0.059099674224853516,
+            "transportAndHostMs": 12.353800141143799
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.0191,
+            "roundTripMs": 0.5355000495910645,
+            "inputPreparationMs": 0.13569998092651367,
+            "responseProcessingMs": 0.021500110626220703,
+            "adapterAndValidationMs": 0.04579973220825195,
+            "transportAndHostMs": 0.5164000495910644
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.0161,
+            "roundTripMs": 0.41029977798461914,
+            "inputPreparationMs": 0.08619966430664062,
+            "responseProcessingMs": 0.022499561309814453,
+            "adapterAndValidationMs": 0.045800209045410156,
+            "transportAndHostMs": 0.39419977798461914
+          }
+        ],
+        "slowestCalls": [
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.9107,
+            "roundTripMs": 13.264500141143799,
+            "inputPreparationMs": 6.018299724578858,
+            "responseProcessingMs": 0.04999971389770508,
+            "adapterAndValidationMs": 0.059099674224853516,
+            "transportAndHostMs": 12.353800141143799
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.782,
+            "roundTripMs": 13.2221999168396,
+            "inputPreparationMs": 5.9398999015808105,
+            "responseProcessingMs": 0.07439994812011719,
+            "adapterAndValidationMs": 0.5766000747680664,
+            "transportAndHostMs": 12.4401999168396
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 101,
+            "mode": "concurrent",
+            "executionMs": 0.0178,
+            "roundTripMs": 1.1080999374389648,
+            "inputPreparationMs": 0.12259994812011718,
+            "responseProcessingMs": 0.017499923706054688,
+            "adapterAndValidationMs": 0.0503997802734375,
+            "transportAndHostMs": 1.0902999374389648
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 159,
+            "mode": "concurrent",
+            "executionMs": 0.0119,
+            "roundTripMs": 1.0515003204345703,
+            "inputPreparationMs": 0.06220009002685547,
+            "responseProcessingMs": 0.013499736785888672,
+            "adapterAndValidationMs": 0.03079986572265625,
+            "transportAndHostMs": 1.0396003204345703
+          }
+        ]
+      },
+      {
+        "columns": 20,
+        "rows": 16,
+        "roles": ["csharp", "javascript", "javascript", "csharp"],
+        "calls": 1200,
+        "summaries": [
+          {
+            "language": "javascript",
+            "mode": "serial",
+            "count": 200,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.34130001068115234,
+                "p95": 0.42929983139038086,
+                "max": 0.6343998908996582
+              },
+              "roundTripMs": {
+                "p50": 0.6040000915527344,
+                "p95": 0.8267002105712891,
+                "max": 1.0410003662109375
+              },
+              "transportAndHostMs": {
+                "p50": 0.26020002365112305,
+                "p95": 0.40739965438842773,
+                "max": 0.5856003761291504
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.09280014038085938,
+                "p95": 0.1289997100830078,
+                "max": 0.467099666595459
+              }
+            }
+          },
+          {
+            "language": "javascript",
+            "mode": "concurrent",
+            "count": 400,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.34279966354370117,
+                "p95": 0.40070009231567383,
+                "max": 0.9654998779296875
+              },
+              "roundTripMs": {
+                "p50": 0.6505002975463867,
+                "p95": 0.9107999801635742,
+                "max": 1.470400333404541
+              },
+              "transportAndHostMs": {
+                "p50": 0.30590009689331055,
+                "p95": 0.5101003646850586,
+                "max": 1.130500316619873
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.08449983596801758,
+                "p95": 0.11219978332519531,
+                "max": 0.25260019302368164
+              }
+            }
+          },
+          {
+            "language": "csharp",
+            "mode": "serial",
+            "count": 200,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.0878,
+                "p95": 0.0903,
+                "max": 0.8454
+              },
+              "roundTripMs": {
+                "p50": 0.44809961318969727,
+                "p95": 0.6461000442504883,
+                "max": 13.162499904632568
+              },
+              "transportAndHostMs": {
+                "p50": 0.36050008697509767,
+                "p95": 0.5576000442504883,
+                "max": 12.319599904632568
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.08059978485107422,
+                "p95": 0.1353001594543457,
+                "max": 0.7636003494262695
+              }
+            }
+          },
+          {
+            "language": "csharp",
+            "mode": "concurrent",
+            "count": 400,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.0832,
+                "p95": 0.1069,
+                "max": 0.1265
+              },
+              "roundTripMs": {
+                "p50": 0.663599967956543,
+                "p95": 0.9386000633239746,
+                "max": 3.5708999633789062
+              },
+              "transportAndHostMs": {
+                "p50": 0.5786997779846191,
+                "p95": 0.8500003562927246,
+                "max": 3.4829999633789064
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.0747995376586914,
+                "p95": 0.09270000457763672,
+                "max": 0.23199987411499023
+              }
+            }
+          }
+        ],
+        "firstCalls": [
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.8429,
+            "roundTripMs": 13.162499904632568,
+            "inputPreparationMs": 5.940599886322021,
+            "responseProcessingMs": 0.06960010528564453,
+            "adapterAndValidationMs": 0.7636003494262695,
+            "transportAndHostMs": 12.319599904632568
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.0904,
+            "roundTripMs": 0.7683000564575195,
+            "inputPreparationMs": 0.19860017318725587,
+            "responseProcessingMs": 0.02830028533935547,
+            "adapterAndValidationMs": 0.1379995346069336,
+            "transportAndHostMs": 0.6779000564575195
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.0921,
+            "roundTripMs": 0.9057002067565918,
+            "inputPreparationMs": 0.14490013427734375,
+            "responseProcessingMs": 0.04069995880126953,
+            "adapterAndValidationMs": 0.12930011749267578,
+            "transportAndHostMs": 0.8136002067565918
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.4553999900817871,
+            "roundTripMs": 1.0410003662109375,
+            "inputPreparationMs": 0.22609996795654297,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.467099666595459,
+            "transportAndHostMs": 0.5856003761291504
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.4677000045776367,
+            "roundTripMs": 1.0346002578735352,
+            "inputPreparationMs": 0.21709966659545898,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.11739969253540039,
+            "transportAndHostMs": 0.5669002532958984
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.4094996452331543,
+            "roundTripMs": 0.9534001350402832,
+            "inputPreparationMs": 0.17939996719360352,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.11509990692138672,
+            "transportAndHostMs": 0.5439004898071289
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.45640039443969727,
+            "roundTripMs": 1.0323996543884277,
+            "inputPreparationMs": 0.22730016708374023,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.10650014877319336,
+            "transportAndHostMs": 0.5759992599487305
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.473599910736084,
+            "roundTripMs": 1.025400161743164,
+            "inputPreparationMs": 0.18149995803833008,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.09619951248168945,
+            "transportAndHostMs": 0.5518002510070801
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.42929983139038086,
+            "roundTripMs": 0.9898004531860352,
+            "inputPreparationMs": 0.1979999542236328,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.09539937973022461,
+            "transportAndHostMs": 0.5605006217956543
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.8454,
+            "roundTripMs": 12.56879997253418,
+            "inputPreparationMs": 5.688700074005127,
+            "responseProcessingMs": 0.041199684143066406,
+            "adapterAndValidationMs": 0.09940004348754883,
+            "transportAndHostMs": 11.72339997253418
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.092,
+            "roundTripMs": 0.6515002250671387,
+            "inputPreparationMs": 0.1894997329711914,
+            "responseProcessingMs": 0.020599842071533203,
+            "adapterAndValidationMs": 0.08839988708496094,
+            "transportAndHostMs": 0.5595002250671387
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.0888,
+            "roundTripMs": 0.5315003395080566,
+            "inputPreparationMs": 0.12250009536743164,
+            "responseProcessingMs": 0.01959991455078125,
+            "adapterAndValidationMs": 0.08439970016479492,
+            "transportAndHostMs": 0.44270033950805665
+          }
+        ],
+        "slowestCalls": [
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.8429,
+            "roundTripMs": 13.162499904632568,
+            "inputPreparationMs": 5.940599886322021,
+            "responseProcessingMs": 0.06960010528564453,
+            "adapterAndValidationMs": 0.7636003494262695,
+            "transportAndHostMs": 12.319599904632568
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 0.8454,
+            "roundTripMs": 12.56879997253418,
+            "inputPreparationMs": 5.688700074005127,
+            "responseProcessingMs": 0.041199684143066406,
+            "adapterAndValidationMs": 0.09940004348754883,
+            "transportAndHostMs": 11.72339997253418
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 296,
+            "mode": "concurrent",
+            "executionMs": 0.0879,
+            "roundTripMs": 3.5708999633789062,
+            "inputPreparationMs": 3.0638001945495605,
+            "responseProcessingMs": 0.019899845123291016,
+            "adapterAndValidationMs": 0.12759971618652344,
+            "transportAndHostMs": 3.4829999633789064
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 296,
+            "mode": "concurrent",
+            "executionMs": 0.085,
+            "roundTripMs": 3.495299816131592,
+            "inputPreparationMs": 3.0423999740600585,
+            "responseProcessingMs": 0.015500068664550781,
+            "adapterAndValidationMs": 0.12720012664794922,
+            "transportAndHostMs": 3.410299816131592
+          }
+        ]
+      },
+      {
+        "columns": 40,
+        "rows": 30,
+        "roles": ["csharp", "javascript", "javascript", "csharp"],
+        "calls": 1200,
+        "summaries": [
+          {
+            "language": "javascript",
+            "mode": "serial",
+            "count": 200,
+            "metrics": {
+              "executionMs": {
+                "p50": 1.263199806213379,
+                "p95": 1.313499927520752,
+                "max": 1.8138999938964844
+              },
+              "roundTripMs": {
+                "p50": 1.6538000106811523,
+                "p95": 1.9032998085021973,
+                "max": 2.9277000427246094
+              },
+              "transportAndHostMs": {
+                "p50": 0.3910999298095703,
+                "p95": 0.6227998733520508,
+                "max": 1.159599781036377
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.22410011291503906,
+                "p95": 0.36460018157958984,
+                "max": 0.6577000617980957
+              }
+            }
+          },
+          {
+            "language": "javascript",
+            "mode": "concurrent",
+            "count": 400,
+            "metrics": {
+              "executionMs": {
+                "p50": 1.2684001922607422,
+                "p95": 1.5622997283935547,
+                "max": 2.582899570465088
+              },
+              "roundTripMs": {
+                "p50": 1.7066998481750488,
+                "p95": 2.1982998847961426,
+                "max": 3.5651001930236816
+              },
+              "transportAndHostMs": {
+                "p50": 0.421600341796875,
+                "p95": 0.7834000587463379,
+                "max": 1.137500286102295
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.21789979934692383,
+                "p95": 0.2711005210876465,
+                "max": 0.5446004867553711
+              }
+            }
+          },
+          {
+            "language": "csharp",
+            "mode": "serial",
+            "count": 200,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.3186,
+                "p95": 0.3336,
+                "max": 1.0848
+              },
+              "roundTripMs": {
+                "p50": 0.9001002311706543,
+                "p95": 1.117300033569336,
+                "max": 13.495200157165527
+              },
+              "transportAndHostMs": {
+                "p50": 0.5792998115539552,
+                "p95": 0.806600033569336,
+                "max": 12.410400157165528
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.21379995346069336,
+                "p95": 0.3518996238708496,
+                "max": 0.9933996200561523
+              }
+            }
+          },
+          {
+            "language": "csharp",
+            "mode": "concurrent",
+            "count": 400,
+            "metrics": {
+              "executionMs": {
+                "p50": 0.3062,
+                "p95": 0.3354,
+                "max": 0.4542
+              },
+              "roundTripMs": {
+                "p50": 1.1898002624511719,
+                "p95": 1.8059000968933105,
+                "max": 4.402100086212158
+              },
+              "transportAndHostMs": {
+                "p50": 0.8783998916625977,
+                "p95": 1.4737001777648926,
+                "max": 4.100800086212158
+              },
+              "adapterAndValidationMs": {
+                "p50": 0.2091999053955078,
+                "p95": 0.3978996276855469,
+                "max": 0.5480999946594238
+              }
+            }
+          }
+        ],
+        "firstCalls": [
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 1.0848,
+            "roundTripMs": 13.495200157165527,
+            "inputPreparationMs": 6.092499800109864,
+            "responseProcessingMs": 0.08610010147094727,
+            "adapterAndValidationMs": 0.9933996200561523,
+            "transportAndHostMs": 12.410400157165528
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.3185,
+            "roundTripMs": 1.2793002128601074,
+            "inputPreparationMs": 0.40940021057128906,
+            "responseProcessingMs": 0.03130006790161133,
+            "adapterAndValidationMs": 0.37379980087280273,
+            "transportAndHostMs": 0.9608002128601074
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.3166,
+            "roundTripMs": 1.4306998252868652,
+            "inputPreparationMs": 0.3572002380371094,
+            "responseProcessingMs": 0.04500007629394531,
+            "adapterAndValidationMs": 0.3794999122619629,
+            "transportAndHostMs": 1.1140998252868652
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 1.8138999938964844,
+            "roundTripMs": 2.8547000885009766,
+            "inputPreparationMs": 0.5726003646850586,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.6577000617980957,
+            "transportAndHostMs": 1.0408000946044922
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 1.3092002868652344,
+            "roundTripMs": 2.0782999992370605,
+            "inputPreparationMs": 0.45260000228881836,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.27830028533935547,
+            "transportAndHostMs": 0.7690997123718262
+          },
+          {
+            "language": "javascript",
+            "player": 1,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 1.4857001304626465,
+            "roundTripMs": 2.376499652862549,
+            "inputPreparationMs": 0.4648003578186035,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.28100061416625977,
+            "transportAndHostMs": 0.8907995223999023
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 1.7681002616882324,
+            "roundTripMs": 2.9277000427246094,
+            "inputPreparationMs": 0.5436997413635254,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.38849973678588867,
+            "transportAndHostMs": 1.159599781036377
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 1.3515000343322754,
+            "roundTripMs": 2.1166000366210938,
+            "inputPreparationMs": 0.4454002380371094,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.22699975967407227,
+            "transportAndHostMs": 0.7651000022888184
+          },
+          {
+            "language": "javascript",
+            "player": 2,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 1.4572997093200684,
+            "roundTripMs": 2.241799831390381,
+            "inputPreparationMs": 0.3972001075744629,
+            "responseProcessingMs": null,
+            "adapterAndValidationMs": 0.2259998321533203,
+            "transportAndHostMs": 0.7845001220703125
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 1.0724,
+            "roundTripMs": 13.451799869537354,
+            "inputPreparationMs": 6.106899677276612,
+            "responseProcessingMs": 0.03859996795654297,
+            "adapterAndValidationMs": 0.22919988632202148,
+            "transportAndHostMs": 12.379399869537353
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 2,
+            "mode": "serial",
+            "executionMs": 0.3415,
+            "roundTripMs": 1.1705999374389648,
+            "inputPreparationMs": 0.4152002113342285,
+            "responseProcessingMs": 0.021900177001953125,
+            "adapterAndValidationMs": 0.22240018844604492,
+            "transportAndHostMs": 0.8290999374389648
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 3,
+            "mode": "serial",
+            "executionMs": 0.3273,
+            "roundTripMs": 1.0359001159667969,
+            "inputPreparationMs": 0.3473999641418457,
+            "responseProcessingMs": 0.020100116729736328,
+            "adapterAndValidationMs": 0.21600008010864258,
+            "transportAndHostMs": 0.708600115966797
+          }
+        ],
+        "slowestCalls": [
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 1.0848,
+            "roundTripMs": 13.495200157165527,
+            "inputPreparationMs": 6.092499800109864,
+            "responseProcessingMs": 0.08610010147094727,
+            "adapterAndValidationMs": 0.9933996200561523,
+            "transportAndHostMs": 12.410400157165528
+          },
+          {
+            "language": "csharp",
+            "player": 3,
+            "call": 1,
+            "mode": "serial",
+            "executionMs": 1.0724,
+            "roundTripMs": 13.451799869537354,
+            "inputPreparationMs": 6.106899677276612,
+            "responseProcessingMs": 0.03859996795654297,
+            "adapterAndValidationMs": 0.22919988632202148,
+            "transportAndHostMs": 12.379399869537353
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 112,
+            "mode": "concurrent",
+            "executionMs": 0.3013,
+            "roundTripMs": 4.402100086212158,
+            "inputPreparationMs": 2.934699828338623,
+            "responseProcessingMs": 0.017300128936767578,
+            "adapterAndValidationMs": 0.2239999771118164,
+            "transportAndHostMs": 4.100800086212158
+          },
+          {
+            "language": "csharp",
+            "player": 0,
+            "call": 10,
+            "mode": "serial",
+            "executionMs": 0.3184,
+            "roundTripMs": 3.6338000297546387,
+            "inputPreparationMs": 2.429600177764893,
+            "responseProcessingMs": 0.21740007400512695,
+            "adapterAndValidationMs": 0.33750009536743164,
+            "transportAndHostMs": 3.3154000297546387
+          }
+        ]
+      }
+    ]
+  },
+  "comparisons": [
+    {
+      "columns": 6,
+      "rows": 6,
+      "language": "javascript",
+      "mode": "serial",
+      "count": 200,
+      "beforeRoundTripP50Ms": 0.2516002655029297,
+      "afterRoundTripP50Ms": 0.23269987106323242,
+      "beforeRoundTripP95Ms": 0.45669984817504883,
+      "afterRoundTripP95Ms": 0.41390037536621094,
+      "roundTripP95ChangePercent": -9.371466397429861,
+      "afterOverheadP95Ms": 0.3343997001647949
+    },
+    {
+      "columns": 6,
+      "rows": 6,
+      "language": "javascript",
+      "mode": "concurrent",
+      "count": 400,
+      "beforeRoundTripP50Ms": 0.3486003875732422,
+      "afterRoundTripP50Ms": 0.30450010299682617,
+      "beforeRoundTripP95Ms": 0.5890998840332031,
+      "afterRoundTripP95Ms": 0.4702000617980957,
+      "roundTripP95ChangePercent": -20.18330430165318,
+      "afterOverheadP95Ms": 0.4154996871948242
+    },
+    {
+      "columns": 6,
+      "rows": 6,
+      "language": "csharp",
+      "mode": "serial",
+      "count": 200,
+      "beforeRoundTripP50Ms": 0.4253997802734375,
+      "afterRoundTripP50Ms": 0.30389976501464844,
+      "beforeRoundTripP95Ms": 0.6054997444152832,
+      "afterRoundTripP95Ms": 0.42190027236938477,
+      "roundTripP95ChangePercent": -30.32197350028547,
+      "afterOverheadP95Ms": 0.4101002723693848
+    },
+    {
+      "columns": 6,
+      "rows": 6,
+      "language": "csharp",
+      "mode": "concurrent",
+      "count": 400,
+      "beforeRoundTripP50Ms": 0.6434001922607422,
+      "afterRoundTripP50Ms": 0.5440998077392578,
+      "beforeRoundTripP95Ms": 1.1523003578186035,
+      "afterRoundTripP95Ms": 0.7862000465393066,
+      "roundTripP95ChangePercent": -31.771257276388766,
+      "afterOverheadP95Ms": 0.7744000465393066
+    },
+    {
+      "columns": 20,
+      "rows": 16,
+      "language": "javascript",
+      "mode": "serial",
+      "count": 200,
+      "beforeRoundTripP50Ms": 0.5875997543334961,
+      "afterRoundTripP50Ms": 0.6040000915527344,
+      "beforeRoundTripP95Ms": 0.8933000564575195,
+      "afterRoundTripP95Ms": 0.8267002105712891,
+      "roundTripP95ChangePercent": -7.455484347593078,
+      "afterOverheadP95Ms": 0.40739965438842773
+    },
+    {
+      "columns": 20,
+      "rows": 16,
+      "language": "javascript",
+      "mode": "concurrent",
+      "count": 400,
+      "beforeRoundTripP50Ms": 0.6908998489379883,
+      "afterRoundTripP50Ms": 0.6505002975463867,
+      "beforeRoundTripP95Ms": 0.9695000648498535,
+      "afterRoundTripP95Ms": 0.9107999801635742,
+      "roundTripP95ChangePercent": -6.054675684355959,
+      "afterOverheadP95Ms": 0.5101003646850586
+    },
+    {
+      "columns": 20,
+      "rows": 16,
+      "language": "csharp",
+      "mode": "serial",
+      "count": 200,
+      "beforeRoundTripP50Ms": 0.5485000610351562,
+      "afterRoundTripP50Ms": 0.44809961318969727,
+      "beforeRoundTripP95Ms": 0.7480998039245605,
+      "afterRoundTripP95Ms": 0.6461000442504883,
+      "roundTripP95ChangePercent": -13.634512285523614,
+      "afterOverheadP95Ms": 0.5576000442504883
+    },
+    {
+      "columns": 20,
+      "rows": 16,
+      "language": "csharp",
+      "mode": "concurrent",
+      "count": 400,
+      "beforeRoundTripP50Ms": 0.717400074005127,
+      "afterRoundTripP50Ms": 0.663599967956543,
+      "beforeRoundTripP95Ms": 1.1075997352600098,
+      "afterRoundTripP95Ms": 0.9386000633239746,
+      "roundTripP95ChangePercent": -15.258189990119709,
+      "afterOverheadP95Ms": 0.8500003562927246
+    },
+    {
+      "columns": 40,
+      "rows": 30,
+      "language": "javascript",
+      "mode": "serial",
+      "count": 200,
+      "beforeRoundTripP50Ms": 1.6796002388000488,
+      "afterRoundTripP50Ms": 1.6538000106811523,
+      "beforeRoundTripP95Ms": 2.381700038909912,
+      "afterRoundTripP95Ms": 1.9032998085021973,
+      "roundTripP95ChangePercent": -20.086502187180354,
+      "afterOverheadP95Ms": 0.6227998733520508
+    },
+    {
+      "columns": 40,
+      "rows": 30,
+      "language": "javascript",
+      "mode": "concurrent",
+      "count": 400,
+      "beforeRoundTripP50Ms": 1.6820001602172852,
+      "afterRoundTripP50Ms": 1.7066998481750488,
+      "beforeRoundTripP95Ms": 2.0408997535705566,
+      "afterRoundTripP95Ms": 2.1982998847961426,
+      "roundTripP95ChangePercent": 7.712291157378703,
+      "afterOverheadP95Ms": 0.7834000587463379
+    },
+    {
+      "columns": 40,
+      "rows": 30,
+      "language": "csharp",
+      "mode": "serial",
+      "count": 200,
+      "beforeRoundTripP50Ms": 0.9345998764038086,
+      "afterRoundTripP50Ms": 0.9001002311706543,
+      "beforeRoundTripP95Ms": 1.3891997337341309,
+      "afterRoundTripP95Ms": 1.117300033569336,
+      "roundTripP95ChangePercent": -19.572397946977425,
+      "afterOverheadP95Ms": 0.806600033569336
+    },
+    {
+      "columns": 40,
+      "rows": 30,
+      "language": "csharp",
+      "mode": "concurrent",
+      "count": 400,
+      "beforeRoundTripP50Ms": 1.063000202178955,
+      "afterRoundTripP50Ms": 1.1898002624511719,
+      "beforeRoundTripP95Ms": 1.597599983215332,
+      "afterRoundTripP95Ms": 1.8059000968933105,
+      "roundTripP95ChangePercent": 13.038314713721611,
+      "afterOverheadP95Ms": 1.4737001777648926
+    }
+  ]
+}

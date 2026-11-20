@@ -17,7 +17,7 @@ internal static class CSharpGameChecks
         var dir = Path.Combine(root, "artifacts", "c4d-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(dir);
         var output = Path.GetDirectoryName(typeof(CSharpGameChecks).Assembly.Location)!; var bin = Directory.GetParent(Directory.GetParent(output)!.FullName)!.FullName;
         var host = Path.Combine(bin, "CoinHunter.CSharp.Host/debug/CoinHunter.CSharp.Host.dll"); if (!File.Exists(host)) host = Path.Combine(root, "backend/src/CoinHunter.CSharp.Host/bin/Debug/net10.0/CoinHunter.CSharp.Host.dll");
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        var config = new ConfigurationBuilder().AddEnvironmentVariables().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Backend:RepositoryRoot"] = root,
             ["Backend:DataRoot"] = Path.Combine(dir, "operations"),
@@ -32,7 +32,7 @@ internal static class CSharpGameChecks
         await using var candidate = new CSharpValidationService(settings, content, resources, hosts, config);
         using var execution = new ExecutionManager(settings, content, resources, resourceSettings, candidate); await execution.StartAsync(default); await candidate.StartAsync(default);
         var exchange = new FileSourceStore(settings.ExchangeRoot);
-        var csharp = await exchange.Put(new MemoryStream(Encoding.UTF8.GetBytes("public class Player{private int turn;public void Initialize(int n,int c,int r){turn=0;}public string GetName(){return \"csharp\";}public int MoveNext(int[] map,int p,int[] items){turn++;if(turn==4){while(true){}}return turn%4;}}")));
+        var csharp = await exchange.Put(new MemoryStream(Encoding.UTF8.GetBytes("public class Player{private int turn;public void Initialize(int n,int c,int r){turn=0;}public string GetName(){return \"csharp\";}public int MoveNext(int[] map,int p,int[] items){turn++;Debug.Print(\"turn=\"+turn);if(turn==4){while(true){}}return turn%4;}}")));
         var js = await exchange.Put(new MemoryStream(Encoding.UTF8.GetBytes("module.exports=class{initialize(){}getName(){return 'fast-js';}moveNext(){return -1;}}")));
         var defaults = content.Defaults; defaults["actionMs"] = 50; defaults["runningTimeMs"] = 60000; defaults["itemFirstMs"] = 60000;
         var owner = Guid.NewGuid(); var cells = new int[36]; foreach (int p in new[] { 14, 15, 20, 21 }) cells[p] = 500;
@@ -86,6 +86,8 @@ internal static class CSharpGameChecks
                 Assert(own[3].Text("status") == "timeout" && own[3].Int("direction") == -1 && own[4].Text("status") == "ok" && own[4].Int("direction") == 1, "500ms did not preserve fields for the next actual game call.");
                 Assert(own.Select(e => e.Text("instanceId")).Distinct().Count() == 1, "Timeout restarted the C# instance.");
                 Assert(own.All(e => e["timings"]!.Text("executionBoundary") == "dotnet-guarded-call-v1"), "C# call boundary hidden as QuickJS or IPC time.");
+                Assert(own[0]["logs"]!.AsArray().Single()!.GetValue<string>()=="turn=1"&&own[3]["logs"]!.AsArray().Single()!.GetValue<string>()=="turn=4", "Direct C# debug output missing on normal/timeout turns.");
+                Assert(own.All(e=>e["timings"]!["inputPreparationMs"]!.GetValue<double>()>=0),"C# input preparation timing missing.");
             }
             var prepared = events.Single(e => e.Text("type") == "prepared")["payload"]!["runners"]!.AsArray();
             Assert(prepared[0]!.Text("instanceId") != prepared[1]!.Text("instanceId"), "Different players share a Player object.");
@@ -110,11 +112,24 @@ internal static class CSharpGameChecks
             var faultyRequest = Request("csharp"); faultyRequest = faultyRequest with { Participants = [faultyRequest.Participants[0] with { Source = faultSource }] };
             var faulty = await execution.Accept(faultyRequest, default, candidate: true); await execution.Start(faulty); await faulty.Closed.Task.WaitAsync(TimeSpan.FromSeconds(20));
             Assert(faulty.Result?.Text("outcome") == "failed" && hosts.ManagedCount == 0, "Fatal C# call left engine waiting indefinitely or leaked a host.");
-            Assert(faulty.Result!["recording"]!.Text("status") == "partial", "Broken runner close fabricated a complete journal.");
-            var partialPath = Path.Combine(settings.ExecutionRoot, "journals", faultyRequest.MatchId + ".partial.jsonl");
+            Assert(faulty.Result!["recording"]!.Text("status") == "complete", "Confirmed direct host cleanup lost the complete failure recording.");
+            var partialPath = Path.Combine(settings.ExecutionRoot, "journals", faultyRequest.MatchId + ".jsonl");
             var partial = (await File.ReadAllLinesAsync(partialPath)).Select(line => JsonNode.Parse(line)!).Where(e => e.Text("type") == "algorithm-result").Select(e => e["payload"]!["result"]!).ToArray();
             Assert(partial.Length >= 5 && partial[3].Text("status") == "invalid-result" && partial[3].Int("direction") == -1 && partial[4].Text("status") == "ok", "Invalid direction did not consume only its own turn and preserve reuse.");
             Assert((await File.ReadAllLinesAsync(partialPath)).Select(line => JsonNode.Parse(line)!).Any(e => e.Text("type") == "runtime-failure" && e["payload"]!.Int("callId") == 6 && e["payload"]!.Text("status") == "exception"), "Fatal algorithm judgement missing from full turn journal.");
+            var failure=(await File.ReadAllLinesAsync(partialPath)).Select(line=>JsonNode.Parse(line)!).Single(e=>e.Text("type")=="runtime-failure")["payload"]!;
+            Assert(failure["diagnostic"]!.Text("code")=="IndexOutOfRangeException"&&failure["diagnostic"]!.Int("line")>0,"C# runtime diagnostic lost original guard location/type.");
+            var fairCSharp=await exchange.Put(new MemoryStream(Encoding.UTF8.GetBytes(CSharpInvocationChecks.CSharp)));
+            var fairJs=await exchange.Put(new MemoryStream(Encoding.UTF8.GetBytes(CSharpInvocationChecks.JavaScript)));
+            foreach(var roles in new[]{new[]{"csharp","javascript","javascript","csharp"},new[]{"javascript","csharp","csharp","javascript"}})
+            {
+                var fair=Request(roles);fair=fair with{Participants=fair.Participants.Select(p=>p with{Source=p.Language=="csharp"?fairCSharp:fairJs}).ToArray()};
+                var match=await execution.Accept(fair,default,candidate:true);await execution.Start(match);await match.Closed.Task.WaitAsync(TimeSpan.FromSeconds(20));
+                Assert(match.Result?.Text("outcome")=="finished"&&match.Result["recording"]!.Text("status")=="complete","Equivalent-strategy role swap did not finish/record cleanly.");
+                var log=await Journal(match);var calls=log.Where(e=>e.Text("type")=="algorithm-result").Select(e=>e["payload"]!).ToArray();
+                Assert(calls.Length>0&&calls.All(c=>c["result"]!.Text("status")=="ok")&&!log.Any(e=>e.Text("type")=="runtime-failure"),"Position-swapped BFS had an execution failure.");
+                observations.Add(new{kind="equivalent-strategy-start-slot-swap",roles,result=match.Result!.DeepClone(),calls=calls.Select(c=>new{player=c.Int("player"),callId=c["result"]!.Int("callId"),timings=c["result"]!["timings"]!.DeepClone()}).ToArray()});
+            }
             var last = await execution.Accept(Request("csharp"), default, candidate: true); await execution.Start(last);
             // Actual hosted shutdown order: candidate checks stop before games; cache
             // disposal must wait until game leases and host managers have drained.

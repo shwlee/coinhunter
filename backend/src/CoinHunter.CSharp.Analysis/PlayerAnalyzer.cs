@@ -10,7 +10,7 @@ public sealed record PolicyDiagnostic(string Code, string Message, int Line, int
 public sealed record AnalysisResult(string SourceHash, string Profile, bool StaticPassed, bool ExecutionAllowed, IReadOnlyList<PolicyDiagnostic> Diagnostics)
 {
     public string PolicyVersion => "authoring-policy-v1";
-    public string AnalyzerVersion => "c1-3";
+    public string AnalyzerVersion => "c1-5";
     public string RuntimeVersion => Environment.Version.ToString();
     public string RoslynVersion => typeof(CSharpCompilation).Assembly.GetName().Version!.ToString();
 }
@@ -18,7 +18,7 @@ public sealed record AnalysisResult(string SourceHash, string Profile, bool Stat
 // Candidate profile only. No user assembly is emitted, loaded or executed here.
 public static class PlayerAnalyzer
 {
-    public const string Profile = "csharp-restricted-c1-v2";
+    public const string Profile = "csharp-restricted-c1-v4";
     private static readonly HashSet<string> Syntax = new(StringComparer.Ordinal)
     {
         "CompilationUnit", "UsingDirective", "NameEquals", "QualifiedName", "AliasQualifiedName", "IdentifierName", "GenericName", "TypeArgumentList",
@@ -48,6 +48,7 @@ public static class PlayerAnalyzer
     private static bool AllowedType(ITypeSymbol type) => Scalar(type) || type is IArrayTypeSymbol a && a.Rank == 1 && Scalar(a.ElementType) || Collection(type);
     private static bool Api(IMethodSymbol method)
     {
+        if(PlayerDebugSdk.IsPrint(method))return true;
         var type = method.ContainingType;
         if (type.ToDisplayString() == "System.Math") return method.Name is "Abs" or "Min" or "Max" or "Clamp" or "Sqrt" or "Pow" or "Floor" or "Ceiling" && method.Parameters.All(p => Scalar(p.Type));
         if (!Collection(type)) return false;
@@ -93,7 +94,7 @@ public static class PlayerAnalyzer
         if (classes.Length != 1 || classes[0].Identifier.ValueText != "Player" || classes[0].Parent != root || classes[0].TypeParameterList is not null || classes[0].BaseList is not null)
             Add("AR013", "전역 Player 클래스 하나가 필요하며 상속/제네릭 클래스는 지원하지 않습니다.", root.GetLocation());
         if (diagnostics.Count != 0) return Result();
-        var compilation = CSharpCompilation.Create("Candidate", [tree], References.Value, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: false));
+        var compilation = CSharpCompilation.Create("Candidate", [tree,PlayerDebugSdk.Tree], References.Value, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: false));
         foreach (var error in compilation.GetDiagnostics(cancellationToken).Where(d => d.Severity == DiagnosticSeverity.Error)) Add("AX001", error.GetMessage(), error.Location);
         if (diagnostics.Count != 0) return Result();
         var model = compilation.GetSemanticModel(tree);
@@ -112,6 +113,11 @@ public static class PlayerAnalyzer
         foreach (var node in root.DescendantNodes())
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if(node is InitializerExpressionSyntax direct && direct.IsKind(SyntaxKind.ArrayInitializerExpression) && direct.Parent is EqualsValueClauseSyntax && direct.Expressions.Count>CheckedOperations.MaxArrayElements)Add("AP001","배열 초기화 요소 한도를 넘었습니다.",node.GetLocation());
+            if(node is LiteralExpressionSyntax literal&&literal.IsKind(SyntaxKind.StringLiteralExpression)&&literal.Token.ValueText.Length>CheckedOperations.MaxStringCharacters)Add("AP001","문자열 길이 한도를 넘었습니다.",node.GetLocation());
+            if(node is BinaryExpressionSyntax constant&&model.GetConstantValue(constant,cancellationToken) is {HasValue:true,Value:string value}&&value.Length>CheckedOperations.MaxStringCharacters)Add("AP001","상수 문자열 길이 한도를 넘었습니다.",node.GetLocation());
+            if(node is AssignmentExpressionSyntax append&&append.IsKind(SyntaxKind.AddAssignmentExpression)&&model.GetTypeInfo(append.Left,cancellationToken).Type?.SpecialType==SpecialType.System_String)Add("AP001","문자열 += 대신 s = s + value 형태를 사용하세요.",node.GetLocation());
+            if(node is BinaryExpressionSyntax concat&&concat.IsKind(SyntaxKind.AddExpression)&&model.GetTypeInfo(concat,cancellationToken).Type?.SpecialType==SpecialType.System_String && new[]{concat.Left,concat.Right}.Any(e=>model.GetTypeInfo(e,cancellationToken).Type is { } t&&!Scalar(t)))Add("AP001","문자열 연결에는 기본 스칼라 값만 사용할 수 있습니다.",node.GetLocation());
             // Check semantic types in expressions as well as declarations. A
             // cast/alias/foreach must not turn a rejected dynamic type into an
             // unbound member/indexer that silently skips the symbol checks.
