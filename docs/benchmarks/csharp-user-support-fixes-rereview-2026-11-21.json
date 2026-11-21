@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-11-21T08:34:39.240Z",
+  "baseCommit": "4c93ec3",
+  "target": "Uncommitted H1/M1/M2 fixes",
+  "productCodeModifiedDuringReview": false,
+  "previousFixesConfirmed": ["H1", "M1", "M2"],
+  "newFindings": [
+    {
+      "id": "R1",
+      "priority": "P2",
+      "introducedByFixes": false,
+      "title": "Provisional failed recording is committed and never refreshed after finalization",
+      "source": [
+        "backend/src/CoinHunter.Operations.Api/Services/MatchService.cs:202",
+        "backend/src/CoinHunter.Operations.Api/Services/MatchService.cs:244",
+        "backend/src/CoinHunter.Execution.Host/Controllers/InternalController.cs:41"
+      ],
+      "reproduction": "Actual Operations/file store with controlled execution response ordering; exact OS crash timing not reproduced",
+      "evidence": {
+        "at": "2026-11-21T08:31:19.2475853+00:00",
+        "directory": "D:\\proj\\algorithms\\coinhunter\\artifacts\\rereview-terminal-a1a5930447884eb3bd671d122bd2f7f0",
+        "scenario": "Provisional failed snapshot is returned before journal recovery; ack completes after finalization",
+        "storedDurableThroughSeq": 0,
+        "finalExecutionDurableThroughSeq": 23,
+        "completed": true,
+        "acknowledged": true,
+        "getCalls": 1,
+        "ackCalls": 1,
+        "sourceObservation": "InternalController.Get waits only for finished game snapshots, while ExecutionManager publishes failed results before cleanup/recovery"
+      }
+    }
+  ],
+  "isolatedBuild": {
+    "root": "artifacts/csharp-rereview-build",
+    "warnings": 0,
+    "errors": 0
+  },
+  "actualApi": {
+    "at": "2026-11-21T08:25:17.646Z",
+    "baseCommit": "4c93ec3",
+    "fixesApplied": true,
+    "directory": "D:\\proj\\algorithms\\coinhunter\\artifacts\\backend-integration-Eya2VM",
+    "checks": {
+      "actualPublicCSharp": {
+        "created": true,
+        "status": "playing",
+        "language": "csharp",
+        "matchId": "db2f2439-fa41-4aae-8e04-500d75507fd8"
+      },
+      "disabledRecovery": {
+        "csharpEnabled": false,
+        "executionState": "closed",
+        "executionHasResult": true,
+        "operationsCompleted": true,
+        "operationsApplied": true,
+        "javaScriptCreateStatus": 201,
+        "unrelatedJavaScriptUser": {
+          "executionState": "closed",
+          "executionHasResult": true,
+          "operationsCompleted": true,
+          "createStatus": 201
+        }
+      },
+      "mismatchedAdmission": {
+        "csharpEnabled": false,
+        "createStatus": 503,
+        "rejectionCode": "execution_admission_rejected",
+        "pendingOrphan": false,
+        "nextJavaScriptStatus": 201
+      },
+      "cancellationFence": {
+        "lateAdmissionState": "closed",
+        "enginePid": null,
+        "outcome": "aborted",
+        "conflictStatus": 409
+      },
+      "concurrentAdmissionCancellation": {
+        "trials": 8,
+        "races": [
+          {
+            "order": "accept-first",
+            "acceptStatus": 400,
+            "cancelStatus": 200,
+            "finalState": "failed",
+            "reason": "user-stopped"
+          },
+          {
+            "order": "cancel-first",
+            "acceptStatus": 400,
+            "cancelStatus": 200,
+            "finalState": "failed",
+            "reason": "user-stopped"
+          },
+          {
+            "order": "accept-first",
+            "acceptStatus": 400,
+            "cancelStatus": 200,
+            "finalState": "failed",
+            "reason": "user-stopped"
+          },
+          {
+            "order": "cancel-first",
+            "acceptStatus": 400,
+            "cancelStatus": 200,
+            "finalState": "failed",
+            "reason": "user-stopped"
+          },
+          {
+            "order": "accept-first",
+            "acceptStatus": 400,
+            "cancelStatus": 200,
+            "finalState": "failed",
+            "reason": "user-stopped"
+          },
+          {
+            "order": "cancel-first",
+            "acceptStatus": 400,
+            "cancelStatus": 200,
+            "finalState": "failed",
+            "reason": "user-stopped"
+          },
+          {
+            "order": "accept-first",
+            "acceptStatus": 400,
+            "cancelStatus": 200,
+            "finalState": "failed",
+            "reason": "user-stopped"
+          },
+          {
+            "order": "cancel-first",
+            "acceptStatus": 400,
+            "cancelStatus": 200,
+            "finalState": "failed",
+            "reason": "user-stopped"
+          }
+        ]
+      },
+      "failedCancellationPersistence": {
+        "failedStatus": 500,
+        "visibleBeforeRetry": 404,
+        "retryState": "closed",
+        "outcome": "aborted",
+        "resources": {
+          "adapter": "windows-job-v1",
+          "processLimitUnit": "processes",
+          "reservedMemoryBytes": 0,
+          "reservedProcesses": 0,
+          "totalMemoryBytes": 6442450944,
+          "totalProcesses": 32
+        }
+      }
+    }
+  },
+  "componentChecks": 23,
+  "editorScenarios": [
+    "disabled capability",
+    "C# editor mode",
+    "diagnostic source position",
+    "language save/load",
+    ".cs export",
+    "iframe language handoff",
+    "JS editor restoration",
+    "cancelled import preserves new document edits",
+    "older import cannot overwrite latest file selection",
+    "in-flight import preserves concurrent code edit"
+  ],
+  "finalAcceptancePerformed": false,
+  "rawArtifacts": [
+    "artifacts/rereview-csharp-fixes-api.mjs",
+    "artifacts/csharp-fixes-rereview-api.json",
+    "artifacts/csharp-rereview-probe/Program.cs",
+    "artifacts/csharp-rereview-provisional-result.json"
+  ]
+}

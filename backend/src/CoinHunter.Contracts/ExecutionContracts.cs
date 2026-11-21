@@ -56,7 +56,7 @@ public sealed record ExecutionRequest
 }
 
 public sealed record ExecutionAccepted(Guid MatchId, Guid RequestId, string State);
-public sealed record ExecutionStop(Guid RequestId, string Reason);
+public sealed record ExecutionStop(Guid RequestId, string Reason, ExecutionRequest? Execution = null);
 public sealed record ResultAcknowledgement(Guid MatchId, int ResultVersion);
 
 public sealed record RecordingReference

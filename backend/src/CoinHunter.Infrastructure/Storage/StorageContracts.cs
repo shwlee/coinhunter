@@ -3,9 +3,10 @@ using CoinHunter.Contracts;
 
 namespace CoinHunter.Infrastructure.Storage;
 
-public sealed class ServiceFault(int status, string message) : Exception(message)
+public sealed class ServiceFault(int status, string message, string code = "request_failed") : Exception(message)
 {
     public int Status { get; } = status;
+    public string Code { get; } = code;
 }
 
 public interface IAccountStore

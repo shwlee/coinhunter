@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-11-21T08:13:55.748Z",
+  "baseCommit": "4c93ec3",
+  "fixesCommitted": false,
+  "fixedFindings": ["H1", "M1", "M2"],
+  "isolatedBuild": {
+    "root": "artifacts/csharp-review-fixes-build",
+    "warnings": 0,
+    "errors": 0
+  },
+  "admissionRecoveryComponents": {
+    "checks": 23,
+    "passed": true,
+    "directory": "D:\\proj\\algorithms\\coinhunter\\artifacts\\csharp-recovery-fixes-635488e8815e449288075fd2a086d6ba",
+    "actualCancellationFence": true,
+    "operationsTransport": "test-double"
+  },
+  "actualApi": {
+    "at": "2026-11-21T08:09:07.963Z",
+    "baseCommit": "4c93ec3",
+    "fixesApplied": true,
+    "directory": "D:\\proj\\algorithms\\coinhunter\\artifacts\\backend-integration-GijBtH",
+    "checks": {
+      "actualPublicCSharp": {
+        "created": true,
+        "status": "playing",
+        "language": "csharp",
+        "matchId": "25a8d505-baf0-4474-a733-5856fe1f26e6"
+      },
+      "disabledRecovery": {
+        "csharpEnabled": false,
+        "executionState": "closed",
+        "executionHasResult": true,
+        "operationsCompleted": true,
+        "operationsApplied": true,
+        "javaScriptCreateStatus": 201,
+        "unrelatedJavaScriptUser": {
+          "executionState": "closed",
+          "executionHasResult": true,
+          "operationsCompleted": true,
+          "createStatus": 201
+        }
+      },
+      "mismatchedAdmission": {
+        "csharpEnabled": false,
+        "createStatus": 503,
+        "rejectionCode": "execution_admission_rejected",
+        "pendingOrphan": false,
+        "nextJavaScriptStatus": 201
+      },
+      "cancellationFence": {
+        "lateAdmissionState": "closed",
+        "enginePid": null,
+        "outcome": "aborted",
+        "conflictStatus": 409
+      }
+    }
+  },
+  "editorComponents": {
+    "passed": true,
+    "finalAcceptance": false,
+    "operations": "in-memory-test-double",
+    "actualGameStarted": false,
+    "checks": [
+      "disabled capability",
+      "C# editor mode",
+      "diagnostic source position",
+      "language save/load",
+      ".cs export",
+      "iframe language handoff",
+      "JS editor restoration",
+      "cancelled import preserves new document edits",
+      "older import cannot overwrite latest file selection",
+      "in-flight import preserves concurrent code edit"
+    ],
+    "errors": []
+  },
+  "regressions": {
+    "mixedCSharpGames": 39,
+    "csharpAccountValidation": 44,
+    "nodeFocused": 21
+  },
+  "betaDefaultEnabled": false,
+  "finalAcceptancePerformed": false,
+  "notes": [
+    "Definitive pre-registration rejection is distinct from unknown acceptance.",
+    "Cancellation is durably bound to the original request; no user code is loaded for a missing execution.",
+    "Original user settings, data and normal servers were not changed."
+  ]
+}

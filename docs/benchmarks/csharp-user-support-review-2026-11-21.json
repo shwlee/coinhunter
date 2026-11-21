@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-11-21T07:50:57.776Z",
+  "commit": "4c93ec3",
+  "commitTitle": "feat: connect gated C# authoring and gameplay support",
+  "pushed": false,
+  "productCodeModifiedDuringReview": false,
+  "betaActivatedInUserEnvironment": false,
+  "findings": [
+    {
+      "id": "H1",
+      "priority": "P1",
+      "title": "Disabling CSharp blocks persisted-result recovery and later JS users",
+      "source": [
+        "backend/src/CoinHunter.Execution.Host/Services/ExecutionManager.cs:145",
+        "backend/src/CoinHunter.Operations.Api/Services/MatchService.cs:238"
+      ],
+      "evidence": {
+        "csharpEnabled": false,
+        "executionState": "closed",
+        "executionHasResult": true,
+        "operationsCompleted": false,
+        "operationsApplied": false,
+        "javaScriptCreateStatus": 409,
+        "javaScriptCreateError": "진행 중인 게임을 먼저 종료하세요.",
+        "unrelatedJavaScriptUser": {
+          "executionState": "closed",
+          "executionHasResult": true,
+          "operationsCompleted": false,
+          "createStatus": 409
+        }
+      }
+    },
+    {
+      "id": "M1",
+      "priority": "P2",
+      "title": "Definitive CSharp rejection leaves an uncreated and uncancellable match",
+      "preconditions": {
+        "operationsBeta": true,
+        "executionBeta": false,
+        "executionCandidateValidation": true
+      },
+      "source": [
+        "backend/src/CoinHunter.Operations.Api/Services/MatchService.cs:99",
+        "backend/src/CoinHunter.Operations.Api/Services/MatchService.cs:101",
+        "backend/src/CoinHunter.Operations.Api/Services/MatchService.cs:157"
+      ],
+      "evidence": {
+        "csharpEnabled": false,
+        "createStatus": 503,
+        "createError": "C# 베타 지원이 활성화되지 않았습니다.",
+        "orphanMatchId": "66406f31-ce10-467e-a8bc-a272844b63cf",
+        "orphanCompleted": false,
+        "cancelStatus": 404,
+        "cancelError": "실행을 찾을 수 없습니다.",
+        "javaScriptCreateStatus": 409,
+        "javaScriptCreateError": "진행 중인 게임을 먼저 종료하세요."
+      }
+    },
+    {
+      "id": "M2",
+      "priority": "P2",
+      "title": "Late PC file import replaces unsaved edits in a new document",
+      "introducedByThisCommit": false,
+      "source": ["frontend/public/editor.js:697", "frontend/public/editor.js:707"],
+      "evidence": {
+        "before": "public class Player { int USER_UNSAVED_EDIT; }",
+        "after": "public class Player { int SLOW_IMPORT; }",
+        "lostUnsavedEdit": true,
+        "origin": "내 PC 파일에서 가져옴 · slow.cs"
+      }
+    }
+  ],
+  "apiReproducedAt": "2026-11-20T10:09:16.011Z",
+  "uiReproducedAt": "2026-11-20T10:09:06.720Z",
+  "positiveControl": {
+    "created": true,
+    "status": "playing",
+    "language": "csharp",
+    "matchId": "bf2074d2-9b65-4431-a585-383dbd9f191f"
+  },
+  "rawArtifacts": [
+    "artifacts/review-csharp-support.mjs",
+    "artifacts/csharp-support-review-api.json",
+    "artifacts/review-csharp-support-ui.mjs",
+    "artifacts/csharp-support-review-ui.json",
+    "artifacts/backend-integration-yOjMEn"
+  ],
+  "uiFixture": "in-memory Operations; File.text completion held to model slow import",
+  "uiErrors": [],
+  "finalAcceptanceCompleted": false
+}

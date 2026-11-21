@@ -140,25 +140,27 @@ public sealed class ExecutionManager : IHostedService, IDisposable
     private static string Fingerprint(ExecutionRequest request) => Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(request, Protocol.JsonOptions)));
     public async Task<ExecutionRecord> Accept(ExecutionRequest request, CancellationToken cancellationToken, bool candidate = false)
     {
-        if (candidate && (csharp?.GameCandidateEnabled != true || request.Participants?.Any(p => p?.Language == "csharp") != true)) throw new ServiceFault(503, "C# 게임 후보 실행은 비활성입니다.");
-        bool beta = !candidate && request.Participants?.Any(p => p?.Language == "csharp") == true;
-        if (beta && (csharp?.PublicBetaEnabled != true || request.Scope?.Kind != "user")) throw new ServiceFault(503, "C# 베타 지원이 활성화되지 않았습니다.");
-        ContractValidation.Execution(request, candidate || beta);
-        if (beta && request.Participants!.Count(p => p.Language == "csharp") > 2) throw new ServiceFault(400, "C# 베타는 게임당 최대 두 실행기를 지원합니다.");
-        var limits = beta ? resourceSettings.CSharpBetaGame : resourceSettings.Game;
-        candidate |= beta; // Reuse the proven private player-channel lifecycle, not the public candidate route.
-        var map = JsonSerializer.SerializeToNode(request.Map, Protocol.JsonOptions)!.AsObject(); map["schemaVersion"] = 1; map["name"] = "Execution snapshot"; map["description"] = "";
-        MapRules.Validate(map, content, true);
         await admission.WaitAsync(cancellationToken);
         ExecutionRecord record;
         try
         {
-            if (stopping) throw new ServiceFault(503, "실행 서비스 종료 중입니다.");
+            // Exact retries and terminal cancellation fences are lookups, even after
+            // language disablement. Never start another process for an existing ID.
             if (records.TryGetValue(request.MatchId, out var found))
             {
                 if (found.Fingerprint != Fingerprint(request)) throw new ServiceFault(409, "경기 ID와 요청 내용이 충돌합니다.");
                 return found;
             }
+            if (stopping) throw new ServiceFault(503, "실행 서비스 종료 중입니다.");
+            bool beta = !candidate && request.Participants?.Any(p => p?.Language == "csharp") == true;
+            ContractValidation.Execution(request, candidate || beta);
+            if (candidate && (csharp?.GameCandidateEnabled != true || !request.Participants!.Any(p => p.Language == "csharp"))) throw new ServiceFault(503, "C# 게임 후보 실행은 비활성입니다.");
+            if (beta && (csharp?.PublicBetaEnabled != true || request.Scope.Kind != "user")) throw new ServiceFault(503, "C# 베타 지원이 활성화되지 않았습니다.");
+            if (beta && request.Participants!.Count(p => p.Language == "csharp") > 2) throw new ServiceFault(400, "C# 베타는 게임당 최대 두 실행기를 지원합니다.");
+            var limits = beta ? resourceSettings.CSharpBetaGame : resourceSettings.Game;
+            candidate |= beta;
+            var map = JsonSerializer.SerializeToNode(request.Map, Protocol.JsonOptions)!.AsObject(); map["schemaVersion"] = 1; map["name"] = "Execution snapshot"; map["description"] = "";
+            MapRules.Validate(map, content, true);
             if (records.Values.Any(value => value.Request.RequestId == request.RequestId)) throw new ServiceFault(409, "실행 요청 ID가 이미 사용되었습니다.");
             if (records.Values.Count(value => !value.Closed.Task.IsCompleted) >= 4) throw new ServiceFault(429, "동시 경기 한도에 도달했습니다.");
             if (records.Count >= 10000) throw new ServiceFault(503, "실행 기록 보존 한도입니다. 오프라인 보관 정리가 필요합니다.");
@@ -174,6 +176,10 @@ public sealed class ExecutionManager : IHostedService, IDisposable
             catch { record.Preparation.Dispose(); record.ResourceGroup.Dispose(); throw; }
             records[request.MatchId] = record;
         }
+        // Only failures before registration carry the definitive rejection code.
+        // Preparation/start failures and lost replies remain potentially accepted.
+        catch (ServiceFault fault) { throw new ServiceFault(fault.Status, fault.Message, Protocol.AdmissionRejectedCode); }
+        catch (InvalidDataException fault) { throw new ServiceFault(400, fault.Message, Protocol.AdmissionRejectedCode); }
         finally { admission.Release(); }
         _ = Run(record);
         try { await record.Prepared.Task.WaitAsync(TimeSpan.FromSeconds(candidate ? 120 : 20), cancellationToken); }
@@ -332,6 +338,39 @@ public sealed class ExecutionManager : IHostedService, IDisposable
         finally { record.Input.Release(); }
     }
     public ExecutionRecord Get(Guid id) => records.GetValueOrDefault(id) ?? throw new ServiceFault(404, "실행을 찾을 수 없습니다.");
+    public async Task<ExecutionRecord> Cancel(ExecutionRequest request, string reason, CancellationToken token)
+    {
+        ContractValidation.Execution(request, allowCSharpCandidate: true);
+        if (!new[] { "user-stopped", "account-ended", "server-shutdown", "prepare-failed", "start-failed" }.Contains(reason)) throw new ServiceFault(400, "종료 사유를 확인하세요.");
+        ExecutionRecord record;
+        await admission.WaitAsync(token);
+        try
+        {
+            if (records.TryGetValue(request.MatchId, out var existing))
+            {
+                if (existing.Fingerprint != Fingerprint(request)) throw new ServiceFault(409, "경기 ID와 요청 내용이 충돌합니다.");
+                record = existing;
+            }
+            else
+            {
+                if (stopping || records.Count >= 10000) throw new ServiceFault(503, "취소 기록을 보관할 수 없습니다. 다시 시도하세요.");
+                record = new ExecutionRecord { Request = request, Fingerprint = Fingerprint(request), State = "closed", StopReason = reason };
+                record.Result = Failure(record, reason, new JsonObject { ["status"] = "failed", ["key"] = request.MatchId.ToString(), ["durableThroughSeq"] = 0 });
+                record.Result["outcome"] = "aborted";
+                record.Prepared.TrySetResult(); record.Closed.TrySetResult();
+                // Persist before confirming cancellation. A delayed Accept must see
+                // this same terminal identity after a service restart as well.
+                Directory.CreateDirectory(DirectoryFor(request.MatchId));
+                await AtomicFile.Json(Path.Combine(DirectoryFor(request.MatchId), "request.json"), JsonSerializer.SerializeToNode(request, Protocol.JsonOptions)!);
+                await Persist(record);
+                records[request.MatchId] = record;
+                return record;
+            }
+        }
+        finally { admission.Release(); }
+        await Stop(record, reason);
+        return record;
+    }
     public JsonObject View(ExecutionRecord record)
     {
         lock (record.Gate) return new JsonObject
@@ -360,8 +399,8 @@ public sealed class ExecutionManager : IHostedService, IDisposable
     public async Task Stop(ExecutionRecord record, string reason)
     {
         if (record.Closed.Task.IsCompleted) return;
-        record.Preparation.Cancel();
         record.StopReason = reason;
+        record.Preparation.Cancel();
         try { if (record.Process is { HasExited: false }) await Send(record, "stop", JsonSerializer.SerializeToElement(new StopPayload(Guid.NewGuid(), reason), Protocol.JsonOptions)); }
         catch (Exception error) when (error is IOException or InvalidOperationException or OperationCanceledException) { }
         try { await record.Closed.Task.WaitAsync(TimeSpan.FromSeconds(5)); }

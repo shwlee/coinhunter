@@ -52,7 +52,13 @@ public sealed class InternalController(ExecutionManager manager, StorageSettings
     public async Task<IActionResult> Stop(Guid id, [FromBody] ExecutionStop request)
     {
         if (request.RequestId == Guid.Empty || !new[] { "user-stopped", "account-ended", "server-shutdown", "prepare-failed", "start-failed" }.Contains(request.Reason)) throw new ServiceFault(400, "종료 요청을 확인하세요.");
-        await manager.Stop(manager.Get(id), request.Reason); return Ok(new { ok = true });
+        if (request.Execution is { } execution)
+        {
+            if (execution.MatchId != id) throw new ServiceFault(400, "취소 대상 경기가 일치하지 않습니다.");
+            await manager.Cancel(execution, request.Reason, HttpContext.RequestAborted);
+        }
+        else await manager.Stop(manager.Get(id), request.Reason);
+        return Ok(new { ok = true });
     }
     [HttpPost("validations")]
     public async Task<IActionResult> Validate([FromBody] ValidationRequest request) => Ok(await manager.Validate(request, HttpContext.RequestAborted));

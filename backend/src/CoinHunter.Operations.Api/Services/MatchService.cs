@@ -98,9 +98,10 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
             });
             committed = true;
             try { await EnsureStarted(request); }
-            catch (ServiceFault fault) when (fault.Status is 429 or 409)
+            catch (ServiceFault fault) when (fault.Code == Protocol.AdmissionRejectedCode)
             {
-                // Rejected admission is final: it must not become a queued game after slots free up.
+                // Only a confirmed pre-registration rejection can roll back. An
+                // unavailable service/lost response may already own a running game.
                 await store.Change(data => { var list = JsonData.Array(data, "matches"); list.Remove(JsonData.Find(data, "matches", id.ToString())); return Task.FromResult(true); });
                 committed = false; throw;
             }
@@ -154,7 +155,8 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
         await store.Change(data => { JsonData.Find(data, "matches", id)["stopReason"] = reason; return Task.FromResult(true); });
         if (!item.Bool("completed"))
         {
-            await execution.Call(HttpMethod.Post, $"/internal/v1/matches/{Guid.Parse(id)}/stop", new ExecutionStop(Guid.NewGuid(), reason));
+            var request = item["request"]!.Deserialize<ExecutionRequest>(Protocol.JsonOptions)!;
+            await execution.Call(HttpMethod.Post, $"/internal/v1/matches/{Guid.Parse(id)}/stop", new ExecutionStop(Guid.NewGuid(), reason, request));
             var view = await execution.Call(HttpMethod.Get, $"/internal/v1/matches/{Guid.Parse(id)}"); await Apply(item, view);
         }
     }
@@ -227,22 +229,43 @@ public sealed class MatchService(IAccountStore store, AccountService accounts, I
             var pending = await store.Read(data => JsonData.Array(data, "matches").OfType<JsonObject>().Where(item => !item.Bool("completed") || !item.Bool("acknowledged")).Select(item => item.CloneObject()).ToArray());
             foreach (var item in pending)
             {
-                // Applied summaries must never be recreated as games when an execution record is unavailable.
-                if (item.Bool("completed"))
-                {
-                    try { await Acknowledge(item.Text("id")); }
-                    catch (ServiceFault) { }
-                    continue;
-                }
-                var request = item["request"]!.Deserialize<ExecutionRequest>(Protocol.JsonOptions)!;
-                var view = await execution.Call(HttpMethod.Post, "/internal/v1/matches", request, candidateValidation: request.Participants.Any(player => player.Language == "csharp"));
-                if (view["result"] is JsonObject) { await Apply(item, view); continue; }
-                var ended = item.Text("stopReason");
-                if (request.Scope.Kind == "user" && await accounts.User(request.Scope.SubjectId.ToString()) is null) ended = "account-ended";
-                if (ended.Length > 0) await execution.Call(HttpMethod.Post, $"/internal/v1/matches/{request.MatchId}/stop", new ExecutionStop(Guid.NewGuid(), ended));
-                else if (view.Text("state") == "prepared") await execution.Call(HttpMethod.Post, $"/internal/v1/matches/{request.MatchId}/start", new StartPayload(Guid.NewGuid()));
+                try { await Reconcile(item); }
+                catch (Exception error) when (error is ServiceFault or HttpRequestException or IOException or OperationCanceledException or JsonException or InvalidOperationException)
+                { /* Retain this receipt for retry; one game must not starve later owners. */ }
             }
         }
         finally { reconciliation.Release(); creation.Release(); }
+    }
+    private async Task Reconcile(JsonObject item)
+    {
+        // Applied summaries must never be recreated as games when an execution record is unavailable.
+        if (item.Bool("completed"))
+        {
+            await Acknowledge(item.Text("id"));
+            return;
+        }
+        var request = item["request"]!.Deserialize<ExecutionRequest>(Protocol.JsonOptions)!;
+        var ended = item.Text("stopReason");
+        if (request.Scope.Kind == "user" && await accounts.User(request.Scope.SubjectId.ToString()) is null) ended = "account-ended";
+        JsonObject? view = null;
+        try { view = await execution.Call(HttpMethod.Get, $"/internal/v1/matches/{request.MatchId}"); }
+        catch (ServiceFault fault) when (fault.Status == 404) { }
+        if (view is null && ended.Length == 0)
+        {
+            if (request.Participants.Any(player => player.Language == "csharp") && !languagePolicy.CSharpEnabled) ended = "prepare-failed";
+            else
+            {
+                try { view = await execution.Call(HttpMethod.Post, "/internal/v1/matches", request, candidateValidation: request.Participants.Any(player => player.Language == "csharp")); }
+                catch (ServiceFault fault) when (fault.Code == Protocol.AdmissionRejectedCode) { ended = "prepare-failed"; }
+            }
+        }
+        if (view?["result"] is JsonObject) { await Apply(item, view); return; }
+        if (ended.Length > 0)
+        {
+            await execution.Call(HttpMethod.Post, $"/internal/v1/matches/{request.MatchId}/stop", new ExecutionStop(Guid.NewGuid(), ended, request));
+            view = await execution.Call(HttpMethod.Get, $"/internal/v1/matches/{request.MatchId}");
+            await Apply(item, view);
+        }
+        else if (view?.Text("state") == "prepared") await execution.Call(HttpMethod.Post, $"/internal/v1/matches/{request.MatchId}/start", new StartPayload(Guid.NewGuid()));
     }
 }

@@ -11,6 +11,7 @@ public static class Protocol
     public const int AlgorithmLimitMs = 500;
     public const string OperationsService = "coinhunter-operations";
     public const string ExecutionService = "coinhunter-execution";
+    public const string AdmissionRejectedCode = "execution_admission_rejected";
 
     public static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web)
     {

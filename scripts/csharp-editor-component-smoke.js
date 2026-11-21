@@ -162,6 +162,65 @@ try {
   await page.selectOption('#algorithm-language', 'javascript');
   await page.locator('.cm-content[aria-label="JavaScript 알고리즘 코드"]').waitFor();
   assert.equal(await page.locator('.ai-sidebar').isVisible(), true);
+  await page.evaluate(() => {
+    const original = File.prototype.text;
+    window.__heldImports = {};
+    File.prototype.text = function () {
+      if (!this.name.startsWith('slow-')) return original.call(this);
+      const file = this;
+      return new Promise((resolve) => {
+        window.__heldImports[file.name] = async () => resolve(await original.call(file));
+      });
+    };
+  });
+  const releaseImport = async (name) =>
+    page.evaluate(async (file) => {
+      await window.__heldImports[file]();
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }, name);
+  await page.click('#load-mode');
+  await page.setInputFiles('#import', {
+    name: 'slow-cancelled.cs',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('public class Player { int STALE; }'),
+  });
+  await page.waitForFunction(() => window.__heldImports['slow-cancelled.cs']);
+  await page.click('#cancel-load');
+  await page.selectOption('#algorithm-language', 'csharp');
+  await page.locator('.cm-content').fill('public class Player { int USER_UNSAVED_EDIT; }');
+  await releaseImport('slow-cancelled.cs');
+  assert.match(await page.locator('.cm-content').innerText(), /USER_UNSAVED_EDIT/);
+  await page.click('#load-mode');
+  await page.setInputFiles('#import', {
+    name: 'slow-older.cs',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('public class Player { int OLDER_IMPORT; }'),
+  });
+  await page.waitForFunction(() => window.__heldImports['slow-older.cs']);
+  await page.setInputFiles('#import', {
+    name: 'newer.cs',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('public class Player { int NEWER_IMPORT; }'),
+  });
+  await page.locator('#load-panel').waitFor({ state: 'hidden' });
+  await releaseImport('slow-older.cs');
+  assert.match(await page.locator('.cm-content').innerText(), /NEWER_IMPORT/);
+  await page.click('#load-mode');
+  await page.setInputFiles('#import', {
+    name: 'slow-edited.cs',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('public class Player { int LATE_IMPORT; }'),
+  });
+  await page.waitForFunction(() => window.__heldImports['slow-edited.cs']);
+  await page.evaluate(() => {
+    const code = document.getElementById('code');
+    code.value = 'public class Player { int ASYNC_EDIT; }';
+    code.dispatchEvent(new Event('input'));
+  });
+  await releaseImport('slow-edited.cs');
+  assert.match(await page.locator('.cm-content').innerText(), /ASYNC_EDIT/);
+  assert.match(await page.locator('#load-error').textContent(), /문서가 변경/);
+  await page.click('#cancel-load');
   assert.deepEqual(errors, []);
   await mkdir('artifacts/csharp-user-components', { recursive: true });
   await writeFile(
@@ -180,6 +239,9 @@ try {
           '.cs export',
           'iframe language handoff',
           'JS editor restoration',
+          'cancelled import preserves new document edits',
+          'older import cannot overwrite latest file selection',
+          'in-flight import preserves concurrent code edit',
         ],
         errors,
       },
@@ -188,7 +250,7 @@ try {
     ),
   );
   console.log(
-    'C# editor component smoke: 7 scenarios passed; test doubles only, actual game and final acceptance not run.',
+    'C# editor component smoke: 10 scenarios passed; test doubles only, actual game and final acceptance not run.',
   );
 } finally {
   await browser?.close();

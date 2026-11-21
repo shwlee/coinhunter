@@ -33,7 +33,7 @@ public sealed class ExecutionClient(IHttpClientFactory clients, BackendSettings 
             using var output = new MemoryStream(); var buffer = new byte[65536];
             while (true) { var read = await stream.ReadAsync(buffer, deadline.Token); if (read == 0) break; if (output.Length + read > Protocol.MaxFrameBytes) throw new IOException("Internal response too large."); output.Write(buffer, 0, read); }
             var value = JsonNode.Parse(output.ToArray())!.AsObject();
-            if (!response.IsSuccessStatusCode) throw new ServiceFault((int)response.StatusCode, value.Text("error", "실행 서비스 요청을 처리하지 못했습니다."));
+            if (!response.IsSuccessStatusCode) throw new ServiceFault((int)response.StatusCode, value.Text("error", "실행 서비스 요청을 처리하지 못했습니다."), value.Text("code", "request_failed"));
             return value;
         }
         catch (HttpRequestException) { throw new ServiceFault(503, "게임 실행 서비스에 연결할 수 없습니다."); }

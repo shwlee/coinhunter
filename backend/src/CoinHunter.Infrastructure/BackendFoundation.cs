@@ -126,7 +126,7 @@ public static class BackendFoundation
                 if (context.Response.HasStarted) { context.Abort(); return; }
                 var task = failure switch
                 {
-                    ServiceFault fault => Error(context, fault.Status, fault.Message, "request_failed"),
+                    ServiceFault fault => Error(context, fault.Status, fault.Message, fault.Code),
                     System.Text.Json.JsonException or InvalidDataException or FormatException or ArgumentException => Error(context, 400, "요청 형식과 값을 확인하세요.", "invalid_request"),
                     TimeoutException or OperationCanceledException => Error(context, 503, "처리 대기 시간을 초과했습니다. 다시 시도하세요.", "service_timeout"),
                     _ => Error(context, 500, "요청을 완료하지 못했습니다.", "internal_error")

@@ -309,6 +309,7 @@ $('load-mode').onclick = async () => {
 };
 $('cancel-load').onclick = () => $('load-panel').close();
 $('load-panel').addEventListener('close', () => {
+  documentLoadVersion++;
   $('import').value = '';
 });
 $('library').onchange = () => {
@@ -697,23 +698,28 @@ async function loadSavedAlgorithm(id) {
 $('import').onchange = async () => {
   const file = $('import').files[0];
   if (!file || saving) return;
+  const version = ++documentLoadVersion;
   $('load-error').hidden = true;
   try {
     if (!(await mayDiscard())) return;
+    if (version !== documentLoadVersion || !$('load-panel').open) return;
     const language = languageFromFilename(file.name);
     const unavailable = unavailableLanguage(languageCapabilities, language, authenticated);
     if (unavailable) throw new Error(unavailable);
-    reset(
-      { name: file.name.replace(/\.(js|cs)$/i, ''), language, source: await file.text() },
-      'file',
-      file.name,
-    );
+    const previous = contents();
+    const source = await file.text();
+    if (version !== documentLoadVersion || !$('load-panel').open) return;
+    if (saving || previous !== contents())
+      throw new Error(
+        '파일을 읽는 동안 문서가 변경되었습니다. 현재 코드를 확인한 뒤 다시 불러오세요.',
+      );
+    reset({ name: file.name.replace(/\.(js|cs)$/i, ''), language, source }, 'file', file.name);
     $('load-panel').close();
     showPanel('writing');
   } catch (error) {
-    loadError(error.message);
+    if (version === documentLoadVersion && $('load-panel').open) loadError(error.message);
   } finally {
-    $('import').value = '';
+    if (version === documentLoadVersion) $('import').value = '';
   }
 };
 $('export').onclick = () => {

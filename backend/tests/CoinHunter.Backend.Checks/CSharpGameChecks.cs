@@ -61,7 +61,7 @@ internal static class CSharpGameChecks
             try { await execution.Accept(request, default, candidate: true); throw new Exception("Disabled candidate route executed C#."); } catch (ServiceFault e) when (e.Status == 503) { checks++; }
             config["Backend:CSharpGameCandidate:Enabled"] = "true";
             try { ContractValidation.Execution(request); throw new Exception("Default contract activated C#."); } catch (InvalidDataException) { checks++; }
-            try { await execution.Accept(request, default); throw new Exception("Default admission activated C#."); } catch (InvalidDataException) { checks++; }
+            try { await execution.Accept(request, default); throw new Exception("Default admission activated C#."); } catch (ServiceFault e) when (e.Status == 503 && e.Code == Protocol.AdmissionRejectedCode) { checks++; }
             ContractValidation.Execution(request, true);
             try { ContractValidation.Execution(request with { Scope = request.Scope with { Kind = "guest" } }, true); throw new Exception("Guest candidate admitted."); } catch (InvalidDataException) { checks++; }
             var game = await execution.Accept(request, default, candidate: true);
